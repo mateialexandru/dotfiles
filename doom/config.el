@@ -9,30 +9,10 @@
 ;; (setq user-full-name "John Doe"
 ;;       user-mail-address "john@doe.com")
 
-;; Doom exposes five (optional) variables for controlling fonts in Doom:
-;;
-;; - `doom-font' -- the primary font to use
-;; - `doom-variable-pitch-font' -- a non-monospace font (where applicable)
-;; - `doom-big-font' -- used for `doom-big-font-mode'; use this for
-;;   presentations or streaming.
-;; - `doom-symbol-font' -- for symbols
-;; - `doom-serif-font' -- for the `fixed-pitch-serif' face
-;;
-;; See 'C-h v doom-font' for documentation and more examples of what they
-;; accept. For example:
-;;
-;;(setq doom-font (font-spec :family "Fira Code" :size 12 :weight 'semi-light)
-;;      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 13))
-;;
-;; If you or Emacs can't find your font, use 'M-x describe-font' to look them
-;; up, `M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
-;; refresh your font settings. If Emacs still can't find your font, it likely
-;; wasn't installed correctly. Font issues are rarely Doom issues!
-
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-horizon)
+(setq doom-theme 'doom-one)
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
@@ -40,53 +20,123 @@
 
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
-(setq org-directory "~/org/")
+(setq org-directory "~/Source/mindmap/org/"
+      org-roam-directory "~/Source/mindmap/roam/")
 
-
-;; Whenever you reconfigure a package, make sure to wrap your config in an
-;; `after!' block, otherwise Doom's defaults may override your settings. E.g.
-;;
-;;   (after! PACKAGE
-;;     (setq x y))
-;;
-;; The exceptions to this rule:
-;;
-;;   - Setting file/directory variables (like `org-directory')
-;;   - Setting variables which explicitly tell you to set them before their
-;;     package is loaded (see 'C-h v VARIABLE' to look up their documentation).
-;;   - Setting doom variables (which start with 'doom-' or '+').
-;;
-;; Here are some additional functions/macros that will help you configure Doom.
-;;
-;; - `load!' for loading external *.el files relative to this one
-;; - `use-package!' for configuring packages
-;; - `after!' for running code after a package has loaded
-;; - `add-load-path!' for adding directories to the `load-path', relative to
-;;   this file. Emacs searches the `load-path' when you load packages with
-;;   `require' or `use-package'.
-;; - `map!' for binding new keys
-;;
-;; To get information about any of these functions/macros, move the cursor over
-;; the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
-;; This will open documentation for it, including demos of how they are used.
-;; Alternatively, use `C-h o' to look up a symbol (functions, variables, faces,
-;; etc).
-;;
-;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
-;; they are implemented.
-
-;; Windows: Use Git bash for POSIX compatibility (works with Windows paths)
-;;(setq shell-file-name "C:/Program Files/Git/bin/bash.exe")
-
-;; Font configuration
-(setq doom-font (font-spec :family "JetBrainsMono NF" :size 14)
-      doom-variable-pitch-font (font-spec :family "Segoe UI" :size 13)
-      doom-symbol-font (font-spec :family "Symbols Nerd Font Mono"))
-
-;; Start Emacs server for emacsclient support (context menu integration)
+;; Start Emacs server for emacsclient support
 (server-start)
 
-;; Dired configuration
-(setq dired-use-ls-dired nil              ; Use Emacs lisp for ls (Windows compatible)
-      dired-listing-switches "-alh")      ; Human-readable sizes
+;; EWW popup rule — open EWW in a real window, not a popup
+(after! eww
+  (set-popup-rule! "^\\*eww\\*" :ignore t))
+
+;;; EWW + persp-mode session restore
+
+;; Mark eww buffers as "real" globally (not per-buffer)
+(after! doom
+  (defun +my/doom-real-eww-buffer-p (buf)
+    (eq (buffer-local-value 'major-mode buf) 'eww-mode))
+  (add-to-list 'doom-real-buffer-functions #'+my/doom-real-eww-buffer-p))
+
+(after! persp-mode
+  (require 'eww)
+
+  ;; 1. HELPER: Ensure new eww buffers are added to the perspective
+  (defun +my/persp-add-current-buffer-to-current-persp-h ()
+    (when (bound-and-true-p persp-mode)
+      (persp-add-buffer (current-buffer) (get-current-persp) nil)))
+  (add-hook 'eww-mode-hook #'+my/persp-add-current-buffer-to-current-persp-h)
+
+  ;; 2. HELPER: Restore point after EWW renders
+  (defvar-local +my/eww-restore-point nil)
+
+  (defun +my/eww-restore-point-after-render-h ()
+    "Hook to restore point after EWW finishes rendering the page."
+    (when (integerp +my/eww-restore-point)
+      (goto-char (min (point-max) (max 1 +my/eww-restore-point)))
+      (setq +my/eww-restore-point nil)
+      ;; Remove self from hook so it doesn't run on subsequent navigations
+      (remove-hook 'eww-after-render-hook #'+my/eww-restore-point-after-render-h t)))
+
+  ;; 3. CONFIGURATION: Define how to Save and Load
+  (persp-def-buffer-save/load
+   :mode 'eww-mode
+   :tag-symbol 'def-eww
+   :save-vars '(point) ; We rely mostly on :save-function, but this is required by the macro syntax
+
+   ;; --- SAVE FUNCTION ---
+   :save-function
+   (lambda (b tag lvars)
+     (with-current-buffer b
+       (let ((url   (or (plist-get eww-data :url) (bound-and-true-p eww-current-url)))
+             (title (or (plist-get eww-data :title) (bound-and-true-p eww-current-title)))
+             (pt    (point))
+             (bname (buffer-name b)))
+         ;; Add custom data to lvars
+         (when (stringp url)
+           (push (cons 'eww-url url) lvars))
+         (when (stringp title)
+           (push (cons 'eww-title title) lvars))
+         (push (cons 'eww-buffer-name bname) lvars)
+         (push (cons 'point pt) lvars)
+         ;; Return the list format expected by persp-mode
+         (list tag bname lvars))))
+
+   ;; --- LOAD FUNCTION ---
+   ;; We use :load-function because it receives the full `savelist`
+   :load-function
+   (lambda (savelist &rest _)
+     (cl-destructuring-bind (_tag buffer-name vars-list &rest _rest) savelist
+       (let ((url   (alist-get 'eww-url vars-list))
+             (pt    (alist-get 'point vars-list))
+             (bname (alist-get 'eww-buffer-name vars-list)))
+
+         (if (not (and (stringp url) (not (string-empty-p url))))
+             ;; Fallback if no URL found: just create a basic buffer
+             (get-buffer-create (or bname buffer-name))
+
+           ;; Create/reuse the buffer and initialize EWW
+           (let ((buff (get-buffer-create (or bname buffer-name))))
+             (with-current-buffer buff
+               (unless (eq major-mode 'eww-mode)
+                 (eww-mode))
+
+               ;; Set the point we want to restore to
+               (setq-local +my/eww-restore-point (or pt 1))
+
+               ;; Add the hook BEFORE browsing
+               (add-hook 'eww-after-render-hook #'+my/eww-restore-point-after-render-h nil t)
+
+               ;; Trigger the navigation
+               ;; We use `ignore-errors` because network issues during session
+               ;; restore shouldn't crash the whole perspective load.
+               (ignore-errors (eww-browse-url url)))
+
+             ;; Return the buffer object (required by persp-mode)
+             buff)))))))
+
+;; Devcontainer configuration
+(after! devcontainer
+  (setq devcontainer-engine 'docker)
+
+  (defun my/devcontainer-rewrite-paths ()
+    "Rewrite container workspace paths to host paths in compilation output."
+    (when (bound-and-true-p devcontainer-mode)
+      (let* ((project-root (or (doom-project-root) default-directory))
+             (dir-name (file-name-nondirectory (directory-file-name project-root)))
+             (container-path (concat "/workspaces/" dir-name "/"))
+             (inhibit-read-only t))
+        (save-excursion
+          (goto-char compilation-filter-start)
+          (while (search-forward container-path nil t)
+            (replace-match (file-name-as-directory project-root) t t))))))
+
+  (add-hook 'compilation-filter-hook #'my/devcontainer-rewrite-paths))
+
+;; Dired: hide details by default on all platforms
 (add-hook 'dired-mode-hook #'dired-hide-details-mode)
+
+;; Load platform-specific configuration
+(pcase system-type
+  ('gnu/linux   (load! "config-linux"))
+  ('windows-nt  (load! "config-windows")))

@@ -52,3 +52,6 @@
 ;; (unpin! pinned-package another-pinned-package)
 ;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
 ;; (unpin! t)
+
+;; Devcontainer support (build, start, stop containers; compile inside them)
+(package! devcontainer)
