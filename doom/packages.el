@@ -52,3 +52,5 @@
 ;; (unpin! pinned-package another-pinned-package)
 ;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
 ;; (unpin! t)
+
+;; No packages needed for tags - using built-in xref + Universal Ctags

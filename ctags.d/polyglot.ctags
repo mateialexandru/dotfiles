@@ -1,0 +1,62 @@
+# Polyglot CTags Configuration
+# Supports: C, C++, C#, Python, YAML, JSON, and more
+#
+# Universal CTags on Windows (2017+):
+# - Config location: %USERPROFILE%\ctags.d\*.ctags (no dot prefix)
+# - Uses forward slashes by default (2019+)
+# - UTF-8 on Windows 10 1903+ (2019+)
+
+# Recurse into directories
+--recurse=yes
+
+# Output format
+--output-format=u-ctags
+--fields=+niazKS
+--extras=+q
+
+# Exclude common noise
+--exclude=.git
+--exclude=.svn
+--exclude=.hg
+--exclude=node_modules
+--exclude=vendor
+--exclude=bin
+--exclude=obj
+--exclude=Debug
+--exclude=Release
+--exclude=build
+--exclude=dist
+--exclude=*.min.js
+--exclude=*.min.css
+--exclude=packages
+--exclude=.vs
+--exclude=.vscode
+--exclude=__pycache__
+--exclude=*.pyc
+--exclude=.tox
+--exclude=.pytest_cache
+--exclude=*.egg-info
+
+# Languages to parse
+--languages=C,C++,C#,Python,YAML,JSON,Make,Sh
+
+# C/C++ specific
+--c-kinds=+p+x
+--c++-kinds=+p+x
+--fields-C=+{macrodef}
+--fields-C++=+{macrodef}
+
+# C# specific - capture classes, methods, properties, interfaces
+--c#-kinds=+cmipnefd
+
+# Python - capture classes, functions, methods, variables, imports
+--python-kinds=+cfmviI
+
+# YAML - capture anchors and keys
+--yaml-kinds=+a
+
+# JSON - capture arrays and objects
+--json-kinds=+ao
+
+# Sort tags for binary search (faster lookups)
+--sort=yes

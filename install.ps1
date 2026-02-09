@@ -30,6 +30,35 @@ if (Test-Path $doomTarget) {
     Write-Host "Created symlink: $doomTarget -> $doomSource" -ForegroundColor Green
 }
 
+# Ctags configuration symlink (Universal CTags uses ctags.d, no dot)
+# Note: Symlink is optional - Citre uses explicit --options= path
+$ctagsSource = Join-Path $dotfilesDir "ctags.d"
+$ctagsTarget = Join-Path $env:USERPROFILE "ctags.d"
+if (Test-Path $ctagsSource) {
+    if (Test-Path $ctagsTarget) {
+        $item = Get-Item $ctagsTarget -Force
+        if ($item.LinkType -eq "SymbolicLink") {
+            Write-Host "Ctags symlink already exists." -ForegroundColor Green
+        } else {
+            Write-Host "Backing up existing ctags config to ctags.d.backup..." -ForegroundColor Yellow
+            Rename-Item $ctagsTarget "$ctagsTarget.backup"
+            try {
+                New-Item -ItemType SymbolicLink -Path $ctagsTarget -Target $ctagsSource -ErrorAction Stop | Out-Null
+                Write-Host "Created symlink: $ctagsTarget -> $ctagsSource" -ForegroundColor Green
+            } catch {
+                Write-Host "Symlink failed (need admin or Developer Mode). Citre will still work." -ForegroundColor Yellow
+            }
+        }
+    } else {
+        try {
+            New-Item -ItemType SymbolicLink -Path $ctagsTarget -Target $ctagsSource -ErrorAction Stop | Out-Null
+            Write-Host "Created symlink: $ctagsTarget -> $ctagsSource" -ForegroundColor Green
+        } catch {
+            Write-Host "Symlink failed (need admin or Developer Mode). Citre will still work." -ForegroundColor Yellow
+        }
+    }
+}
+
 # Run setup script
 $setupScript = Join-Path $dotfilesDir "scripts\setup-doom.ps1"
 if (Test-Path $setupScript) {

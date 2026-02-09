@@ -1,6 +1,51 @@
 # Doom Emacs Windows Setup Script
 # Installs required dependencies via winget (idempotent)
 
+param(
+    [switch]$AddDefenderExclusions  # Add Windows Defender exclusions (requires admin)
+)
+
+# Windows Defender Exclusions for Emacs Performance
+# Emacs compiles many .elc files which triggers constant AV scanning
+function Add-EmacsDefenderExclusions {
+    $paths = @(
+        (Join-Path $env:USERPROFILE ".config\emacs")
+        (Join-Path $env:USERPROFILE ".emacs.d")
+        "C:\Program Files\Emacs"
+    )
+
+    Write-Host "`nConfiguring Windows Defender exclusions..." -ForegroundColor Cyan
+
+    # Check if running as admin
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin) {
+        Write-Host "ERROR: Adding Defender exclusions requires Administrator privileges." -ForegroundColor Red
+        Write-Host "Re-run this script as Administrator with -AddDefenderExclusions" -ForegroundColor Yellow
+        return
+    }
+
+    foreach ($path in $paths) {
+        if (Test-Path $path) {
+            try {
+                Add-MpPreference -ExclusionPath $path -ErrorAction Stop
+                Write-Host "  Added exclusion: $path" -ForegroundColor Green
+            } catch {
+                Write-Host "  Failed to add: $path - $($_.Exception.Message)" -ForegroundColor Red
+            }
+        } else {
+            Write-Host "  Skipped (not found): $path" -ForegroundColor DarkGray
+        }
+    }
+
+    Write-Host "Done! Emacs should now be faster." -ForegroundColor Green
+}
+
+# If -AddDefenderExclusions flag is set, just do that and exit
+if ($AddDefenderExclusions) {
+    Add-EmacsDefenderExclusions
+    exit 0
+}
+
 # Set HOME environment variable (required for Emacs to find .emacs.d/.config/emacs)
 $homePath = $env:USERPROFILE
 if ([System.Environment]::GetEnvironmentVariable("HOME", "User") -ne $homePath) {
@@ -19,6 +64,8 @@ winget install --id LLVM.LLVM -e --accept-source-agreements --accept-package-agr
 winget install --id JohnMacFarlane.Pandoc -e --accept-source-agreements --accept-package-agreements
 winget install --id koalaman.shellcheck -e --accept-source-agreements --accept-package-agreements
 winget install --id DEVCOM.JetBrainsMonoNerdFont -e --accept-source-agreements --accept-package-agreements
+
+# Universal Ctags is included with LLVM (installed above)
 
 Write-Host "`nStarting new shell to clone and install Doom Emacs..."
 
@@ -45,9 +92,14 @@ if ($currentPath -notlike "*$doomBin*") {
     Write-Host 'Doom already in PATH.' -ForegroundColor Green
 }
 
-# Always run doom install (it handles syncing if already installed)
-Write-Host 'Running doom install...' -ForegroundColor Cyan
-powershell -ExecutionPolicy Bypass -File "$doomBin\doom.ps1" install
+# Only run doom install if not already installed
+$doomLocal = Join-Path $env:HOME '.config\emacs\.local'
+if (-not (Test-Path $doomLocal)) {
+    Write-Host 'Running doom install...' -ForegroundColor Cyan
+    powershell -ExecutionPolicy Bypass -File "$doomBin\doom.ps1" install
+} else {
+    Write-Host 'Doom already installed.' -ForegroundColor Green
+}
 
 # Configure Git bash for POSIX compatibility
 $configFile = Join-Path $env:HOME '.config\doom\config.el'
@@ -97,27 +149,38 @@ if (Test-Path $configFile) {
     }
 }
 
-# Add Windows Explorer context menu entries
+# Add Windows Explorer context menu entries using PowerShell registry commands
 Write-Host 'Setting up Windows Explorer context menu...' -ForegroundColor Cyan
 $emacsClient = 'C:\Program Files\Emacs\emacs-30.2\bin\emacsclientw.exe'
 
+# Helper to create registry key and set values
+function Set-ContextMenu($keyPath, $label, $command) {
+    $fullPath = "HKCU:\$keyPath"
+    $cmdPath = "$fullPath\command"
+
+    # Create keys if needed (use -LiteralPath for paths with *)
+    if (-not (Test-Path -LiteralPath $fullPath)) { New-Item -Path $fullPath -Force | Out-Null }
+    if (-not (Test-Path -LiteralPath $cmdPath)) { New-Item -Path $cmdPath -Force | Out-Null }
+
+    # Set values
+    Set-ItemProperty -LiteralPath $fullPath -Name '(Default)' -Value $label
+    Set-ItemProperty -LiteralPath $fullPath -Name 'Icon' -Value "$emacsClient,0"
+    Set-ItemProperty -LiteralPath $cmdPath -Name '(Default)' -Value $command
+}
+
 # Files - Open with Emacs
-reg add "HKCU\Software\Classes\*\shell\OpenWithEmacs" /ve /d "Open with Emacs" /f | Out-Null
-reg add "HKCU\Software\Classes\*\shell\OpenWithEmacs" /v "Icon" /d "$emacsClient,0" /f | Out-Null
-reg add "HKCU\Software\Classes\*\shell\OpenWithEmacs\command" /ve /d "`"$emacsClient`" -n `"%1`"" /f | Out-Null
+Set-ContextMenu 'Software\Classes\*\shell\OpenWithEmacs' 'Open with Emacs' "`"$emacsClient`" -n `"%1`""
 Write-Host '  Added: Open with Emacs (files)' -ForegroundColor Green
 
 # Directories - Open in Emacs
-reg add "HKCU\Software\Classes\Directory\shell\OpenInEmacs" /ve /d "Open in Emacs" /f | Out-Null
-reg add "HKCU\Software\Classes\Directory\shell\OpenInEmacs" /v "Icon" /d "$emacsClient,0" /f | Out-Null
-reg add "HKCU\Software\Classes\Directory\shell\OpenInEmacs\command" /ve /d "`"$emacsClient`" -n `"%V`"" /f | Out-Null
+Set-ContextMenu 'Software\Classes\Directory\shell\OpenInEmacs' 'Open in Emacs' "`"$emacsClient`" -n `"%V`""
 Write-Host '  Added: Open in Emacs (directories)' -ForegroundColor Green
 
 # Directory background - Open in Emacs
-reg add "HKCU\Software\Classes\Directory\Background\shell\OpenInEmacs" /ve /d "Open in Emacs" /f | Out-Null
-reg add "HKCU\Software\Classes\Directory\Background\shell\OpenInEmacs" /v "Icon" /d "$emacsClient,0" /f | Out-Null
-reg add "HKCU\Software\Classes\Directory\Background\shell\OpenInEmacs\command" /ve /d "`"$emacsClient`" -n `"%V`"" /f | Out-Null
+Set-ContextMenu 'Software\Classes\Directory\Background\shell\OpenInEmacs' 'Open in Emacs' "`"$emacsClient`" -n `"%V`""
 Write-Host '  Added: Open in Emacs (folder background)' -ForegroundColor Green
+
+Write-Host "`nSetup complete! You can close this window." -ForegroundColor Cyan
 '@
 
 $encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($scriptBlock))

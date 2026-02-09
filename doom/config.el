@@ -90,3 +90,53 @@
 (setq dired-use-ls-dired nil              ; Use Emacs lisp for ls (Windows compatible)
       dired-listing-switches "-alh")      ; Human-readable sizes
 (add-hook 'dired-mode-hook #'dired-hide-details-mode)
+
+;;; Tags - Universal Ctags + built-in xref
+;; Generate TAGS file at project root
+(defun my/create-tags ()
+  "Create TAGS file at project root using Universal Ctags."
+  (interactive)
+  (let* ((root (or (projectile-project-root) default-directory))
+         (default-directory root)  ; compile runs from here
+         (tags-file (expand-file-name "TAGS" root)))
+    (compile "ctags -e -R -f TAGS .")  ; use relative paths (Windows-safe)
+    ;; Visit TAGS after compilation finishes
+    (add-hook 'compilation-finish-functions
+              (lambda (_buf _status)
+                (when (file-exists-p tags-file)
+                  (visit-tags-table tags-file)
+                  (message "Loaded TAGS from %s" tags-file)))
+              nil t)))
+
+;; Auto-visit TAGS file when found in project
+(defun my/visit-project-tags ()
+  "Visit TAGS file in project root if it exists."
+  (when-let* ((root (projectile-project-root))
+              (tags-file (expand-file-name "TAGS" root))
+              ((file-exists-p tags-file)))
+    (visit-tags-table tags-file t)))
+
+(add-hook 'find-file-hook #'my/visit-project-tags)
+
+;; Don't prompt when switching TAGS tables
+(setq tags-add-tables nil)
+
+;; Add etags to Doom's +lookup backends
+(after! xref
+  (add-to-list 'xref-backend-functions #'etags--xref-backend t))
+
+;; Make gd use xref when TAGS available
+(defun my/xref-find-definitions ()
+  "Find definitions using xref (for TAGS)."
+  (interactive)
+  (xref-find-definitions (thing-at-point 'symbol)))
+
+(map! :leader
+      (:prefix ("c" . "code")
+       :desc "Create tags" "t" #'my/create-tags))
+
+;; Bind gd to xref in prog-mode (after evil loads)
+(after! evil
+  (map! :map prog-mode-map
+        :n "gd" #'xref-find-definitions
+        :n "gD" #'+lookup/definition))
