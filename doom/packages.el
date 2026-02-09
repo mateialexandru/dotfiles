@@ -55,3 +55,6 @@
 
 ;; Devcontainer support (build, start, stop containers; compile inside them)
 (package! devcontainer)
+
+;; C# community snippet collection
+(package! yasnippet-snippets)

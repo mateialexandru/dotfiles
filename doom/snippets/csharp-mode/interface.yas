@@ -1,0 +1,7 @@
+# name: Interface Declaration
+# key: interface
+# --
+public interface I${1:InterfaceName}
+{
+    $0
+}

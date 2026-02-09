@@ -1,0 +1,7 @@
+# name: Class Declaration
+# key: class
+# --
+public class ${1:ClassName}
+{
+    $0
+}

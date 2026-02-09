@@ -130,13 +130,155 @@
           (goto-char compilation-filter-start)
           (while (search-forward container-path nil t)
             (replace-match (file-name-as-directory project-root) t t))))))
+                                        ;(add-hook 'compilation-filter-hook #'my/devcontainer-rewrite-paths))
 
-  (add-hook 'compilation-filter-hook #'my/devcontainer-rewrite-paths))
+  ;; .NET/C# test error pattern for compilation buffer
+  (after! compile
+    ;; Add .NET test error pattern: "at method in /path/to/file.cs:line 123"
+    ;; Pattern captures: file path and line number
+    (add-to-list 'compilation-error-regexp-alist-alist
+                 '(dotnet-test
+                   "^[ \t]*at .+ in \\(/[^:]+\\.cs\\):line \\([0-9]+\\)"
+                   1 2))
 
-;; Dired: hide details by default on all platforms
-(add-hook 'dired-mode-hook #'dired-hide-details-mode)
+    ;; Override patterns in each compilation buffer to avoid false matches
+    (defun my/set-dotnet-compilation-patterns ()
+      "Set minimal compilation patterns for .NET test output."
+      (setq-local compilation-error-regexp-alist '(dotnet-test)))
 
-;; Load platform-specific configuration
-(pcase system-type
-  ('gnu/linux   (load! "config-linux"))
-  ('windows-nt  (load! "config-windows")))
+    (add-hook 'compilation-mode-hook #'my/set-dotnet-compilation-patterns))
+
+  ;; Generic auto-recompile on save (works with any project/compile command)
+  ;; Fix recompile to prevent devcontainer.el double-wrapping by unwrapping before recompile
+  (defun my/unwrap-docker-exec (command)
+    "Extract the original command from docker exec wrapper."
+    ;; Pattern: docker exec --workdir /path --user name container-id ACTUAL-COMMAND
+    ;; We want to extract ACTUAL-COMMAND
+    (if (string-match "^docker exec .* \\([a-f0-9]\\{12\\}\\) \\(.*\\)$" command)
+        (match-string 2 command)
+      command))
+
+  (defvar-local my/original-compile-command nil
+    "Store the unwrapped compile command.")
+
+  (defun my/store-unwrapped-command (orig-fun command &optional mode name-function highlight-regexp)
+    "Store the unwrapped compile command in the compilation buffer."
+    (let* ((unwrapped (my/unwrap-docker-exec command))
+           (result (funcall orig-fun command mode name-function highlight-regexp)))
+      (when (buffer-live-p result)
+        (with-current-buffer result
+          (setq-local my/original-compile-command unwrapped)))
+      result))
+
+                                        ;(advice-add 'compilation-start :around #'my/store-unwrapped-command)
+
+  (defun my/recompile-with-unwrapped-command (orig-fun &optional edit-command)
+    "Recompile using the unwrapped command to prevent double-wrapping."
+    (if (and (not edit-command)
+             (bound-and-true-p my/original-compile-command))
+        (progn
+          (save-some-buffers (not compilation-ask-about-save)
+                             compilation-save-buffers-predicate)
+          (let ((default-directory (or compilation-directory default-directory)))
+            (compile my/original-compile-command)))
+      (funcall orig-fun edit-command)))
+
+                                        ;(advice-add 'recompile :around #'my/recompile-with-unwrapped-command)
+
+  ;; Smart project test: remembers command, only prompts with C-u
+  (defvar-local my/project-test-cmd nil
+    "Cached test command for this project.")
+
+  (defun my/smart-project-test (arg)
+    "Run project tests. Prompts for command only first time or with prefix ARG."
+    (interactive "P")
+    (let* ((default-cmd (or my/project-test-cmd
+                            (projectile-test-command (projectile-project-type))))
+           (cmd (if (or arg (not my/project-test-cmd))
+                    (read-shell-command "Test command: " default-cmd)
+                  default-cmd)))
+      (setq my/project-test-cmd cmd)
+      (projectile-run-compilation cmd)))
+
+  ;; Keybindings
+  (map! :leader
+        :desc "Run project tests (C-u to change command)"
+        "p t" #'my/smart-project-test)
+
+;;; C# Keybindings (local leader: SPC m)
+  (after! csharp-mode
+    (map! :localleader
+          :map csharp-mode-map
+          :desc "LSP code actions (extract method/class)"
+          "a" #'eglot-code-actions
+          :desc "Format buffer manually"
+          "f" #'+format/region-or-buffer
+          :desc "Go to definition"
+          "d" #'eglot-find-declaration
+          :desc "Find references"
+          "r" #'eglot-find-references
+          :desc "Rename symbol"
+          "R" #'eglot-rename
+          :desc "Sharper menu (dotnet CLI)"
+          "n" #'sharper-main-transient))
+
+;;; Devcontainer Setup Command for .NET Projects
+  (defun my/setup-dotnet-devcontainer ()
+    "Create .devcontainer/devcontainer.json for .NET development in current project."
+    (interactive)
+    (let* ((project-root (or (doom-project-root) default-directory))
+           (devcontainer-dir (expand-file-name ".devcontainer" project-root))
+           (devcontainer-file (expand-file-name "devcontainer.json" devcontainer-dir))
+           (template-file (expand-file-name "devcontainer/dotnet/devcontainer.json" doom-user-dir)))
+      (when (file-exists-p devcontainer-file)
+        (unless (y-or-n-p "devcontainer.json already exists. Overwrite? ")
+          (user-error "Aborted")))
+
+      ;; Verify template exists
+      (unless (file-exists-p template-file)
+        (user-error "Template not found: %s" template-file))
+
+      ;; Create .devcontainer directory if needed
+      (unless (file-directory-p devcontainer-dir)
+        (make-directory devcontainer-dir t))
+
+      ;; Copy template
+      (copy-file template-file devcontainer-file t)
+
+      (message "✓ Created %s from template" devcontainer-file)
+      (find-file devcontainer-file)))
+
+  ;; Add keybinding for setup command
+  (map! :leader
+        :desc "Setup .NET devcontainer"
+        "p D" #'my/setup-dotnet-devcontainer)
+
+  ;; Dired: hide details by default on all platforms
+  (add-hook 'dired-mode-hook #'dired-hide-details-mode)
+
+;;; Apheleia + CSharpier (TRAMP-aware)
+  (after! apheleia
+    ;; Allow formatting in TRAMP buffers (run formatter on remote host)
+    (setq apheleia-remote-algorithm 'remote)
+
+    ;; Configure CSharpier formatter (supports stdin/stdout)
+    ;; Use full path to ensure it's found in TRAMP containers
+    (setf (alist-get 'csharpier apheleia-formatters)
+          '("/home/vscode/.dotnet/tools/csharpier" "--write-stdout"))
+
+    ;; Fallback: if using dotnet global tool wrapper
+    ;; (setf (alist-get 'csharpier apheleia-formatters)
+    ;;       '("dotnet" "csharpier" "--write-stdout"))
+
+    ;; Use CSharpier for csharp-mode
+    (setf (alist-get 'csharp-mode apheleia-mode-alist)
+          'csharpier)
+
+    ;; Auto-enable apheleia for C# files
+    (add-hook 'csharp-mode-hook #'apheleia-mode))
+
+  ;; Load platform-specific configuration
+  (pcase system-type
+    ('gnu/linux   (load! "config-linux"))
+    ('windows-nt  (load! "config-windows")))
+)

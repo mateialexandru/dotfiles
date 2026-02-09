@@ -1,0 +1,7 @@
+# name: Async Method
+# key: async
+# --
+public async Task<${1:ReturnType}> ${2:MethodName}(${3:parameters})
+{
+    $0
+}
