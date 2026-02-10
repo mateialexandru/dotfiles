@@ -1,0 +1,7 @@
+# name: Constructor
+# key: ctor
+# --
+public ${1:ClassName}(${2:parameters})
+{
+    $0
+}

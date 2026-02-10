@@ -9,30 +9,10 @@
 ;; (setq user-full-name "John Doe"
 ;;       user-mail-address "john@doe.com")
 
-;; Doom exposes five (optional) variables for controlling fonts in Doom:
-;;
-;; - `doom-font' -- the primary font to use
-;; - `doom-variable-pitch-font' -- a non-monospace font (where applicable)
-;; - `doom-big-font' -- used for `doom-big-font-mode'; use this for
-;;   presentations or streaming.
-;; - `doom-symbol-font' -- for symbols
-;; - `doom-serif-font' -- for the `fixed-pitch-serif' face
-;;
-;; See 'C-h v doom-font' for documentation and more examples of what they
-;; accept. For example:
-;;
-;;(setq doom-font (font-spec :family "Fira Code" :size 12 :weight 'semi-light)
-;;      doom-variable-pitch-font (font-spec :family "Fira Sans" :size 13))
-;;
-;; If you or Emacs can't find your font, use 'M-x describe-font' to look them
-;; up, `M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
-;; refresh your font settings. If Emacs still can't find your font, it likely
-;; wasn't installed correctly. Font issues are rarely Doom issues!
-
 ;; There are two ways to load a theme. Both assume the theme is installed and
 ;; available. You can either set `doom-theme' or manually load a theme with the
 ;; `load-theme' function. This is the default:
-(setq doom-theme 'doom-horizon)
+(setq doom-theme 'doom-one)
 
 ;; This determines the style of line numbers in effect. If set to `nil', line
 ;; numbers are disabled. For relative line numbers, set this to `relative'.
@@ -40,56 +20,262 @@
 
 ;; If you use `org' and don't want your org files in the default location below,
 ;; change `org-directory'. It must be set before org loads!
-(setq org-directory "~/org/")
+(setq org-directory "~/Source/mindmap/org/"
+      org-roam-directory "~/Source/mindmap/roam/")
 
-
-;; Whenever you reconfigure a package, make sure to wrap your config in an
-;; `after!' block, otherwise Doom's defaults may override your settings. E.g.
-;;
-;;   (after! PACKAGE
-;;     (setq x y))
-;;
-;; The exceptions to this rule:
-;;
-;;   - Setting file/directory variables (like `org-directory')
-;;   - Setting variables which explicitly tell you to set them before their
-;;     package is loaded (see 'C-h v VARIABLE' to look up their documentation).
-;;   - Setting doom variables (which start with 'doom-' or '+').
-;;
-;; Here are some additional functions/macros that will help you configure Doom.
-;;
-;; - `load!' for loading external *.el files relative to this one
-;; - `use-package!' for configuring packages
-;; - `after!' for running code after a package has loaded
-;; - `add-load-path!' for adding directories to the `load-path', relative to
-;;   this file. Emacs searches the `load-path' when you load packages with
-;;   `require' or `use-package'.
-;; - `map!' for binding new keys
-;;
-;; To get information about any of these functions/macros, move the cursor over
-;; the highlighted symbol at press 'K' (non-evil users must press 'C-c c k').
-;; This will open documentation for it, including demos of how they are used.
-;; Alternatively, use `C-h o' to look up a symbol (functions, variables, faces,
-;; etc).
-;;
-;; You can also try 'gd' (or 'C-c c d') to jump to their definition and see how
-;; they are implemented.
-
-;; Windows: Use Git bash for POSIX compatibility (works with Windows paths)
-;;(setq shell-file-name "C:/Program Files/Git/bin/bash.exe")
-
-;; Font configuration
-(setq doom-font (font-spec :family "JetBrainsMono NF" :size 14)
-      doom-variable-pitch-font (font-spec :family "Segoe UI" :size 13)
-      doom-symbol-font (font-spec :family "Symbols Nerd Font Mono"))
-
-;; Start Emacs server for emacsclient support (context menu integration)
+;; Start Emacs server for emacsclient support
 (server-start)
 
-;; Dired configuration
-(setq dired-use-ls-dired nil              ; Use Emacs lisp for ls (Windows compatible)
-      dired-listing-switches "-alh")      ; Human-readable sizes
-(add-hook 'dired-mode-hook #'dired-hide-details-mode)
+;; EWW popup rule — open EWW in a real window, not a popup
+(after! eww
+  (set-popup-rule! "^\\*eww\\*" :ignore t))
+
+;;; EWW + persp-mode session restore
+
+;; Mark eww buffers as "real" globally (not per-buffer)
+(after! doom
+  (defun +my/doom-real-eww-buffer-p (buf)
+    (eq (buffer-local-value 'major-mode buf) 'eww-mode))
+  (add-to-list 'doom-real-buffer-functions #'+my/doom-real-eww-buffer-p))
+
+(after! persp-mode
+  (require 'eww)
+
+  ;; 1. HELPER: Ensure new eww buffers are added to the perspective
+  (defun +my/persp-add-current-buffer-to-current-persp-h ()
+    (when (bound-and-true-p persp-mode)
+      (persp-add-buffer (current-buffer) (get-current-persp) nil)))
+  (add-hook 'eww-mode-hook #'+my/persp-add-current-buffer-to-current-persp-h)
+
+  ;; 2. HELPER: Restore point after EWW renders
+  (defvar-local +my/eww-restore-point nil)
+
+  (defun +my/eww-restore-point-after-render-h ()
+    "Hook to restore point after EWW finishes rendering the page."
+    (when (integerp +my/eww-restore-point)
+      (goto-char (min (point-max) (max 1 +my/eww-restore-point)))
+      (setq +my/eww-restore-point nil)
+      ;; Remove self from hook so it doesn't run on subsequent navigations
+      (remove-hook 'eww-after-render-hook #'+my/eww-restore-point-after-render-h t)))
+
+  ;; 3. CONFIGURATION: Define how to Save and Load
+  (persp-def-buffer-save/load
+   :mode 'eww-mode
+   :tag-symbol 'def-eww
+   :save-vars '(point) ; We rely mostly on :save-function, but this is required by the macro syntax
+
+   ;; --- SAVE FUNCTION ---
+   :save-function
+   (lambda (b tag lvars)
+     (with-current-buffer b
+       (let ((url   (or (plist-get eww-data :url) (bound-and-true-p eww-current-url)))
+             (title (or (plist-get eww-data :title) (bound-and-true-p eww-current-title)))
+             (pt    (point))
+             (bname (buffer-name b)))
+         ;; Add custom data to lvars
+         (when (stringp url)
+           (push (cons 'eww-url url) lvars))
+         (when (stringp title)
+           (push (cons 'eww-title title) lvars))
+         (push (cons 'eww-buffer-name bname) lvars)
+         (push (cons 'point pt) lvars)
+         ;; Return the list format expected by persp-mode
+         (list tag bname lvars))))
+
+   ;; --- LOAD FUNCTION ---
+   ;; We use :load-function because it receives the full `savelist`
+   :load-function
+   (lambda (savelist &rest _)
+     (cl-destructuring-bind (_tag buffer-name vars-list &rest _rest) savelist
+       (let ((url   (alist-get 'eww-url vars-list))
+             (pt    (alist-get 'point vars-list))
+             (bname (alist-get 'eww-buffer-name vars-list)))
+
+         (if (not (and (stringp url) (not (string-empty-p url))))
+             ;; Fallback if no URL found: just create a basic buffer
+             (get-buffer-create (or bname buffer-name))
+
+           ;; Create/reuse the buffer and initialize EWW
+           (let ((buff (get-buffer-create (or bname buffer-name))))
+             (with-current-buffer buff
+               (unless (eq major-mode 'eww-mode)
+                 (eww-mode))
+
+               ;; Set the point we want to restore to
+               (setq-local +my/eww-restore-point (or pt 1))
+
+               ;; Add the hook BEFORE browsing
+               (add-hook 'eww-after-render-hook #'+my/eww-restore-point-after-render-h nil t)
+
+               ;; Trigger the navigation
+               ;; We use `ignore-errors` because network issues during session
+               ;; restore shouldn't crash the whole perspective load.
+               (ignore-errors (eww-browse-url url)))
+
+             ;; Return the buffer object (required by persp-mode)
+             buff)))))))
+
+;; Devcontainer configuration
+(after! devcontainer
+  (setq devcontainer-engine 'docker)
+
+  (defun my/devcontainer-rewrite-paths ()
+    "Rewrite container workspace paths to host paths in compilation output."
+    (when (bound-and-true-p devcontainer-mode)
+      (let* ((project-root (or (doom-project-root) default-directory))
+             (dir-name (file-name-nondirectory (directory-file-name project-root)))
+             (container-path (concat "/workspaces/" dir-name "/"))
+             (inhibit-read-only t))
+        (save-excursion
+          (goto-char compilation-filter-start)
+          (while (search-forward container-path nil t)
+            (replace-match (file-name-as-directory project-root) t t))))))
+                                        ;(add-hook 'compilation-filter-hook #'my/devcontainer-rewrite-paths))
+
+  ;; .NET/C# test error pattern for compilation buffer
+  (after! compile
+    ;; Add .NET test error pattern: "at method in /path/to/file.cs:line 123"
+    ;; Pattern captures: file path and line number
+    (add-to-list 'compilation-error-regexp-alist-alist
+                 '(dotnet-test
+                   "^[ \t]*at .+ in \\(/[^:]+\\.cs\\):line \\([0-9]+\\)"
+                   1 2))
+
+    ;; Override patterns in each compilation buffer to avoid false matches
+    (defun my/set-dotnet-compilation-patterns ()
+      "Set minimal compilation patterns for .NET test output."
+      (setq-local compilation-error-regexp-alist '(dotnet-test)))
+
+    (add-hook 'compilation-mode-hook #'my/set-dotnet-compilation-patterns))
+
+  ;; Generic auto-recompile on save (works with any project/compile command)
+  ;; Fix recompile to prevent devcontainer.el double-wrapping by unwrapping before recompile
+  (defun my/unwrap-docker-exec (command)
+    "Extract the original command from docker exec wrapper."
+    ;; Pattern: docker exec --workdir /path --user name container-id ACTUAL-COMMAND
+    ;; We want to extract ACTUAL-COMMAND
+    (if (string-match "^docker exec .* \\([a-f0-9]\\{12\\}\\) \\(.*\\)$" command)
+        (match-string 2 command)
+      command))
+
+  (defvar-local my/original-compile-command nil
+    "Store the unwrapped compile command.")
+
+  (defun my/store-unwrapped-command (orig-fun command &optional mode name-function highlight-regexp)
+    "Store the unwrapped compile command in the compilation buffer."
+    (let* ((unwrapped (my/unwrap-docker-exec command))
+           (result (funcall orig-fun command mode name-function highlight-regexp)))
+      (when (buffer-live-p result)
+        (with-current-buffer result
+          (setq-local my/original-compile-command unwrapped)))
+      result))
+
+                                        ;(advice-add 'compilation-start :around #'my/store-unwrapped-command)
+
+  (defun my/recompile-with-unwrapped-command (orig-fun &optional edit-command)
+    "Recompile using the unwrapped command to prevent double-wrapping."
+    (if (and (not edit-command)
+             (bound-and-true-p my/original-compile-command))
+        (progn
+          (save-some-buffers (not compilation-ask-about-save)
+                             compilation-save-buffers-predicate)
+          (let ((default-directory (or compilation-directory default-directory)))
+            (compile my/original-compile-command)))
+      (funcall orig-fun edit-command)))
+
+                                        ;(advice-add 'recompile :around #'my/recompile-with-unwrapped-command)
+
+  ;; Smart project test: remembers command, only prompts with C-u
+  (defvar-local my/project-test-cmd nil
+    "Cached test command for this project.")
+
+  (defun my/smart-project-test (arg)
+    "Run project tests. Prompts for command only first time or with prefix ARG."
+    (interactive "P")
+    (let* ((default-cmd (or my/project-test-cmd
+                            (projectile-test-command (projectile-project-type))))
+           (cmd (if (or arg (not my/project-test-cmd))
+                    (read-shell-command "Test command: " default-cmd)
+                  default-cmd)))
+      (setq my/project-test-cmd cmd)
+      (projectile-run-compilation cmd)))
+
+  ;; Keybindings
+  (map! :leader
+        :desc "Run project tests (C-u to change command)"
+        "p t" #'my/smart-project-test)
+
+;;; C# Keybindings (local leader: SPC m)
+  (after! csharp-mode
+    (map! :localleader
+          :map csharp-mode-map
+          :desc "LSP code actions (extract method/class)"
+          "a" #'eglot-code-actions
+          :desc "Format buffer manually"
+          "f" #'+format/region-or-buffer
+          :desc "Go to definition"
+          "d" #'eglot-find-declaration
+          :desc "Find references"
+          "r" #'eglot-find-references
+          :desc "Rename symbol"
+          "R" #'eglot-rename
+          :desc "Sharper menu (dotnet CLI)"
+          "n" #'sharper-main-transient))
+
+;;; Devcontainer Setup Command for .NET Projects
+  (defun my/setup-dotnet-devcontainer ()
+    "Create .devcontainer/devcontainer.json for .NET development in current project."
+    (interactive)
+    (let* ((project-root (or (doom-project-root) default-directory))
+           (devcontainer-dir (expand-file-name ".devcontainer" project-root))
+           (devcontainer-file (expand-file-name "devcontainer.json" devcontainer-dir))
+           (template-file (expand-file-name "devcontainer/dotnet/devcontainer.json" doom-user-dir)))
+      (when (file-exists-p devcontainer-file)
+        (unless (y-or-n-p "devcontainer.json already exists. Overwrite? ")
+          (user-error "Aborted")))
+
+      ;; Verify template exists
+      (unless (file-exists-p template-file)
+        (user-error "Template not found: %s" template-file))
+
+      ;; Create .devcontainer directory if needed
+      (unless (file-directory-p devcontainer-dir)
+        (make-directory devcontainer-dir t))
+
+      ;; Copy template
+      (copy-file template-file devcontainer-file t)
+
+      (message "✓ Created %s from template" devcontainer-file)
+      (find-file devcontainer-file)))
+
+  ;; Add keybinding for setup command
+  (map! :leader
+        :desc "Setup .NET devcontainer"
+        "p D" #'my/setup-dotnet-devcontainer)
+
+  ;; Dired: hide details by default on all platforms
+  (add-hook 'dired-mode-hook #'dired-hide-details-mode)
+
+;;; Apheleia + CSharpier (TRAMP-aware)
+  (after! apheleia
+    ;; Allow formatting in TRAMP buffers (run formatter on remote host)
+    (setq apheleia-remote-algorithm 'remote)
+
+    ;; Configure CSharpier formatter (supports stdin/stdout)
+    ;; Use full path to ensure it's found in TRAMP containers
+    (setf (alist-get 'csharpier apheleia-formatters)
+          '("/home/vscode/.dotnet/tools/csharpier" "--write-stdout"))
+
+    ;; Fallback: if using dotnet global tool wrapper
+    ;; (setf (alist-get 'csharpier apheleia-formatters)
+    ;;       '("dotnet" "csharpier" "--write-stdout"))
+
+    ;; Use CSharpier for csharp-mode
+    (setf (alist-get 'csharp-mode apheleia-mode-alist)
+          'csharpier)
+
+    ;; Auto-enable apheleia for C# files
+    (add-hook 'csharp-mode-hook #'apheleia-mode)))
 
 ;;; Tags - Universal Ctags + built-in xref
 ;; Generate TAGS file at project root
@@ -127,8 +313,7 @@
 
 (map! :leader
       (:prefix ("c" . "code")
-       :desc "Create tags" "t" #'my/create-tags
-       :desc "Test DotNet LSP" "R" #'my/test-dotnet-lsp))
+       :desc "Create tags" "t" #'my/create-tags))
 
 ;; Bind gd to Doom's +lookup (eglot -> etags -> other backends)
 (after! evil
@@ -136,66 +321,7 @@
         :n "gd" #'+lookup/definition    ; eglot -> etags -> other backends
         :n "gD" #'xref-find-definitions)) ; direct xref (always uses etags)
 
-;;; DotNet LSP diagnostics
-(defun my/test-dotnet-lsp ()
-  "Run DotNet LSP diagnostics for the current project."
-  (interactive)
-  (let* ((script (expand-file-name "../scripts/Test-DotNetLsp.ps1" (file-truename doom-user-dir)))
-         (dir (if buffer-file-name
-                  (file-name-directory (file-truename buffer-file-name))
-                default-directory))
-         (default-directory dir))
-    (compile (format "powershell -NoProfile -ExecutionPolicy Bypass -File \"%s\" -Path \"%s\""
-                     script dir))))
-
-;;; LSP - eglot configuration
-(after! eglot
-  (setq eglot-connect-timeout 120)
-
-  ;; Fix Windows drive letter encoding: eglot encodes ":" as "%3A" in
-  ;; file URIs (github#639), but Roslyn fails to parse the decoded path.
-  ;; Allow colons so URIs use file:///c:/path (not file:///c%3A/path).
-  (aset eglot--uri-path-allowed-chars ?: t)
-
-  ;; Roslyn workspace configuration: disable file-based programs so
-  ;; Roslyn doesn't treat each .cs as a standalone program.  Enable
-  ;; automatic NuGet restore so packages resolve without manual
-  ;; `dotnet restore'.
-  (setq-default eglot-workspace-configuration
-                '(:projects\.dotnet_enable_file_based_programs :json-false
-                  :projects\.dotnet_enable_automatic_restore t))
-
-  ;; Roslyn language server via stdio (--stdio flag, added in v5.0.0)
-  (let* ((roslyn-dll (expand-file-name
-                      "roslyn-lsp/Microsoft.CodeAnalysis.LanguageServer.dll"
-                      (getenv "LOCALAPPDATA")))
-         (log-dir (expand-file-name "roslyn-lsp-logs" temporary-file-directory)))
-    (when (file-exists-p roslyn-dll)
-      (add-to-list 'eglot-server-programs
-                   `(csharp-mode . ("dotnet" ,roslyn-dll
-                                    "--logLevel" "Information"
-                                    "--extensionLogDirectory" ,log-dir
-                                    "--stdio")))))
-
-  ;; Extra keybindings for Roslyn LSP capabilities
-  (map! :map eglot-mode-map
-        :leader
-        (:prefix ("c" . "code")
-         :desc "Find type definition"  "T" #'eglot-find-typeDefinition
-         :desc "Toggle inlay hints"    "h" #'eglot-inlay-hints-mode
-         :desc "Organize imports"      "o" #'eglot-code-action-organize-imports
-         :desc "Quick fix"             "q" #'eglot-code-action-quickfix)))
-
-;; Roslyn project discovery: the standalone Roslyn language server
-;; (unlike VS Code's C# extension) does NOT auto-discover solutions.
-;; We must send `solution/open' after connecting — same as roslyn.nvim.
-(defun my/eglot-roslyn-open-solution ()
-  "Send solution/open to Roslyn so it loads the .sln for the project."
-  (when-let* ((server (eglot-current-server))
-              ((eq major-mode 'csharp-mode))
-              (root (project-root (eglot--project server)))
-              (sln (car (directory-files root t "\\.sln\\'" t))))
-    (jsonrpc-notify server :solution/open
-                    (list :solution (eglot-path-to-uri sln)))))
-
-(add-hook 'eglot-managed-mode-hook #'my/eglot-roslyn-open-solution)
+;; Load platform-specific configuration
+(pcase system-type
+  ('gnu/linux   (load! "config-linux"))
+  ('windows-nt  (load! "config-windows")))

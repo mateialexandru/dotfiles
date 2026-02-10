@@ -1,0 +1,7 @@
+# name: Using Statement
+# key: using
+# --
+using (${1:resource})
+{
+    $0
+}

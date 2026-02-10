@@ -1,0 +1,4 @@
+# name: Auto Property
+# key: prop
+# --
+public ${1:Type} ${2:PropertyName} { get; set; }$0

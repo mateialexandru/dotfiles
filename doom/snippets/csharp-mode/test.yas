@@ -1,0 +1,15 @@
+# name: xUnit Test Method
+# key: test
+# --
+[Fact]
+public void ${1:TestName}()
+{
+    // Arrange
+    $2
+
+    // Act
+    $3
+
+    // Assert
+    $0
+}

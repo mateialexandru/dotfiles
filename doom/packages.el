@@ -54,3 +54,9 @@
 ;; (unpin! t)
 
 ;; No packages needed for tags - using built-in xref + Universal Ctags
+
+;; Devcontainer support (build, start, stop containers; compile inside them)
+(package! devcontainer)
+
+;; C# community snippet collection
+(package! yasnippet-snippets)
