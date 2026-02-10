@@ -21,12 +21,12 @@ $devTools = @(
     @{ Name = "ctags"; Fix = "winget install UniversalCtags.Ctags" }
     @{ Name = "node"; Fix = "winget install OpenJS.NodeJS.LTS" }
     @{ Name = "npm"; Fix = "winget install OpenJS.NodeJS.LTS" }
-    @{ Name = "dotnet"; Fix = "winget install Microsoft.DotNet.SDK.10" }
+    @{ Name = "dotnet"; Fix = "winget install Microsoft.DotNet.SDK.8" }
     @{ Name = "jq"; Fix = "winget install jqlang.jq" }
     @{ Name = "cmake"; Fix = "winget install Kitware.CMake" }
     @{ Name = "java"; Fix = "winget install Microsoft.OpenJDK.21" }
     @{ Name = "plantuml"; Fix = "New-Item -ItemType Directory -Force -Path `"$env:LOCALAPPDATA\plantuml`" | Out-Null; Invoke-WebRequest -Uri 'https://github.com/plantuml/plantuml/releases/latest/download/plantuml.jar' -OutFile `"$env:LOCALAPPDATA\plantuml\plantuml.jar`"" }
-    @{ Name = "csharp-ls"; Fix = "dotnet tool install --global csharp-ls" }
+    @{ Name = "roslyn-lsp"; Fix = "& `"$PSScriptRoot\install-roslyn-lsp.ps1`"" }
     @{ Name = "yaml-language-server"; Fix = "npm install -g yaml-language-server" }
     @{ Name = "mmdc"; Fix = "npm install -g @mermaid-js/mermaid-cli" }
 )
@@ -79,6 +79,12 @@ function Find-UniversalCtags {
 }
 
 
+function Find-RoslynLsp {
+    $dll = Join-Path $env:LOCALAPPDATA "roslyn-lsp\Microsoft.CodeAnalysis.LanguageServer.dll"
+    if (Test-Path $dll) { return $dll }
+    return $null
+}
+
 function Get-ToolVersion($name) {
     try {
         $output = switch ($name) {
@@ -111,7 +117,10 @@ function Get-ToolVersion($name) {
                 $javaExe = Find-Java
                 if ((Test-Path $jar) -and $javaExe) { & $javaExe -jar $jar -version 2>$null | Select-Object -First 1 }
             }
-            "csharp-ls" { & csharp-ls --version 2>$null }
+            "roslyn-lsp" {
+                $dll = Find-RoslynLsp
+                if ($dll) { "installed" }
+            }
             "yaml-language-server" { & yaml-language-server --version 2>$null }
             "mmdc" { & mmdc --version 2>$null }
             default { $null }
@@ -140,6 +149,8 @@ function Test-Tool($tool) {
         $exists = Find-Cmake
     } elseif ($tool.Name -eq "ctags") {
         $exists = Find-UniversalCtags
+    } elseif ($tool.Name -eq "roslyn-lsp") {
+        $exists = Find-RoslynLsp
     } else {
         $exists = Get-Command $tool.Name -ErrorAction SilentlyContinue
     }

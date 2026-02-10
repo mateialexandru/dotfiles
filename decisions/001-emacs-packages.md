@@ -19,23 +19,65 @@ Choosing Emacs packages for language support, code navigation, and shell enhance
 - No external dependencies
 - lsp-mode is feature-rich but heavier, more dependencies, community-maintained
 
-### 2. C# Language Server: csharp-ls (not omnisharp)
+### 2. C# Language Server: Microsoft Roslyn LSP
 
-**Choice:** `csharp-ls` (razzmatazz/csharp-language-server)
+**Choice:** `Microsoft.CodeAnalysis.LanguageServer` (same server VS Code uses)
 
 **Rationale:**
-- **omnisharp-roslyn is declining:** VSCode dropped it for Microsoft's built-in Roslyn server. Limited community resources, months-long contribution gaps reported.
-- **csharp-ls is actively maintained:** v0.21.0 released January 2026, uses Roslyn under the hood
-- Lighter weight than omnisharp
-- Works with older .NET SDKs (Core 3, Framework 4.8)
-- Microsoft's own Roslyn LSP (csharp-roslyn) is another option but less tested with eglot
+- **The reference implementation:** This is the exact C# language server that powers VS Code's C# extension
+- Active development by Microsoft, best feature coverage
+- OmniSharp-Roslyn is deprecated in VS Code (2025)
+- SofusA/csharp-language-server is deprecated
+- csharp-ls (razzmatazz) is community-maintained, active, but third-party
 
-**Installation:** `dotnet tool install --global csharp-ls`
+**Installation:** `scripts\install-roslyn-lsp.ps1` (downloads NuGet package, extracts to `%LOCALAPPDATA%\roslyn-lsp\`)
+
+**Launch:** `dotnet Microsoft.CodeAnalysis.LanguageServer.dll --stdio` (eglot launches directly, stdio transport)
+
+**Transport:** Roslyn v5.0.0+ supports `--stdio` (added in [PR #76437](https://github.com/dotnet/roslyn/pull/76437), January 2025). This makes Roslyn use standard stdin/stdout for LSP communication — the same transport eglot uses with clangd, pyright, and every other LSP server. Neovim's `roslyn.nvim` also uses `--stdio`.
+
+**Note:** Requires a `.sln` or `.csproj` in the project - won't work on loose `.cs` files.
+
+#### Capabilities & Keybindings
+
+Roslyn reports a rich set of LSP capabilities. The table below documents what's available and how to access each feature:
+
+| Key | Feature | Function | Notes |
+|-----|---------|----------|-------|
+| `gd` | Go to definition | `+lookup/definition` | Requires URI colon fix (see below) |
+| `gD` | Find references | `+lookup/references` | |
+| `gI` | Find implementations | `eglot-find-implementation` | |
+| `K` | Hover / docs | `+lookup/documentation` | Type info, XML docs |
+| `SPC c a` | Code actions | `eglot-code-actions` | Refactors, quick fixes |
+| `SPC c r` | Rename symbol | `eglot-rename` | Project-wide rename |
+| `SPC c j` | Workspace symbols | `consult-eglot-symbols` | Fuzzy search all symbols |
+| `SPC c f` | Format buffer | `+format/region-or-buffer` | |
+| `SPC c T` | Find type definition | `eglot-find-typeDefinition` | Jump to type of a variable |
+| `SPC c h` | Toggle inlay hints | `eglot-inlay-hints-mode` | Type hints on `var`, parameter names |
+| `SPC c o` | Organize imports | `eglot-code-action-organize-imports` | Sort/remove usings |
+| `SPC c q` | Quick fix | `eglot-code-action-quickfix` | Apply first available fix |
+| Auto | Completion | corfu | Powered by Roslyn |
+| Auto | Signature help | eldoc | Parameter info on function calls |
+| Auto | Document highlight | automatic | Highlights symbol under cursor |
+| Auto | Semantic tokens | automatic | Enhanced syntax highlighting |
+
+**Windows URI fix:** eglot encodes `:` as `%3A` in file URIs (`file:///c%3A/...`), which causes Roslyn's `CreateAbsoluteUri` to throw `UriFormatException`. Fixed by `(aset eglot--uri-path-allowed-chars ?: t)` in config.el — allows colons in URI paths so drive letters are encoded correctly as `file:///c:/...`.
+
+**Project discovery fix (2026-02):** Two issues prevented Roslyn from loading the real `.sln`/`.csproj`:
+
+1. **File-based programs:** Roslyn v5 on .NET 10 SDK enables "file-based programs" by default. When eglot returns `null` for `projects.dotnet_enable_file_based_programs` in `workspace/configuration`, Roslyn defaults to `true` and creates synthetic `.csproj` files under `dotnet/runfile/` temp paths instead of loading the real project. Fixed with `eglot-workspace-configuration` (`setq-default` required — the variable is `defvar-local`, so plain `setq` only sets it in the buffer current at load time, not in eglot's temp buffer that handles `workspace/configuration` requests).
+
+2. **Solution discovery:** The standalone Roslyn language server does NOT auto-discover `.sln` files — unlike VS Code's C# extension, which searches the workspace and sends solution paths to Roslyn. Without explicit notification, Roslyn sits idle with no project loaded. Fixed by sending `solution/open` notification (same protocol as [roslyn.nvim](https://github.com/seblyng/roslyn.nvim)) via `eglot-managed-mode-hook`. Also set `dotnet_enable_automatic_restore: true` so NuGet packages resolve automatically.
+
+#### History
+
+Previously used `csharp-ls` (razzmatazz/csharp-language-server) which was chosen for being lighter weight and actively maintained. Upgraded to Microsoft's Roslyn LSP for better feature parity with VS Code and first-party support.
+
+**Roslyn v5 transport journey (2026-02):** Roslyn v5.0.0 switched default transport from stdio to named pipes. We first built a C# TCP-to-named-pipe bridge (`roslyn-bridge/`) with eglot `:autoport`, but TCP on Windows had IPv6 port-probe issues and unreliable data flow. Discovered that Roslyn v5.0.0 already supports `--stdio` (requested by Neovim's roslyn.nvim maintainer). Switched to direct stdio — eliminated ~200 lines of bridge code and all TCP/IPv6 workarounds.
 
 **Sources:**
-- [OmniSharp future concerns](https://github.com/OmniSharp/omnisharp-roslyn/issues/2663)
-- [csharp-ls on GitHub](https://github.com/razzmatazz/csharp-language-server)
-- [csharp-ls on NuGet](https://www.nuget.org/packages/csharp-ls/)
+- [NuGet: Microsoft.CodeAnalysis.LanguageServer.win-x64](https://www.nuget.org/packages/Microsoft.CodeAnalysis.LanguageServer.win-x64)
+- [csharp-ls on GitHub](https://github.com/razzmatazz/csharp-language-server) (previous choice)
 
 ### 3. C++ Language Server: clangd
 
@@ -139,19 +181,19 @@ In Elisp, set `default-directory` and use relative paths:
 (after! xref
   (add-to-list 'xref-backend-functions #'etags--xref-backend t))
 
-;; Rebind gd to xref (bypassing Doom's +lookup)
+;; Bind gd to Doom's +lookup (eglot -> etags -> other backends)
 (after! evil
   (map! :map prog-mode-map
-        :n "gd" #'xref-find-definitions
-        :n "gD" #'+lookup/definition))
+        :n "gd" #'+lookup/definition    ; eglot -> etags -> other backends
+        :n "gD" #'xref-find-definitions)) ; direct xref (always uses etags)
 ```
 
 #### Keybindings
 
 | Key | Action | Function |
 |-----|--------|----------|
-| `gd` | Jump to definition | `xref-find-definitions` |
-| `gD` | Doom lookup (fallback) | `+lookup/definition` |
+| `gd` | Jump to definition (eglot -> etags) | `+lookup/definition` |
+| `gD` | Direct xref (etags only) | `xref-find-definitions` |
 | `M-.` | Jump to definition | `xref-find-definitions` |
 | `M-,` | Go back | `xref-go-back` |
 | `M-?` | Find references | `xref-find-references` |
@@ -178,9 +220,9 @@ In Elisp, set `default-directory` and use relative paths:
 ## Consequences
 
 - Lighter setup (eglot vs lsp-mode)
-- C# requires manual csharp-ls installation
+- C# uses Microsoft's Roslyn LSP (installed via `scripts\install-roslyn-lsp.ps1`)
 - All choices favor GNU/official project maintenance over feature-rich community alternatives
-- Code navigation requires one-time `SPC c t` at monorepo root to generate tags
+- Code navigation: eglot provides LSP-based go-to-definition; ctags (`SPC c t`) remains as fallback
 
 ## Tool Installation Commands
 
@@ -190,8 +232,8 @@ In Elisp, set `default-directory` and use relative paths:
 
 # C++ clangd - comes with LLVM (already installed via setup script)
 
-# C# csharp-ls (actively maintained Roslyn-based server)
-dotnet tool install --global csharp-ls
+# C# Roslyn LSP (same server as VS Code)
+.\scripts\install-roslyn-lsp.ps1
 
 # YAML language server
 npm install -g yaml-language-server

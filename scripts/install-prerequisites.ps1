@@ -18,8 +18,8 @@ foreach ($pkg in $wingetPackages) {
     winget install --id $pkg -e --accept-source-agreements --accept-package-agreements
 }
 
-Write-Host "`nInstalling .NET global tools..." -ForegroundColor Cyan
-dotnet tool install --global csharp-ls
+Write-Host "`nInstalling Roslyn LSP (C# language server)..." -ForegroundColor Cyan
+& "$PSScriptRoot\install-roslyn-lsp.ps1"
 
 Write-Host "`nInstalling npm global packages..." -ForegroundColor Cyan
 npm install -g yaml-language-server
@@ -34,16 +34,21 @@ $tools = @{
     "npm" = "npm --version"
     "jq" = "jq --version"
     "cmake" = "cmake --version"
-    "csharp-ls" = "csharp-ls --version"
+    "roslyn-lsp" = "Test-Path `"$env:LOCALAPPDATA\roslyn-lsp\Microsoft.CodeAnalysis.LanguageServer.dll`""
     "yaml-language-server" = "yaml-language-server --version"
     "mmdc" = "mmdc --version"
 }
 
 foreach ($tool in $tools.Keys) {
-    if (Get-Command $tool -ErrorAction SilentlyContinue) {
-        Write-Host "  ✓ $tool" -ForegroundColor Green
+    $found = Get-Command $tool -ErrorAction SilentlyContinue
+    if (-not $found) {
+        # Fall back to tool-specific check expression (e.g. roslyn-lsp is a DLL, not a command)
+        $found = Invoke-Expression $tools[$tool] 2>$null
+    }
+    if ($found) {
+        Write-Host "  OK: $tool" -ForegroundColor Green
     } else {
-        Write-Host "  ✗ $tool (not found in PATH - may need shell restart)" -ForegroundColor Red
+        Write-Host "  MISSING: $tool (not found - may need shell restart)" -ForegroundColor Red
     }
 }
 

@@ -46,7 +46,7 @@ The install script creates a symlink from `~\.config\doom` to the `doom/` direct
 Completion: corfu +orderless, vertico
 Editor: evil +everywhere, snippets, whitespace
 Tools: magit, eval +overlay, lookup, lsp +eglot, tree-sitter
-Languages: emacs-lisp, markdown, org, sh, yaml, cc +lsp, csharp
+Languages: emacs-lisp, markdown, org, sh, yaml, cc +lsp, csharp +lsp
 Terminal: eshell, shell
 
 ## Decision Records
