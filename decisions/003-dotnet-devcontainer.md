@@ -19,11 +19,11 @@ Use devcontainer.el's API (`devcontainer-advise-command`) to wrap LSP and format
 - **Problem**: Doesn't respect devcontainer.el's exclusion rules
 
 **Chosen Approach**: Use `devcontainer-advise-command` from devcontainer.el
-- ✅ **Automatic container detection** - devcontainer.el tracks running containers
-- ✅ **Lifecycle integration** - respects devcontainer-mode activation/deactivation
-- ✅ **Smart wrapping** - only wraps when `devcontainer-advisable-p` returns true
-- ✅ **Consistent behavior** - same wrapping mechanism as compilation commands
-- ✅ **Maintainable** - single source of truth for container execution
+- Automatic container detection - devcontainer.el tracks running containers
+- Lifecycle integration - respects devcontainer-mode activation/deactivation
+- Smart wrapping - only wraps when `devcontainer-advisable-p` returns true
+- Consistent behavior - same wrapping mechanism as compilation commands
+- Maintainable - single source of truth for container execution
 
 ### Why csharp-ls over omnisharp-roslyn
 
@@ -206,7 +206,7 @@ When you open a file via TRAMP (e.g., `/docker:abc123:/workspaces/cloudcity/Prog
 1. Open local file: /var/home/.../cloudcity/Program.cs
 2. Hook wraps eglot with: docker exec -w /workspaces/cloudcity container csharp-ls
 3. LSP sends URIs: /workspaces/cloudcity/Program.cs
-4. ❌ Path mismatch - Emacs can't map container paths to host paths
+4. Path mismatch - Emacs can't map container paths to host paths
 ```
 
 **TRAMP Approach (works)**:
@@ -214,7 +214,7 @@ When you open a file via TRAMP (e.g., `/docker:abc123:/workspaces/cloudcity/Prog
 1. Open TRAMP file: /docker:container:/workspaces/cloudcity/Program.cs
 2. Eglot starts: csharp-ls (TRAMP runs it in container automatically)
 3. LSP sends URIs: /workspaces/cloudcity/Program.cs
-4. ✅ TRAMP translates paths transparently
+4. TRAMP translates paths transparently
 5. goto-definition, formatting, etc. all work seamlessly
 ```
 
@@ -238,13 +238,13 @@ After reloading config (`doom sync` not needed for config.el changes):
    - Open file via `SPC f d` → navigate to `Program.cs`
    - Buffer name: `/docker:cloudcity:/workspaces/cloudcity/Program.cs`
    - Start eglot: `M-x eglot`
-   - ✅ Should auto-detect csharp-ls and connect
+   - Should auto-detect csharp-ls and connect
    - Test: `gd` (goto-definition), `K` (hover docs)
 
 4. **Test formatting**:
    - In the same TRAMP file, mess up formatting
    - Press `SPC m f`
-   - ✅ Should auto-format with CSharpier
+   - Should auto-format with CSharpier
 
 ### Troubleshooting
 
@@ -265,13 +265,13 @@ After reloading config (`doom sync` not needed for config.el changes):
 
 ### Benefits Over Previous Approach
 
-**✅ Simpler**: Remove complex wrapping code, add simple helpers
-**✅ Official**: Uses Emacs built-in TRAMP (no custom hacks)
-**✅ Maintainable**: Leverages standard Emacs patterns
-**✅ Zero LSP config**: Eglot "just works" with TRAMP
-**✅ Better UX**: Helper functions + Vertico make container selection easy
-**✅ Persistent**: Bookmarks provide quick access to frequent containers
-**✅ Scalable**: Works for any container, not just devcontainer
+- **Simpler**: Remove complex wrapping code, add simple helpers
+- **Official**: Uses Emacs built-in TRAMP (no custom hacks)
+- **Maintainable**: Leverages standard Emacs patterns
+- **Zero LSP config**: Eglot "just works" with TRAMP
+- **Better UX**: Helper functions + Vertico make container selection easy
+- **Persistent**: Bookmarks provide quick access to frequent containers
+- **Scalable**: Works for any container, not just devcontainer
 
 ### References
 

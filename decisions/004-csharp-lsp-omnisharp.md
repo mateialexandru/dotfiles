@@ -2,7 +2,7 @@
 
 ## Context
 
-We initially chose csharp-ls (see [dotnet-devcontainer-decision.md](./dotnet-devcontainer-decision.md#why-csharp-ls-over-omnisharp-roslyn)) as our C# LSP server based on:
+We initially chose csharp-ls (see [003-dotnet-devcontainer.md](./003-dotnet-devcontainer.md#why-csharp-ls-over-omnisharp-roslyn)) as our C# LSP server based on:
 - Modern Roslyn-based architecture
 - Lighter weight
 - Active development
@@ -29,16 +29,16 @@ Error: StreamJsonRpc.BadRpcHeaderException:
 When eglot starts csharp-ls through TRAMP's docker exec, the line endings in LSP protocol headers are being converted from CRLF (`\r\n`) to LF-only (`\n`). csharp-ls has strict header validation and immediately crashes with exit code 3.
 
 **Failed Workarounds:**
-1. ❌ Binary process coding system - Applied too late in the process chain
-2. ❌ Connection-local variables for exec-path - Doesn't affect encoding
-3. ❌ Custom wrapper scripts - Line endings still converted by docker exec
-4. ❌ `advice-add` on `eglot--connect` - Process already created with wrong encoding
+1. Binary process coding system - Applied too late in the process chain
+2. Connection-local variables for exec-path - Doesn't affect encoding
+3. Custom wrapper scripts - Line endings still converted by docker exec
+4. `advice-add` on `eglot--connect` - Process already created with wrong encoding
 
 **Test Results:**
-- ✅ `csharp-ls --version` in container → Works
-- ✅ `csharp-ls --solution file.sln --diagnose` → Works
-- ✅ LSP with proper CRLF (manual echo -ne test) → Works
-- ❌ LSP via eglot + TRAMP → Exit code 3
+- `csharp-ls --version` in container → Works
+- `csharp-ls --solution file.sln --diagnose` → Works
+- LSP with proper CRLF (manual echo -ne test) → Works
+- LSP via eglot + TRAMP → Exit code 3
 
 ### Time Investment
 
@@ -90,11 +90,11 @@ After **multiple hours** of debugging and attempting various workarounds:
 
 | Aspect | csharp-ls | OmniSharp | Impact |
 |--------|-----------|-----------|--------|
-| **Startup Time** | <1s | 5-10s | ✅ Acceptable - long editing sessions |
-| **Memory Usage** | ~150MB | ~300MB | ✅ Not an issue on modern systems |
-| **Installation** | `dotnet tool` | Manual binary | ⚠️ Requires devcontainer.json update |
-| **Stability** | ❌ Crashes | ✅ Reliable | ⭐ Critical |
-| **Remote Work** | ❌ CRLF issues | ✅ Proven | ⭐ Critical |
+| **Startup Time** | <1s | 5-10s | Acceptable - long editing sessions |
+| **Memory Usage** | ~150MB | ~300MB | Not an issue on modern systems |
+| **Installation** | `dotnet tool` | Manual binary | Requires devcontainer.json update |
+| **Stability** | Crashes | Reliable | Critical |
+| **Remote Work** | CRLF issues | Proven | Critical |
 
 **Why the trade-offs are worth it:**
 - **Startup time**: 5-10s is negligible for editing sessions that last hours
@@ -118,19 +118,19 @@ After **multiple hours** of debugging and attempting various workarounds:
 
 ### Positive
 
-✅ **Immediate reliability** - OmniSharp works with TRAMP/docker out of the box
-✅ **No CRLF workarounds** - Robust LSP protocol implementation
-✅ **Better features** - More comprehensive IDE functionality
-✅ **Proven remote support** - Battle-tested in VS Code Remote
-✅ **Large community** - Extensive documentation and troubleshooting help
-✅ **Future-proof** - Less likely to hit edge cases
+- **Immediate reliability** - OmniSharp works with TRAMP/docker out of the box
+- **No CRLF workarounds** - Robust LSP protocol implementation
+- **Better features** - More comprehensive IDE functionality
+- **Proven remote support** - Battle-tested in VS Code Remote
+- **Large community** - Extensive documentation and troubleshooting help
+- **Future-proof** - Less likely to hit edge cases
 
 ### Negative
 
-⚠️ **Slower startup** - 5-10s vs <1s (acceptable for long sessions)
-⚠️ **Higher memory** - 300MB vs 150MB (not significant on modern hardware)
-⚠️ **Manual installation** - Requires wget in devcontainer.json (one-time setup)
-⚠️ **Larger binary** - ~50MB download (cached after first build)
+- **Slower startup** - 5-10s vs <1s (acceptable for long sessions)
+- **Higher memory** - 300MB vs 150MB (not significant on modern hardware)
+- **Manual installation** - Requires wget in devcontainer.json (one-time setup)
+- **Larger binary** - ~50MB download (cached after first build)
 
 ### Neutral
 
@@ -214,8 +214,8 @@ After **multiple hours** of debugging and attempting various workarounds:
 
 ## Related Decisions
 
-- [Decision: .NET Development with devcontainer.el Integration](./dotnet-devcontainer-decision.md) - Original choice of csharp-ls
-- [2026-02-08 Update: TRAMP-Based Approach](./dotnet-devcontainer-decision.md#2026-02-08-update-tramp-based-approach) - Context for this decision
+- [003-dotnet-devcontainer.md](./003-dotnet-devcontainer.md) - Original choice of csharp-ls
+- [003-dotnet-devcontainer.md - TRAMP-Based Approach](./003-dotnet-devcontainer.md#2026-02-08-update-tramp-based-approach) - Context for this decision
 
 ---
 

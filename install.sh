@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 # Dotfiles Install Script for Linux (Bluefin/Fedora)
-# Creates symlinks, installs packages via Homebrew, and sets up Doom Emacs
+# Installs all editors and tools
 
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "$0")" && pwd)"
-DOOM_SOURCE="$DOTFILES_DIR/doom"
-DOOM_TARGET="$HOME/.config/doom"
-DOOM_EMACS="$HOME/.config/emacs"
 
-# --- Homebrew packages ---
+# --- Homebrew packages (shared tools) ---
 
 if command -v brew &>/dev/null; then
-    echo "Installing packages via Homebrew..."
+    echo "Installing shared packages via Homebrew..."
 
     # Everyday tools
     brew install --formula kanata
@@ -30,42 +27,15 @@ if command -v brew &>/dev/null; then
 
     # Programming tools
     brew install cmake ninja gh grip devcontainer
-
-    # Doom Emacs dependencies
-    brew install ripgrep fd shellcheck pandoc
 else
-    echo "Homebrew not found — skipping package installation."
+    echo "Homebrew not found — skipping shared package installation."
     echo "Install Homebrew first: https://brew.sh"
 fi
 
-# --- Symlink doom config ---
+# Install Doom Emacs
+bash "$DOTFILES_DIR/scripts/install-doom.sh"
 
-if [ -L "$DOOM_TARGET" ]; then
-    echo "Doom symlink already exists: $(readlink "$DOOM_TARGET")"
-elif [ -d "$DOOM_TARGET" ]; then
-    echo "Backing up existing doom config to $DOOM_TARGET.backup"
-    mv "$DOOM_TARGET" "$DOOM_TARGET.backup"
-    ln -s "$DOOM_SOURCE" "$DOOM_TARGET"
-    echo "Created symlink: $DOOM_TARGET -> $DOOM_SOURCE"
-else
-    mkdir -p "$(dirname "$DOOM_TARGET")"
-    ln -s "$DOOM_SOURCE" "$DOOM_TARGET"
-    echo "Created symlink: $DOOM_TARGET -> $DOOM_SOURCE"
-fi
-
-# --- Install Doom Emacs ---
-
-if [ ! -d "$DOOM_EMACS" ]; then
-    echo "Cloning Doom Emacs..."
-    git clone --depth 1 https://github.com/doomemacs/doomemacs "$DOOM_EMACS"
-    "$DOOM_EMACS/bin/doom" install
-else
-    echo "Doom Emacs already installed at $DOOM_EMACS"
-fi
-
-# --- Sync doom config ---
-
-echo "Running doom sync..."
-"$DOOM_EMACS/bin/doom" sync
+# Install Neovim (LazyVim)
+bash "$DOTFILES_DIR/scripts/install-nvim.sh"
 
 echo "Done! Dotfiles installed."

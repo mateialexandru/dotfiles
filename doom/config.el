@@ -321,7 +321,63 @@
         :n "gd" #'+lookup/definition    ; eglot -> etags -> other backends
         :n "gD" #'xref-find-definitions)) ; direct xref (always uses etags)
 
+;;; Roslyn LSP via eglot (cross-platform)
+(after! eglot
+  (setq eglot-connect-timeout 120)
+
+  ;; Roslyn workspace configuration: disable file-based programs so
+  ;; Roslyn doesn't treat each .cs as a standalone program.  Enable
+  ;; automatic NuGet restore so packages resolve without manual
+  ;; `dotnet restore'.
+  (setq-default eglot-workspace-configuration
+                '(:projects\.dotnet_enable_file_based_programs :json-false
+                  :projects\.dotnet_enable_automatic_restore t))
+
+  ;; Platform-aware Roslyn DLL discovery
+  (let* ((roslyn-dll (expand-file-name
+                      (pcase system-type
+                        ('windows-nt (concat (getenv "LOCALAPPDATA") "/roslyn-lsp/Microsoft.CodeAnalysis.LanguageServer.dll"))
+                        (_ "~/.local/share/roslyn-lsp/Microsoft.CodeAnalysis.LanguageServer.dll"))))
+         (log-dir (expand-file-name "roslyn-lsp-logs" temporary-file-directory)))
+    (when (file-exists-p roslyn-dll)
+      (add-to-list 'eglot-server-programs
+                   `(csharp-mode . ("dotnet" ,roslyn-dll
+                                    "--logLevel" "Information"
+                                    "--extensionLogDirectory" ,log-dir
+                                    "--stdio")))))
+
+  ;; Extra keybindings for eglot LSP capabilities
+  (map! :map eglot-mode-map
+        :leader
+        (:prefix ("c" . "code")
+         :desc "Find type definition"  "T" #'eglot-find-typeDefinition
+         :desc "Toggle inlay hints"    "h" #'eglot-inlay-hints-mode
+         :desc "Organize imports"      "o" #'eglot-code-action-organize-imports
+         :desc "Quick fix"             "q" #'eglot-code-action-quickfix)))
+
+;; Roslyn project discovery: the standalone Roslyn language server
+;; (unlike VS Code's C# extension) does NOT auto-discover solutions.
+;; We must send `solution/open' after connecting — same as roslyn.nvim.
+(defun my/eglot-roslyn-open-solution ()
+  "Send solution/open to Roslyn so it loads the .sln for the project."
+  (when-let* ((server (eglot-current-server))
+              ((eq major-mode 'csharp-mode))
+              (root (project-root (eglot--project server)))
+              (sln (car (directory-files root t "\\.sln\\'" t))))
+    (jsonrpc-notify server :solution/open
+                    (list :solution (eglot-path-to-uri sln)))))
+
+(add-hook 'eglot-managed-mode-hook #'my/eglot-roslyn-open-solution)
+
 ;; Load platform-specific configuration
 (pcase system-type
   ('gnu/linux   (load! "config-linux"))
   ('windows-nt  (load! "config-windows")))
+
+;; Windows: Use Git bash for POSIX compatibility (works with Windows paths)
+(setq shell-file-name "C:/Program Files/Git/bin/bash.exe")
+
+;; Font configuration
+(setq doom-font (font-spec :family "JetBrainsMono NF" :size 14)
+      doom-variable-pitch-font (font-spec :family "Segoe UI" :size 15)
+      doom-symbol-font (font-spec :family "Symbols Nerd Font Mono"))

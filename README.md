@@ -10,6 +10,8 @@ Cross-platform Doom Emacs configuration for Windows and Linux (Bluefin/Fedora).
   - `config-windows.el` — Windows-specific settings
   - `init.el` — Module declarations
   - `packages.el` — Extra package declarations
+- `nvim/` — Neovim (LazyVim) configuration
+- `decisions/` — Architecture Decision Records (design rationale)
 - `install.sh` — Linux installer (symlinks + Doom install)
 - `install.ps1` — Windows installer (symlinks + full setup)
 - `scripts/setup-doom.ps1` — Windows dependency setup

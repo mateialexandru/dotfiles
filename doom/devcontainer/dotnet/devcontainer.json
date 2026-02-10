@@ -9,7 +9,7 @@
       "version": "10.0"
     }
   },
-  "postCreateCommand": "dotnet tool install --global csharp-ls && dotnet tool install --global csharpier",
+  "postCreateCommand": "dotnet tool install --global csharpier && curl -fSL 'https://www.nuget.org/api/v2/package/Microsoft.CodeAnalysis.LanguageServer.linux-x64/5.0.0-1.25277.114' -o /tmp/roslyn.zip && unzip -q /tmp/roslyn.zip -d /tmp/roslyn-extract && mkdir -p ~/.local/share/roslyn-lsp && cp -r $(dirname $(find /tmp/roslyn-extract -name 'Microsoft.CodeAnalysis.LanguageServer.dll' -print -quit))/* ~/.local/share/roslyn-lsp/ && rm -rf /tmp/roslyn.zip /tmp/roslyn-extract",
   "remoteEnv": {
     "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/.dotnet/tools"
   },
