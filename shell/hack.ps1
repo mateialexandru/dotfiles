@@ -340,50 +340,10 @@ function Resolve-HackRepo {
     }
 
     $repo = $Config.repos.$RepoAlias
-    $result = @{
+    return @{
         Url        = $repo.url
         Alias      = $RepoAlias
         BaseBranch = $repo.baseBranch ?? $Config.defaultBaseBranch ?? "develop"
-        Provider   = "unknown"
-    }
-
-    if ($result.Url -match 'github\.com') { $result.Provider = "github" }
-    elseif ($result.Url -match 'visualstudio\.com|dev\.azure\.com') { $result.Provider = "ado" }
-    elseif ($result.Url -match 'gitlab\.com') { $result.Provider = "gitlab" }
-
-    return $result
-}
-
-# ---------------------------------------------------------------------------
-# Tab-completion: worktree names (repo/task)
-# ---------------------------------------------------------------------------
-
-$script:WorktreeCompleter = {
-    param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-    $cfg = Get-HackConfig
-    if (-not $cfg -or -not $cfg.baseDir -or -not (Test-Path $cfg.baseDir)) { return }
-
-    $repoDirs = Get-ChildItem $cfg.baseDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -ne ".trees" }
-    foreach ($repoDir in $repoDirs) {
-        $taskDirs = Get-ChildItem $repoDir.FullName -Directory -ErrorAction SilentlyContinue
-        foreach ($taskDir in $taskDirs) {
-            if (Test-Path ([IO.Path]::Combine($taskDir.FullName, ".git"))) {
-                $label = "$($repoDir.Name)/$($taskDir.Name)"
-                if ($label -like "$wordToComplete*") {
-                    [System.Management.Automation.CompletionResult]::new($label, $label, 'ParameterValue', $label)
-                }
-            }
-        }
-    }
-}
-
-$script:RepoCompleter = {
-    param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-    $cfg = Get-HackConfig
-    if ($cfg -and $cfg.repos) {
-        $cfg.repos.PSObject.Properties.Name | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {
-            [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
-        }
     }
 }
 
@@ -394,9 +354,7 @@ $script:RepoCompleter = {
 function Get-HackWorktrees {
     param(
         [string]$Repo = "all",
-        [ValidateSet("all","clean","dirty","ahead","behind","stale","merged")][string]$Status = "all",
-        [string]$Filter = "",
-        [int]$DaysOld = 0
+        [string]$Filter = ""
     )
 
     $config = Get-HackConfig
@@ -490,12 +448,6 @@ function Get-HackWorktrees {
                 }
 
                 # Filters
-                if ($Status -ne "all" -and $statusFlag -ne $Status) {
-                    Set-Location $originalLocation; continue
-                }
-                if ($DaysOld -gt 0 -and $daysSinceModified -lt $DaysOld) {
-                    Set-Location $originalLocation; continue
-                }
                 if (-not [string]::IsNullOrWhiteSpace($Filter)) {
                     $searchText = "$repoName/$($taskDir.Name) $taskDesc"
                     if ($searchText -notlike "*$Filter*") {
@@ -770,9 +722,7 @@ function hack {
                 }
             }
         })]
-        [string]$Arg1,
-
-        [Parameter(Position=2)][string]$Arg2
+        [string]$Arg1
     )
 
     $reservedSubcommands = @("name","done","resume","go","list","clean","branch","status")
@@ -1021,6 +971,15 @@ function Invoke-HackDone {
                 }
             }
             "ado" {
+                # Build ADO browser URL for fallback
+                $adoUrl = $null
+                if ($remoteUrl -match 'dev\.azure\.com/([^/]+)/([^/]+)/_git/(.+)') {
+                    $adoUrl = "https://dev.azure.com/$($matches[1])/$($matches[2])/_git/$($matches[3])/pullrequestcreate?sourceRef=$branch&targetRef=$baseBranch"
+                }
+                elseif ($remoteUrl -match 'visualstudio\.com/([^/]+)/_git/(.+)') {
+                    $adoUrl = "$remoteUrl/pullrequestcreate?sourceRef=$branch&targetRef=$baseBranch"
+                }
+
                 if (Get-Command az -ErrorAction SilentlyContinue) {
                     Write-Host "Creating Azure DevOps PR..." -ForegroundColor Cyan
                     $result = az repos pr create --title $prTitle --source-branch $branch --target-branch $baseBranch --auto-complete false 2>&1
@@ -1035,31 +994,11 @@ function Invoke-HackDone {
                         }
                     } else {
                         Write-Host "az repos pr create failed. Opening browser..." -ForegroundColor Yellow
-                        $adoUrl = $null
-                        if ($remoteUrl -match 'dev\.azure\.com/([^/]+)/([^/]+)/_git/(.+)') {
-                            $adoUrl = "https://dev.azure.com/$($matches[1])/$($matches[2])/_git/$($matches[3])/pullrequestcreate?sourceRef=$branch&targetRef=$baseBranch"
-                        }
-                        elseif ($remoteUrl -match 'visualstudio\.com/([^/]+)/_git/(.+)') {
-                            $adoUrl = "$remoteUrl/pullrequestcreate?sourceRef=$branch&targetRef=$baseBranch"
-                        }
-                        if ($adoUrl) {
-                            Start-Process $adoUrl
-                            $prUrl = $adoUrl
-                        }
+                        if ($adoUrl) { Start-Process $adoUrl; $prUrl = $adoUrl }
                     }
                 } else {
                     Write-Host "az CLI not found. Opening browser..." -ForegroundColor Yellow
-                    $adoUrl = $null
-                    if ($remoteUrl -match 'dev\.azure\.com/([^/]+)/([^/]+)/_git/(.+)') {
-                        $adoUrl = "https://dev.azure.com/$($matches[1])/$($matches[2])/_git/$($matches[3])/pullrequestcreate?sourceRef=$branch&targetRef=$baseBranch"
-                    }
-                    elseif ($remoteUrl -match 'visualstudio\.com/([^/]+)/_git/(.+)') {
-                        $adoUrl = "$remoteUrl/pullrequestcreate?sourceRef=$branch&targetRef=$baseBranch"
-                    }
-                    if ($adoUrl) {
-                        Start-Process $adoUrl
-                        $prUrl = $adoUrl
-                    }
+                    if ($adoUrl) { Start-Process $adoUrl; $prUrl = $adoUrl }
                 }
             }
             default {

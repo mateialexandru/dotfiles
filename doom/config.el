@@ -277,6 +277,14 @@
     ;; Auto-enable apheleia for C# files
     (add-hook 'csharp-mode-hook #'apheleia-mode)))
 
+;;; Projectile Commander — action menu after switching projects
+(after! projectile
+  (setq projectile-switch-project-action #'projectile-commander)
+
+  (def-projectile-commander-method ?m
+    "Open magit-status."
+    (magit-status)))
+
 ;;; Tags - Universal Ctags + built-in xref
 ;; Generate TAGS file at project root
 (defun my/create-tags ()
@@ -374,10 +382,3 @@
   ('gnu/linux   (load! "config-linux"))
   ('windows-nt  (load! "config-windows")))
 
-;; Windows: Use Git bash for POSIX compatibility (works with Windows paths)
-(setq shell-file-name "C:/Program Files/Git/bin/bash.exe")
-
-;; Font configuration
-(setq doom-font (font-spec :family "JetBrainsMono NF" :size 14)
-      doom-variable-pitch-font (font-spec :family "Segoe UI" :size 15)
-      doom-symbol-font (font-spec :family "Symbols Nerd Font Mono"))

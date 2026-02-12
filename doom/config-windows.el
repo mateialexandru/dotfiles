@@ -1,5 +1,10 @@
 ;;; config-windows.el --- Windows-specific Doom configuration -*- lexical-binding: t; -*-
 
+;; Font configuration (DPI-aware float sizes)
+(setq doom-font (font-spec :family "JetBrainsMono NF" :size 11.0)
+      doom-variable-pitch-font (font-spec :family "Segoe UI" :size 12.0)
+      doom-symbol-font (font-spec :family "Symbols Nerd Font Mono"))
+
 ;; Use Git bash for POSIX compatibility (works with Windows paths)
 (setq shell-file-name "C:/Program Files/Git/bin/bash.exe")
 
@@ -27,3 +32,22 @@
 (map! :leader
       (:prefix ("c" . "code")
        :desc "Test DotNet LSP" "R" #'my/test-dotnet-lsp))
+
+;;; Magit — performance tuning for Windows
+;; Windows is ~56x slower than Unix for magit due to process spawning cost.
+(after! magit
+  ;; Don't auto-refresh status buffer on every magit action — only refresh
+  ;; when the status buffer is the current buffer. Biggest single win.
+  (setq magit-refresh-status-buffer nil)
+
+  ;; Disable expensive diff decorations
+  (setq magit-diff-highlight-indentation nil
+        magit-diff-highlight-trailing nil
+        magit-diff-paint-whitespace nil)
+
+  ;; Remove slow status sections (each spawns a git subprocess)
+  (remove-hook 'magit-status-sections-hook 'magit-insert-tags-header)
+  (remove-hook 'magit-status-sections-hook 'magit-insert-unpushed-to-pushremote)
+  (remove-hook 'magit-status-sections-hook 'magit-insert-unpulled-from-pushremote)
+  (remove-hook 'magit-status-sections-hook 'magit-insert-unpulled-from-upstream)
+  (remove-hook 'magit-status-sections-hook 'magit-insert-unpushed-to-upstream-or-recent))
