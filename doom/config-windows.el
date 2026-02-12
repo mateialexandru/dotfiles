@@ -33,6 +33,12 @@
       (:prefix ("c" . "code")
        :desc "Test DotNet LSP" "R" #'my/test-dotnet-lsp))
 
+;;; Notifications — Windows toast (local)
+(use-package! alert-toast
+  :after alert
+  :config
+  (setq alert-default-style 'toast))
+
 ;;; Magit — performance tuning for Windows
 ;; Windows is ~56x slower than Unix for magit due to process spawning cost.
 (after! magit

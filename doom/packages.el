@@ -60,3 +60,7 @@
 
 ;; C# community snippet collection
 (package! yasnippet-snippets)
+
+;; Notification framework (ntfy.sh + platform-native alerts)
+(package! alert)
+(package! alert-toast)
