@@ -57,6 +57,8 @@ Adding plugins: create a new file in `nvim/lua/plugins/` returning a lazy.nvim p
 
 - `shell/hack.ps1` — Worktree-based developer workflow (dot-sourced into PowerShell profile)
 - `shell/hack-config.sample.json` — Example config for `~/.config/hack/config.json`
+- `shell/notify.ps1` — `Send-Toast` function for Windows toast notifications (dot-sourced by doom.ps1, hack.ps1)
+- `shell/doom.ps1` — Doom Emacs helpers (`dsync` with toast notifications, dot-sourced into profile)
 
 Two commands: `workshop` manages repos, `hack` handles worktree lifecycle.
 
@@ -116,6 +118,7 @@ Config lives at `~/.config/hack/config.json` (not committed). Auto-created on fi
 - `scripts/install-roslyn-lsp.sh` — Install Roslyn language server DLL (Linux)
 - `scripts/install-hack.ps1` — Adds hack.ps1 dot-source to PowerShell profile (Windows)
 - `scripts/install-hack.sh` — Adds hack.ps1 dot-source to pwsh profile (Linux)
+- `scripts/install-claude.ps1` — Configure Claude Code settings with toast notification hook (Windows)
 
 ## Key Design Decisions
 

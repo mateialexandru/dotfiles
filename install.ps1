@@ -14,6 +14,9 @@ Write-Host "Installing dotfiles from: $dotfilesDir" -ForegroundColor Cyan
 # Install Hack worktree tooling
 & (Join-Path $dotfilesDir "scripts\install-hack.ps1")
 
+# Configure Claude Code (toast notifications)
+& (Join-Path $dotfilesDir "scripts\install-claude.ps1")
+
 # Git performance settings (Windows-specific: fscache, parallel index, etc.)
 Write-Host "`nConfiguring git for Windows performance..." -ForegroundColor Cyan
 git config --global core.preloadindex true
