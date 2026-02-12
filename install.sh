@@ -38,4 +38,7 @@ bash "$DOTFILES_DIR/scripts/install-doom.sh"
 # Install Neovim (LazyVim)
 bash "$DOTFILES_DIR/scripts/install-nvim.sh"
 
+# Install Hack worktree tooling
+bash "$DOTFILES_DIR/scripts/install-hack.sh"
+
 echo "Done! Dotfiles installed."

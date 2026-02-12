@@ -53,6 +53,54 @@ Adding plugins: create a new file in `nvim/lua/plugins/` returning a lazy.nvim p
 - `doom/config-linux.el` — Linux-specific settings (dired switches).
 - `doom/config-windows.el` — Windows-specific settings (Git Bash shell, dired ls-lisp, drive letter URI fix).
 
+## Shell Tooling
+
+- `shell/hack.ps1` — Worktree-based developer workflow (dot-sourced into PowerShell profile)
+- `shell/hack-config.sample.json` — Example config for `~/.config/hack/config.json`
+
+Two commands: `workshop` manages repos, `hack` handles worktree lifecycle.
+
+### `workshop` — Repo Management
+
+| Command | Purpose |
+|---------|---------|
+| `workshop` | List registered repos |
+| `workshop add <alias> <url> [baseBranch]` | Register a repo (auto-creates config on first use) |
+| `workshop remove <alias>` | Unregister a repo |
+| `workshop default <alias>` | Set default repo |
+
+### `hack` — Worktree Lifecycle
+
+| Command | Alias | Purpose |
+|---------|-------|---------|
+| `hack [repo]` | — | Create scratch worktree + launch agent in plan mode |
+| `hack name "description"` | — | Crystallize scratch → named branch + dir + SPEC.md |
+| `hack done` | — | Push + create PR (picker if not in worktree) |
+| `hack resume [filter]` | `r` | Picker + cd + launch agent (`claude --resume`) |
+| `hack go [filter]` | `g` | Picker + cd only |
+| `hack list` | `lh` | Status dashboard grouped by repo |
+| `hack clean` | — | Interactive cleanup (merged + unnamed highlighted) |
+| `hack branch` | — | Worktree from existing remote branch |
+| `hack status` | — | Show current hack info + toggle agent mode |
+
+### Explore-First Flow
+
+```
+workshop add infra https://...          # register repo
+hack infra                              # scratch worktree → explore/ideate
+hack name "add retry logic to auth"     # crystallize → named branch + SPEC.md
+r                                       # resume (alias for hack resume)
+hack done                               # push + PR
+hack list                               # dashboard
+hack clean                              # cleanup
+```
+
+### Prompt Integration
+
+`Get-HackPrompt` returns `"repo/task"` or `""` — opt-in for shell prompt customization.
+
+Config lives at `~/.config/hack/config.json` (not committed). Auto-created on first `workshop add`.
+
 ## Scripts
 
 - `scripts/install-doom.ps1` — Install Doom Emacs on Windows (symlinks + deps + setup)
@@ -66,6 +114,8 @@ Adding plugins: create a new file in `nvim/lua/plugins/` returning a lazy.nvim p
 - `scripts/Test-DotNetLsp.ps1` — Test Roslyn LSP connectivity
 - `scripts/install-roslyn-lsp.ps1` — Install Roslyn language server DLL (Windows)
 - `scripts/install-roslyn-lsp.sh` — Install Roslyn language server DLL (Linux)
+- `scripts/install-hack.ps1` — Adds hack.ps1 dot-source to PowerShell profile (Windows)
+- `scripts/install-hack.sh` — Adds hack.ps1 dot-source to pwsh profile (Linux)
 
 ## Key Design Decisions
 
@@ -98,6 +148,7 @@ Major decisions (package choices, architectural patterns, tool selections) are d
 - `002-neovim-lazyvim.md` - LazyVim choice, roslyn.nvim, treesitter compilation, config-in-repo
 - `003-dotnet-devcontainer.md` - .NET devcontainer integration, TRAMP-based approach
 - `004-csharp-lsp-omnisharp.md` - Switch from csharp-ls to OmniSharp for devcontainer workflows
+- `005-hack-worktree-tooling.md` - Worktree tooling refactor: config-driven, same-terminal, cross-platform
 
 ## Documentation Practices
 

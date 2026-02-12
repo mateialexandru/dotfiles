@@ -1,0 +1,17 @@
+{
+  "baseDir": "C:\\worktree",
+  "branchPrefix": "user/yourname",
+  "defaultBaseBranch": "develop",
+  "defaultModel": "claude-sonnet-4-5",
+  "defaultRepo": "infra",
+  "repos": {
+    "infra": {
+      "url": "https://dev.azure.com/org/project/_git/rdinfra",
+      "baseBranch": "develop"
+    },
+    "dotfiles": {
+      "url": "https://github.com/user/dotfiles",
+      "baseBranch": "master"
+    }
+  }
+}

@@ -11,4 +11,7 @@ Write-Host "Installing dotfiles from: $dotfilesDir" -ForegroundColor Cyan
 # Install Neovim (LazyVim)
 & (Join-Path $dotfilesDir "scripts\install-nvim.ps1")
 
+# Install Hack worktree tooling
+& (Join-Path $dotfilesDir "scripts\install-hack.ps1")
+
 Write-Host "`nDotfiles installation complete!" -ForegroundColor Green
