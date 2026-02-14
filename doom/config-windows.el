@@ -8,6 +8,9 @@
 ;; Use Git bash for POSIX compatibility (works with Windows paths)
 (setq shell-file-name "C:/Program Files/Git/bin/bash.exe")
 
+;; Windows variable-pitch font (overrides Cantarell from shared config)
+(setq doom-variable-pitch-font (font-spec :family "Segoe UI" :size 15))
+
 ;; Dired: Windows lacks ls, use Emacs ls-lisp with directories first
 (setq dired-use-ls-dired nil
       dired-listing-switches "-alh"

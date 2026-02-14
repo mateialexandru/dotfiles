@@ -24,10 +24,41 @@ else
     echo "Created symlink: $DOOM_TARGET -> $DOOM_SOURCE"
 fi
 
+# --- Install JetBrains Mono Nerd Font ---
+
+FONT_DIR="$HOME/.local/share/fonts/JetBrainsMono"
+if fc-list | grep -qi "JetBrainsMono"; then
+    echo "JetBrains Mono NF already installed."
+else
+    echo "Installing JetBrains Mono Nerd Font..."
+    FONT_VERSION="v3.3.0"
+    FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/download/${FONT_VERSION}/JetBrainsMono.tar.xz"
+    mkdir -p "$FONT_DIR"
+    curl -fsSL "$FONT_URL" | tar -xJ -C "$FONT_DIR"
+    fc-cache -f "$FONT_DIR"
+    echo "JetBrains Mono NF installed."
+fi
+
+INTER_FONT_DIR="$HOME/.local/share/fonts/Inter"
+if fc-list | grep -qi "Inter:"; then
+    echo "Inter font already installed."
+else
+    echo "Installing Inter font..."
+    INTER_VERSION="v4.1"
+    INTER_URL="https://github.com/rsms/inter/releases/download/${INTER_VERSION}/Inter-4.1.zip"
+    mkdir -p "$INTER_FONT_DIR"
+    TMP_ZIP=$(mktemp /tmp/inter-XXXXXX.zip)
+    curl -fsSL "$INTER_URL" -o "$TMP_ZIP"
+    unzip -q "$TMP_ZIP" "*.ttf" -d "$INTER_FONT_DIR" || unzip -q "$TMP_ZIP" -d "$INTER_FONT_DIR"
+    rm "$TMP_ZIP"
+    fc-cache -f "$INTER_FONT_DIR"
+    echo "Inter font installed."
+fi
+
 # --- Install dependencies via Homebrew ---
 
 if command -v brew &>/dev/null; then
-    brew install ripgrep fd shellcheck pandoc
+    brew install ripgrep fd shellcheck pandoc dotnet
 else
     echo "Homebrew not found — skipping dependency installation."
 fi

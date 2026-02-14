@@ -473,3 +473,7 @@
   ('gnu/linux   (load! "config-linux"))
   ('windows-nt  (load! "config-windows")))
 
+;; Font configuration
+(setq doom-font (font-spec :family "JetBrainsMono NF" :size 14)
+      doom-variable-pitch-font (font-spec :family "Inter" :size 15)
+      doom-symbol-font (font-spec :family "Symbols Nerd Font Mono"))
