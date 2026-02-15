@@ -282,8 +282,8 @@
   (setq projectile-switch-project-action #'projectile-commander)
 
   (def-projectile-commander-method ?m
-    "Open magit-status."
-    (magit-status)))
+                                   "Open magit-status."
+                                   (magit-status)))
 
 ;;; Tags - Universal Ctags + built-in xref
 ;; Generate TAGS file at project root
@@ -329,6 +329,11 @@
         :n "gd" #'+lookup/definition    ; eglot -> etags -> other backends
         :n "gD" #'xref-find-definitions)) ; direct xref (always uses etags)
 
+;;; C# LSP backend selection — toggle with SPC t L (or M-x my/csharp-toggle-lsp)
+(defvar my/csharp-lsp-backend 'roslyn
+  "Active C# LSP backend. Either \\='roslyn or \\='omnisharp.
+Toggle interactively with `my/csharp-toggle-lsp'.")
+
 ;;; Roslyn LSP via eglot (cross-platform)
 (after! eglot
   (setq eglot-connect-timeout 120)
@@ -341,18 +346,49 @@
                 '(:projects\.dotnet_enable_file_based_programs :json-false
                   :projects\.dotnet_enable_automatic_restore t))
 
-  ;; Platform-aware Roslyn DLL discovery
+  ;; Platform-aware Roslyn contact function (defined inside let to capture paths)
   (let* ((roslyn-dll (expand-file-name
                       (pcase system-type
                         ('windows-nt (concat (getenv "LOCALAPPDATA") "/roslyn-lsp/Microsoft.CodeAnalysis.LanguageServer.dll"))
                         (_ "~/.local/share/roslyn-lsp/Microsoft.CodeAnalysis.LanguageServer.dll"))))
          (log-dir (expand-file-name "roslyn-lsp-logs" temporary-file-directory)))
     (when (file-exists-p roslyn-dll)
-      (add-to-list 'eglot-server-programs
-                   `(csharp-mode . ("dotnet" ,roslyn-dll
-                                    "--logLevel" "Information"
-                                    "--extensionLogDirectory" ,log-dir
-                                    "--stdio")))))
+      (defun my/roslyn-contact (&rest _)
+        "Eglot contact for the standalone Roslyn language server."
+        (list "dotnet" roslyn-dll
+              "--logLevel" "Information"
+              "--extensionLogDirectory" log-dir
+              "--stdio"))))
+
+  ;; Single eglot-server-programs entry that dispatches to the active backend.
+  ;; config-linux-omnisharp.el defines my/omnisharp-contact when OmniSharp is installed.
+  (defun my/csharp-eglot-contact (&rest _)
+    (pcase my/csharp-lsp-backend
+      ('omnisharp (my/omnisharp-contact))
+      (_          (my/roslyn-contact))))
+
+  (setf (alist-get 'csharp-mode eglot-server-programs) #'my/csharp-eglot-contact)
+
+  ;; Toggle between backends, reconnecting eglot in the current buffer if active
+  (defun my/csharp-toggle-lsp ()
+    "Toggle C# LSP backend between Roslyn and OmniSharp and reconnect."
+    (interactive)
+    (setq my/csharp-lsp-backend
+          (if (eq my/csharp-lsp-backend 'roslyn) 'omnisharp 'roslyn))
+    (message "C# LSP backend: %s" my/csharp-lsp-backend)
+    (when (and (bound-and-true-p eglot--managed-mode)
+               (eglot-current-server))
+      (eglot-reconnect (eglot-current-server) t)))
+
+  ;; Toggle eglot event logging (off by default for performance)
+  (defun my/eglot-toggle-events ()
+    "Toggle eglot LSP event logging on/off."
+    (interactive)
+    (if (> (plist-get eglot-events-buffer-config :size) 0)
+        (progn (setq eglot-events-buffer-config '(:size 0 :format full))
+               (message "Eglot events: OFF"))
+      (setq eglot-events-buffer-config '(:size 2000000 :format full))
+      (message "Eglot events: ON (reconnect eglot to start capturing)")))
 
   ;; Extra keybindings for eglot LSP capabilities
   (map! :map eglot-mode-map
@@ -361,14 +397,21 @@
          :desc "Find type definition"  "T" #'eglot-find-typeDefinition
          :desc "Toggle inlay hints"    "h" #'eglot-inlay-hints-mode
          :desc "Organize imports"      "o" #'eglot-code-action-organize-imports
-         :desc "Quick fix"             "q" #'eglot-code-action-quickfix)))
+         :desc "Quick fix"             "q" #'eglot-code-action-quickfix))
+
+  (map! :leader
+        (:prefix ("t" . "toggle")
+         :desc "Eglot event logging" "e" #'my/eglot-toggle-events
+         :desc "C# LSP backend"      "L" #'my/csharp-toggle-lsp)))
 
 ;; Roslyn project discovery: the standalone Roslyn language server
 ;; (unlike VS Code's C# extension) does NOT auto-discover solutions.
 ;; We must send `solution/open' after connecting — same as roslyn.nvim.
+;; Guard is a no-op when OmniSharp is active (it discovers .sln itself).
 (defun my/eglot-roslyn-open-solution ()
   "Send solution/open to Roslyn so it loads the .sln for the project."
-  (when-let* ((server (eglot-current-server))
+  (when-let* (((eq my/csharp-lsp-backend 'roslyn))
+              (server (eglot-current-server))
               ((eq major-mode 'csharp-mode))
               (root (project-root (eglot--project server)))
               (sln (car (directory-files root t "\\.sln\\'" t))))
@@ -385,29 +428,29 @@
     "ntfy.sh topic for Emacs notifications.")
 
   (alert-define-style 'ntfy
-    :title "ntfy.sh push notification"
-    :notifier (lambda (info)
-                (let* ((title (or (plist-get info :title) "Emacs"))
-                       (body (plist-get info :message))
-                       (priority (pcase (plist-get info :severity)
-                                   ('urgent "5") ('high "4") ('moderate "3")
-                                   (_ "2")))
-                       (url-request-method "POST")
-                       (url-request-extra-headers
-                        `(("Title" . ,title)
-                          ("Priority" . ,priority)
-                          ("Tags" . "emacs")))
-                       (url-request-data (encode-coding-string body 'utf-8)))
-                  (message "[ntfy] Sending: %s — %s" title body)
-                  (url-retrieve
-                   (format "https://ntfy.sh/%s" my/ntfy-topic)
-                   (lambda (status)
-                     (if (plist-get status :error)
-                         (message "[ntfy] FAILED: %S" (plist-get status :error))
-                       (message "[ntfy] Sent OK to topic '%s'" my/ntfy-topic))
-                     (when (buffer-live-p (current-buffer))
-                       (kill-buffer (current-buffer))))
-                   nil t t))))  ; silent, inhibit-cookies
+                      :title "ntfy.sh push notification"
+                      :notifier (lambda (info)
+                                  (let* ((title (or (plist-get info :title) "Emacs"))
+                                         (body (plist-get info :message))
+                                         (priority (pcase (plist-get info :severity)
+                                                     ('urgent "5") ('high "4") ('moderate "3")
+                                                     (_ "2")))
+                                         (url-request-method "POST")
+                                         (url-request-extra-headers
+                                          `(("Title" . ,title)
+                                            ("Priority" . ,priority)
+                                            ("Tags" . "emacs")))
+                                         (url-request-data (encode-coding-string body 'utf-8)))
+                                    (message "[ntfy] Sending: %s — %s" title body)
+                                    (url-retrieve
+                                     (format "https://ntfy.sh/%s" my/ntfy-topic)
+                                     (lambda (status)
+                                       (if (plist-get status :error)
+                                           (message "[ntfy] FAILED: %S" (plist-get status :error))
+                                         (message "[ntfy] Sent OK to topic '%s'" my/ntfy-topic))
+                                       (when (buffer-live-p (current-buffer))
+                                         (kill-buffer (current-buffer))))
+                                     nil t t))))  ; silent, inhibit-cookies
 
   ;; --- Toggle state ---
   (defvar my/notify-on-compilation t
@@ -472,8 +515,13 @@
 (pcase system-type
   ('gnu/linux   (load! "config-linux"))
   ('windows-nt  (load! "config-windows")))
+;; OmniSharp contact fn — cross-platform; defines my/omnisharp-contact if binary is present
+(load! "config-omnisharp")
 
 ;; Font configuration
-(setq doom-font (font-spec :family "JetBrainsMono NF" :size 14)
-      doom-variable-pitch-font (font-spec :family "Inter" :size 15)
+(setq doom-font (font-spec :family "JetBrainsMono NF" :size 14.0)
+      doom-variable-pitch-font (font-spec :family "Inter" :size 15.0)
       doom-symbol-font (font-spec :family "Symbols Nerd Font Mono"))
+
+
+(setq fancy-splash-image "~/Downloads/EmacsIcon.png")

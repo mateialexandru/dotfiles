@@ -230,3 +230,70 @@ After **multiple hours** of debugging and attempting various workarounds:
 - Microsoft Roslyn Language Server may become standalone-friendly
 - New community forks may emerge
 - Could revisit csharp-ls with better TRAMP encoding handling
+
+---
+
+## 2026-02-14 Update: Standalone Roslyn Limitation + Dual-Backend Toggle
+
+### Standalone Roslyn: file-creation refactorings not supported
+
+Confirmed via eglot event log: `codeAction/resolve` response for "Move type to file"
+returns `{"documentChanges": []}` — empty, not an error, just unsupported.
+
+Affects any refactoring that requires creating a new file (Move type to file, Extract
+class, etc.).
+
+**Root cause:** the standalone Roslyn server (`Microsoft.CodeAnalysis.LanguageServer`)
+runs outside the VS Code extension host and does not implement the VS-Code-specific
+`_roslyn/activateRazorLanguageServer` + file-creation workspace edit path.
+
+Not fixable via config; would require upstream work in the Roslyn server itself.
+
+### Decision: dual-backend with live toggle; platform defaults differ
+
+- **Linux default: OmniSharp** — better refactoring, works well in practice
+- **Windows default: Roslyn** — no OmniSharp config/install on Windows yet
+- Single `eglot-server-programs` entry (`my/csharp-eglot-contact`) dispatches on
+  `my/csharp-lsp-backend` variable (`'roslyn` | `'omnisharp`)
+- Variable declared with default `'roslyn` in `config.el`; `config-linux-omnisharp.el`
+  overrides it to `'omnisharp` when the binary is present (so default flips on Linux
+  automatically after `install-omnisharp.sh` is run)
+- `SPC t L` / `my/csharp-toggle-lsp` flips the variable and calls `eglot-reconnect`
+- `solution/open` hook guards on `(eq my/csharp-lsp-backend 'roslyn)` — OmniSharp
+  discovers `.sln` itself via `-s <sln>` arg
+
+### Linux: DOTNET_ROOT workaround for Homebrew .NET
+
+OmniSharp 1.39.13 is a `net6.0` framework-dependent binary. Homebrew installs .NET at
+a non-standard prefix (not `/usr/share/dotnet`). Without `DOTNET_ROOT`, OmniSharp exits
+with "libhostfxr.so could not be found".
+
+Fix: `my/omnisharp-contact` prepends
+`env DOTNET_ROOT=<brew>/libexec DOTNET_ROLL_FORWARD=Major` so the net6.0 app runs on
+.NET 10.
+
+### Linux vs Windows LSP matrix
+
+| | Linux | Windows |
+|---|---|---|
+| **Default backend** | OmniSharp | Roslyn |
+| **OmniSharp available** | Yes (`install-omnisharp.sh`) | Yes (`install-omnisharp.ps1`) |
+| **Toggle** | `SPC t L` | `SPC t L` (when installed) |
+| **Move type to file** | OmniSharp ✓ / Roslyn ✗ | OmniSharp ✓ / Roslyn ✗ |
+| **Diagnostics / completion** | Both work well | Both work well |
+| **.NET discovery** | Homebrew → `DOTNET_ROOT` needed | winget → system path |
+
+### New files added
+
+- `scripts/install-omnisharp.sh` — downloads OmniSharp v1.39.13 to `~/.local/share/omnisharp/`
+- `scripts/install-omnisharp.ps1` — downloads OmniSharp v1.39.13 to `%LOCALAPPDATA%\omnisharp\`
+- `doom/config-omnisharp.el` — defines `my/omnisharp-contact`; always loaded on all
+  platforms (no-op if binary absent).  Linux flips default to OmniSharp when binary
+  is present; Windows keeps Roslyn as default but makes OmniSharp available for toggle.
+
+### Updated status
+
+Both backends operational on Linux. **OmniSharp is now default on Linux** (set in
+`config-omnisharp.el` when binary is present); Roslyn remains default on Windows but
+OmniSharp is available via `SPC t L` once `scripts/install-omnisharp.ps1` is run.
+Toggle with `SPC t L` as needed.
