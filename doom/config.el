@@ -175,11 +175,16 @@
 
 ;;; Projectile Commander — action menu after switching projects
 (after! projectile
-  (setq projectile-switch-project-action #'projectile-commander)
+                                        ;(setq projectile-switch-project-action #'projectile-commander)
 
   (def-projectile-commander-method ?m
                                    "Open magit-status."
                                    (magit-status)))
+
+;; SPC p t → run project tests
+(map! :leader
+      (:prefix "p"
+       :desc "Test project" "t" #'projectile-test-project))
 
 ;;; Notifications — alert.el + ntfy.sh
 (use-package! alert
@@ -283,6 +288,3 @@
 (setq doom-font (font-spec :family "JetBrainsMono NF" :size 14.0)
       doom-variable-pitch-font (font-spec :family "Inter" :size 15.0)
       doom-symbol-font (font-spec :family "Symbols Nerd Font Mono"))
-
-
-(setq fancy-splash-image "~/Downloads/EmacsIcon.png")
