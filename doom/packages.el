@@ -64,3 +64,4 @@
 ;; Notification framework (ntfy.sh + platform-native alerts)
 (package! alert)
 (package! alert-toast)
+(package! git-link)
