@@ -453,7 +453,7 @@ Toggle interactively with `my/csharp-toggle-lsp'.")
                                      nil t t))))  ; silent, inhibit-cookies
 
   ;; --- Toggle state ---
-  (defvar my/notify-on-compilation t
+  (defvar my/notify-on-compilation nil
     "When non-nil, send alerts on compilation finish.")
   (defvar my/notify-use-ntfy nil
     "When non-nil, push to ntfy.sh in addition to local notifications.")
