@@ -23,4 +23,21 @@
       (when dotnet-root
         (setenv "DOTNET_ROOT" dotnet-root)
         (setenv "DOTNET_ROLL_FORWARD" "Major"))
-      (message "C# LSP: OmniSharp at %s" binary))))
+      (message "C# LSP: OmniSharp at %s" binary)))
+
+  (defun my/fix-omnisharp-capabilities ()
+    "Fix OmniSharp empty-object capabilities decoded as nil by plist mode.
+OmniSharp returns {} for supported capabilities, which `lsp-use-plists'
+decodes as nil.  Replace nil with t where the key exists in the plist."
+    (when-let* ((workspace (car (lsp-workspaces)))
+                ((eq (lsp--client-server-id (lsp--workspace-client workspace))
+                     'omnisharp)))
+      (let ((caps (lsp--workspace-server-capabilities workspace)))
+        (dolist (cap '(:workspaceSymbolProvider :documentSymbolProvider
+                       :hoverProvider :definitionProvider :referencesProvider
+                       :documentHighlightProvider :implementationProvider
+                       :typeDefinitionProvider))
+          (when (and (plist-member caps cap) (not (plist-get caps cap)))
+            (plist-put caps cap t))))))
+
+  (add-hook 'lsp-after-initialize-hook #'my/fix-omnisharp-capabilities))

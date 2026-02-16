@@ -116,6 +116,8 @@ Config lives at `~/.config/hack/config.json` (not committed). Auto-created on fi
 - `scripts/Test-DotNetLsp.ps1` — Test Roslyn LSP connectivity
 - `scripts/install-roslyn-lsp.ps1` — Install Roslyn language server DLL (Windows)
 - `scripts/install-roslyn-lsp.sh` — Install Roslyn language server DLL (Linux)
+- `scripts/install-omnisharp.ps1` — Install OmniSharp LSP binary to `%LOCALAPPDATA%\omnisharp\` (Windows)
+- `scripts/install-omnisharp.sh` — Install OmniSharp LSP binary to `~/.local/share/omnisharp/` (Linux)
 - `scripts/install-hack.ps1` — Adds hack.ps1 dot-source to PowerShell profile (Windows)
 - `scripts/install-hack.sh` — Adds hack.ps1 dot-source to pwsh profile (Linux)
 - `scripts/install-claude.ps1` — Configure Claude Code settings with toast notification hook (Windows)
@@ -125,8 +127,8 @@ Config lives at `~/.config/hack/config.json` (not committed). Auto-created on fi
 - **Symlink-based**: Install scripts symlink `doom/` and `nvim/` to their platform config directories so editors read config from the repo
 - **Cross-platform**: Shared config with platform-specific overrides loaded via `(load! "config-<platform>")`
 - **Evil mode**: Vim keybindings via evil-mode
-- **Eglot over LSP-mode**: Uses eglot for language server support
-- **Roslyn LSP (--stdio)**: Cross-platform C# language server via `dotnet` + Roslyn DLL with `--stdio` flag; sends `solution/open` notification for .sln discovery. Windows DLL in `%LOCALAPPDATA%/roslyn-lsp/`, Linux in `~/.local/share/roslyn-lsp/`
+- **lsp-mode**: Uses lsp-mode for language server support (switched from eglot due to jsonrpc version incompatibilities)
+- **OmniSharp via lsp-mode**: C# language server; `lsp-csharp-server-path` points at the installed binary. Linux binary in `~/.local/share/omnisharp/`, Windows in `%LOCALAPPDATA%\omnisharp\`
 - **Corfu over Company**: Uses corfu for completion
 - **Universal Ctags + xref**: Fallback navigation via etags when LSP isn't available
 - **EWW browser**: Built-in web browser with persp-mode session persistence
