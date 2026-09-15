@@ -64,6 +64,25 @@ The public configuration supplies the same editor variables, user-tool paths, al
 zoxide, and fzf integration. It is linked through Nu's user autoload directory, leaving
 an existing `config.nu` untouched. See `docs/decisions/020-nushell-parallel.md`.
 
+## Pi coding agent
+
+Pi is installed on every platform with portable defaults and the ChatGPT subscription
+provider selected by default:
+
+```text
+pi
+/login openai-codex    authorize ChatGPT Plus/Pro once
+/model                 choose a model
+```
+
+The installer composes `config/pi/` with optional `pi/` fragments from each activated
+private layer. A layer may add model providers, narrow the visible model list, append
+private agent context, or run a platform-specific setup hook. Runtime credentials,
+sessions, and trust decisions stay in `~/.pi/agent/` and are never stored here.
+
+Pi has no tool sandbox: an approved `bash` or PowerShell tool call runs with the user's
+permissions. Project-local configuration therefore uses the `ask` trust policy.
+
 ## Repository worktrees
 
 `hack` lazily indexes existing repositories beneath `~/Source` and creates isolated task
@@ -170,8 +189,9 @@ Requires the Doom `+org-protocol` flag, capture template `L`, and the Emacs serv
 The public configuration is complete on its own and uses portable defaults.
 Private repositories can extend it without being named by this repository. Add
 ordered directory symlinks beneath `~/.config/dotfiles/layers.d/`; each layer
-may provide `doom/pre.el`, `doom/post.el`, `shell/init.zsh`, and `shell/init.nu`. Early Doom
-settings load before Org, while late commands load after the public config.
+may provide Doom, shell, Nushell, and Pi fragments. Early Doom settings load before Org,
+while late commands load after the public config. Pi JSON is composed in layer order and
+private agent context is appended to the public context.
 See `docs/examples/profile/` for the layer contract.
 
 For a complete rebuild, install this public repository first, then clone each

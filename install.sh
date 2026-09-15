@@ -218,6 +218,13 @@ npm install -g \
     vscode-langservers-extracted bash-language-server \
     dockerfile-language-server-nodejs typescript-language-server
 
+step "Pi coding agent"
+if $INSTALL_LLM; then
+    bash "$DOTFILES_DIR/scripts/install-pi.sh"
+else
+    PI_SKIP_LAYER_HOOKS=1 bash "$DOTFILES_DIR/scripts/install-pi.sh"
+fi
+
 # C# Tooling
 step "C# tools (csharpier, Roslyn LSP)"
 DOTNET_ROOT="$(brew --prefix dotnet)/libexec"

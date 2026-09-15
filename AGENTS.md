@@ -15,7 +15,7 @@ Cross-platform dotfiles repository managing Doom Emacs configuration for macOS, 
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/main/install.sh)"  # fresh machine bootstrap (clones to ~/Source/dotfiles, then re-execs)
 ```
 
-Installs Homebrew, core tools (`nu`, `fzf`, `zoxide`, `gh`, `ripgrep`, `fd`, `node`, `dotnet`, `llvm`, etc.), fonts, Doom Emacs, the Roslyn LSP (via `scripts/install-roslyn-lsp.sh`), and syncs the Doom config. Idempotent — safe to re-run. Nushell is installed as a parallel interactive shell; the installer does not change the login shell or terminal default.
+Installs Homebrew, core tools (`nu`, `fzf`, `zoxide`, `gh`, `ripgrep`, `fd`, `node`, `dotnet`, `llvm`, etc.), fonts, Pi, Doom Emacs, the Roslyn LSP (via `scripts/install-roslyn-lsp.sh`), and syncs the Doom config. Idempotent — safe to re-run. Nushell is installed as a parallel interactive shell; the installer does not change the login shell or terminal default.
 
 On macOS, Emacs is installed by `scripts/install-emacs-mac.sh` (via `d12frosted/emacs-plus` → `emacs-plus@30`, native-comp, `retro-gnu-meditate-levitate` icon). The setup uses a **daemon + client workflow**: `emacs --fg-daemon` runs via `brew services` at login, and only `Emacs Client.app` is copied (not symlinked) into `/Applications` so Spotlight indexes it. New frames open in ~50ms via `emacsclient -c -n`.
 
@@ -27,7 +27,7 @@ The daemon is started by launchd, so it inherits a bare `/usr/bin:/bin:/usr/sbin
 .\install.ps1
 ```
 
-Orchestrates: profile isolation, prerequisites (via `scripts/install-prerequisites.ps1`), parallel Nushell configuration, Doom Emacs, and compiled `hack` / `sys` tooling.
+Orchestrates: profile isolation, prerequisites (via `scripts/install-prerequisites.ps1`), Pi, parallel Nushell configuration, Doom Emacs, and compiled `hack` / `sys` tooling.
 
 ### Verifying
 
@@ -62,6 +62,7 @@ There is no test suite — the "tests" are: (a) install scripts must remain idem
 | `config/doom/init.el` | Module declarations — controls which Doom modules are loaded |
 | `config/doom/packages.el` | Extra package declarations beyond Doom modules |
 | `config/nushell/dotfiles.nu` | Shared Nu environment, paths, editor, and aliases; linked through user autoload without replacing `config.nu` |
+| `config/pi/` | Portable Pi defaults and global agent context; composed with optional private `pi/` layer fragments during installation |
 
 Platform detection uses `(pcase system-type ...)` at the bottom of `config.el`, which `load!`s the appropriate file.
 
@@ -256,6 +257,15 @@ does not pull the dotfiles repository. `sys restart` and `sys llm` are explicitl
 macOS-only for now. Set
 `SYS_DOTFILES_DIR` for a checkout outside `~/Source/dotfiles`. See ADR-012.
 
+### Pi coding agent
+
+`scripts/install-pi.sh` / `.ps1` install the pinned Pi package and generate
+`~/.pi/agent/{settings.json,models.json,AGENTS.md}` from the public `config/pi/` base plus
+activated layers. Layers are read lexically from `~/.config/dotfiles/layers.d/` and may
+provide `pi/settings.json`, `pi/models.json`, `pi/AGENTS.md`, and a platform hook. JSON
+objects deep-merge; later arrays replace earlier arrays. Exact local models and machine
+details belong in private layers, not this repository. See ADR-021.
+
 ### Scripts
 
 | Script | Purpose |
@@ -271,6 +281,8 @@ macOS-only for now. Set
 | `scripts/install-hack.sh` / `.ps1` | Build and install the Rust `hack` binary with Cargo |
 | `scripts/install-sys.sh` / `.ps1` | Build and install the Rust `sys` operations CLI with Cargo |
 | `scripts/install-nushell.sh` / `.ps1` | Link the public Nu autoload config, generate zoxide/fzf integration, and register private Nu layers without changing the default shell |
+| `scripts/install-pi.sh` / `.ps1` | Install Pi and compose public configuration with activated private Pi layers |
+| `scripts/merge-json.mjs` | Deep-merge public and layered JSON configuration; later arrays replace earlier arrays |
 | `scripts/install-roslyn-lsp.sh` / `.ps1` | Download Microsoft Roslyn LSP NuGet package to `~/.local/share/roslyn-lsp` (or `%LOCALAPPDATA%\roslyn-lsp\` on Windows) |
 | `scripts/install-plantuml.sh` | Download PlantUML's jar into Doom's profile data directory |
 | `scripts/install-prerequisites.ps1` | Windows: ctags, node, dotnet, cmake, etc. via winget |
@@ -303,6 +315,7 @@ Significant design choices are documented in `docs/decisions/` as ADRs. Check th
 | `018-drop-claude-code.md` | Claude Code removed after its subscription was discontinued; gptel remains the Emacs LLM surface |
 | `019-repository-layout.md` | KISS layout: configuration, documentation, assets, scripts, and tools have distinct homes |
 | `020-nushell-parallel.md` | Install and configure Nu as a parallel interactive shell while retaining zsh/Bash and PowerShell compatibility |
+| `021-pi-private-model-layer.md` | Pi is public and cross-platform; machine-specific local model catalogs and runtime setup come from private layers |
 
 ## Related files
 

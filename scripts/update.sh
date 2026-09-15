@@ -23,6 +23,9 @@ brew upgrade
 step "Global npm tools"
 npm update --global
 
+step "Pi coding agent and layered configuration"
+bash "$DOTFILES_DIR/scripts/install-pi.sh"
+
 step "uv tools"
 uv tool upgrade --all
 

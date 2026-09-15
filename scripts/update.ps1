@@ -27,6 +27,9 @@ $env:PATH = "$machinePath;$userPath"
 Write-Host "`n==> Global npm tools" -ForegroundColor Cyan
 Invoke-Native "npm" @("update", "--global")
 
+Write-Host "`n==> Pi coding agent and layered configuration" -ForegroundColor Cyan
+& (Join-Path $PSScriptRoot "install-pi.ps1")
+
 Write-Host "`n==> uv tools" -ForegroundColor Cyan
 Invoke-Native "uv" @("tool", "upgrade", "--all")
 

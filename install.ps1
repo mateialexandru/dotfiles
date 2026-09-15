@@ -19,14 +19,18 @@ Write-Host "`n--- Nushell configuration ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-nushell.ps1")
 
 # 4. Doom Emacs (symlinks + deps + doom install)
+Write-Host "`n--- Pi coding agent ---" -ForegroundColor Cyan
+& (Join-Path $scriptsDir "install-pi.ps1")
+
+# 5. Doom Emacs (symlinks + deps + doom install)
 Write-Host "`n--- Doom Emacs ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-doom.ps1")
 
-# 5. Compiled Hack worktree tooling
+# 6. Compiled Hack worktree tooling
 Write-Host "`n--- Hack worktree tooling ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-hack.ps1")
 
-# 6. Cross-platform system operations CLI
+# 7. Cross-platform system operations CLI
 Write-Host "`n--- System operations CLI ---" -ForegroundColor Cyan
 if ($env:SYS_SKIP_SELF_INSTALL -eq "1") {
     Write-Host "sys is running this install; keeping the current executable." -ForegroundColor Gray
@@ -34,7 +38,7 @@ if ($env:SYS_SKIP_SELF_INSTALL -eq "1") {
     & (Join-Path $scriptsDir "install-sys.ps1")
 }
 
-# 7. Git performance settings (Windows-specific)
+# 8. Git performance settings (Windows-specific)
 Write-Host "`n--- Git performance ---" -ForegroundColor Cyan
 git config --global core.preloadindex true
 git config --global core.fscache true
