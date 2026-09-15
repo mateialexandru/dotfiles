@@ -14,6 +14,8 @@ export EMACS_SERVER_FILE="$HOME/.config/emacs/server/server"
 if [[ "$OSTYPE" == "darwin"* ]]; then
     if [[ -f /opt/homebrew/bin/brew ]]; then
         eval "$(/opt/homebrew/bin/brew shellenv)"
+    elif [[ -f /usr/local/bin/brew ]]; then
+        eval "$(/usr/local/bin/brew shellenv)"
     fi
 fi
 
@@ -32,6 +34,12 @@ if command -v brew &>/dev/null && [[ -d "$(brew --prefix dotnet)/libexec" ]]; th
     export DOTNET_ROOT="$(brew --prefix dotnet)/libexec"
 fi
 export PATH="$HOME/.dotnet/tools:$PATH"
+
+# Linuxbrew's OpenJDK is keg-only, so expose it explicitly on Linux.
+if [[ "$OSTYPE" == "linux-gnu"* ]] && command -v brew &>/dev/null \
+    && [[ -d "$(brew --prefix openjdk)/bin" ]]; then
+    export PATH="$(brew --prefix openjdk)/bin:$PATH"
+fi
 
 # uv tools (pyright, black, ruff, isort, pytest) + TLA+ wrappers land here
 export PATH="$HOME/.local/bin:$PATH"

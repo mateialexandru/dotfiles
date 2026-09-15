@@ -12,7 +12,7 @@ Cross-platform dotfiles repository managing Doom Emacs configuration for macOS, 
 
 ```bash
 ./install.sh                                                                # local checkout
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/master/install.sh)"  # fresh machine bootstrap (clones to ~/Source/dotfiles, then re-execs)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/main/install.sh)"  # fresh machine bootstrap (clones to ~/Source/dotfiles, then re-execs)
 ```
 
 Installs Homebrew, core tools (`fzf`, `zoxide`, `gh`, `ripgrep`, `fd`, `node`, `dotnet`, `llvm`, etc.), fonts, Doom Emacs, the Roslyn LSP (via `scripts/install-roslyn-lsp.sh`), and syncs the Doom config. Idempotent — safe to re-run.
@@ -251,13 +251,14 @@ Source this from `.zshrc` for shared aliases (`e`, `et`, `g`, `gs`, `gd`, `gl`),
 | Script | Purpose |
 |--------|---------|
 | `scripts/install-doom.sh` / `.ps1` | Symlink doom dir + install Doom Emacs; detects & repairs wrong symlink targets |
-| `scripts/install-emacs-mac.sh` | macOS-only: emacs-plus@30 + daemon + Emacs Client.app (daemon env/libgccjit fix lives in `shell/init.zsh` + `doom/config-macos.el`) |
+| `scripts/install-emacs-mac.sh` | macOS-only: emacs-plus@30 + Emacs Client.app; `install.sh` starts the daemon after Doom sync (daemon env/libgccjit fix lives in `shell/init.zsh` + `doom/config-macos.el`) |
 | `scripts/install-llm-mac.sh` | macOS-only: local LLM layer — Ollama formula (managed GGUF endpoint, pulls `scripts/ollama-models.txt`) + LM Studio cask (user-managed MLX GUI) + `keeper llm mirror` (symlink Ollama models into LM Studio). Daemon on-demand via `keeper llm start`, not a login service (see ADR-013) |
 | `scripts/install-scrim-captee-mac.sh` | macOS-only, standalone (not in install.sh): opens the App Store "Scrim + Captee for Emacs" bundle + prints org-capture setup (see ADR-010) |
 | `scripts/install-excalidraw-mac.sh` | macOS-only: excalidraw prereqs (fswatch + `@swiftlysingh/excalidraw-cli` faithful exporter + drawings dir) via `install_excalidraw_prereqs`; retires the old `excalidraw_export`/node-canvas/fonts; prints manual Chrome-PWA/handler steps (see ADR-008) |
 | `scripts/keeper-health.sh` | macOS/Linux: full confidence pass — doom symlink, daemon env (PATH/LIBRARY_PATH inherited), daemon (ping-authoritative), native-comp queue, doom doctor, core tools, Roslyn DLL, LSP servers, apheleia formatters, Emacs Client.app, org-protocol→Scrim pin, excalidraw toolchain, Ollama (advisory when down), gptel/gptel-agent built + global gitignore in effect, ssh ControlMaster. Hard-exits 1 on any fail; latent/transient items are advisory. Run via `keeper health` |
 | `scripts/install-hack.sh` / `.ps1` | Dot-source hack.ps1 into pwsh profile |
 | `scripts/install-roslyn-lsp.sh` / `.ps1` | Download Microsoft Roslyn LSP NuGet package to `~/.local/share/roslyn-lsp` (or `%LOCALAPPDATA%\roslyn-lsp\` on Windows) |
+| `scripts/install-plantuml.sh` | Download PlantUML's jar into Doom's profile data directory |
 | `scripts/install-prerequisites.ps1` | Windows: ctags, node, dotnet, cmake, etc. via winget |
 | `scripts/setup-profile.ps1` | Windows: move PowerShell profile out of OneDrive |
 | `scripts/install-Codex.ps1` | Windows: toast notifications for Codex |

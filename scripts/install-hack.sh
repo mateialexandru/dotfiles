@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install-hack.sh — Adds hack.ps1 dot-source to pwsh profile on Linux
+# install-hack.sh — Adds hack.ps1 to the PowerShell profile on macOS/Linux
 
 set -euo pipefail
 
@@ -26,7 +26,7 @@ for dep in fzf python3; do
     fi
 done
 
-# pwsh profile location on Linux
+# Cross-platform PowerShell 7 profile location outside Windows.
 PWSH_PROFILE="$HOME/.config/powershell/Microsoft.PowerShell_profile.ps1"
 PWSH_PROFILE_DIR="$(dirname "$PWSH_PROFILE")"
 

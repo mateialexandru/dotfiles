@@ -13,6 +13,9 @@ $wingetPackages = @(
     "Microsoft.OpenJDK.21",
     "Kitware.CMake",
     "Casey.Just",
+    "Python.Python.3.13",
+    "astral-sh.uv",
+    "Rustlang.Rustup",
     # Search / file tools
     "BurntSushi.ripgrep.MSVC",
     "sharkdp.fd",
@@ -66,6 +69,7 @@ Write-Host "`nInstalling npm global packages..." -ForegroundColor Cyan
 npm install -g yaml-language-server
 npm install -g @mermaid-js/mermaid-cli
 npm install -g @github/copilot
+npm install -g bash-language-server typescript-language-server vscode-langservers-extracted
 
 # Claude Code (native installer - auto-updates, no Node.js dependency)
 Write-Host "`nInstalling Claude Code..." -ForegroundColor Cyan
@@ -89,6 +93,12 @@ $machinePath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
 $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 $env:PATH = "$machinePath;$userPath"
 
+# Python and Rust tools required by the enabled shared Doom modules.
+uv tool install --force pyright
+uv tool install --force ruff
+rustup default stable
+rustup component add rust-analyzer
+
 # Verification
 Write-Host "`nVerifying installations..." -ForegroundColor Cyan
 $tools = @{
@@ -103,11 +113,18 @@ $tools = @{
     "npm" = "npm --version"
     "jq" = "jq --version"
     "cmake" = "cmake --version"
+    "clang-format" = "clang-format --version"
     "java" = "java --version"
     "plantuml" = "Test-Path `"$env:LOCALAPPDATA\plantuml\plantuml.jar`""
     "roslyn-lsp" = "Test-Path `"$env:LOCALAPPDATA\roslyn-lsp\Microsoft.CodeAnalysis.LanguageServer.dll`""
     "yaml-language-server" = "yaml-language-server --version"
     "mmdc" = "mmdc --version"
+    "uv" = "uv --version"
+    "pyright" = "pyright --version"
+    "ruff" = "ruff --version"
+    "rust-analyzer" = "rust-analyzer --version"
+    "bash-language-server" = "bash-language-server --version"
+    "typescript-language-server" = "typescript-language-server --version"
     "gnuplot" = "gnuplot --version"
     "copilot" = "copilot --version"
     "claude" = "claude --version"

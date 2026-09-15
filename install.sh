@@ -6,6 +6,25 @@ set -euo pipefail
 
 TARGET_DIR="$HOME/Source/dotfiles"
 REPO_URL="https://github.com/mateialexandru/dotfiles"
+ORIGINAL_ARGS=("$@")
+INSTALL_LLM=true
+
+usage() {
+    cat <<'EOF'
+Usage: install.sh [--skip-llm]
+
+  --skip-llm  Install Ollama and LM Studio later; skip the ~32 GB model pull.
+EOF
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --skip-llm) INSTALL_LLM=false ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+    shift
+done
 
 # --- Bootstrapper Mode ---
 # Determine where this script is currently located
@@ -66,7 +85,7 @@ if ! $IS_LOCAL; then
     # 3. Hand off to the local install.sh
     echo "=> Executing local install.sh..."
     cd "$TARGET_DIR"
-    exec ./install.sh
+    exec ./install.sh "${ORIGINAL_ARGS[@]}"
 fi
 
 # --- Main Installation Logic ---
@@ -90,7 +109,14 @@ if ! command -v brew &>/dev/null; then
 
     # Add brew to PATH for the current session
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        eval "$(/opt/homebrew/bin/brew shellenv)"
+        if [[ -x /opt/homebrew/bin/brew ]]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        elif [[ -x /usr/local/bin/brew ]]; then
+            eval "$(/usr/local/bin/brew shellenv)"
+        else
+            echo "Homebrew installed, but brew was not found in a standard macOS prefix." >&2
+            exit 1
+        fi
     else
         eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     fi
@@ -101,11 +127,11 @@ fi
 step "Core packages, tools, Java, and fonts (Homebrew)"
 
 # Core Runtimes & Build Tools
-brew install node dotnet cmake ninja llvm devcontainer just libtool
+brew install node dotnet cmake ninja llvm devcontainer just libtool powershell
 
 # Everyday tools & Utilities
 brew install fzf zoxide gh git ripgrep fd jq universal-ctags poppler pandoc grip gnuplot shellcheck rust rust-analyzer \
-    lua-language-server wordnet shfmt graphviz dockerfmt
+    lua-language-server wordnet shfmt graphviz dockerfmt clang-format
 
 # Brave browser (macOS cask only — not available via Linuxbrew)
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -117,6 +143,10 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     brew install --cask temurin@21
 else
     brew install openjdk
+    # Homebrew's OpenJDK is keg-only. Make it available to the remaining install
+    # steps (TLA+ and PlantUML) and to Doom's dependency checks.
+    OPENJDK_PREFIX="$(brew --prefix openjdk)"
+    export PATH="$OPENJDK_PREFIX/bin:$PATH"
 fi
 
 # Fonts (cross-platform: brew casks on macOS, dnf + Nerd Font downloader on Linux)
@@ -168,7 +198,9 @@ fi
 
 # Local LLM layer (Ollama managed GGUF endpoint + LM Studio GUI, user-managed MLX)
 step "Local LLM (Ollama + LM Studio)"
-if [[ "$OSTYPE" == "darwin"* ]]; then
+if ! $INSTALL_LLM; then
+    echo "Skipping local LLM installation (--skip-llm)."
+elif [[ "$OSTYPE" == "darwin"* ]]; then
     bash "$DOTFILES_DIR/scripts/install-llm-mac.sh"
 else
     echo "Local LLM: install Ollama from https://ollama.com and LM Studio from https://lmstudio.ai (no linuxbrew formulae)."
@@ -184,7 +216,8 @@ npm install -g \
 
 # C# Tooling
 step "C# tools (csharpier, Roslyn LSP)"
-export DOTNET_ROOT="$(brew --prefix dotnet)/libexec"
+DOTNET_ROOT="$(brew --prefix dotnet)/libexec"
+export DOTNET_ROOT
 export PATH="$HOME/.dotnet/tools:$PATH"
 dotnet tool install -g csharpier || dotnet tool update -g csharpier
 # Install Roslyn LSP DLL
@@ -213,6 +246,7 @@ done
 
 step "Doom Emacs"
 bash "$DOTFILES_DIR/scripts/install-doom.sh"
+bash "$DOTFILES_DIR/scripts/install-plantuml.sh"
 
 # --- Shell init (zsh) ---
 # init.zsh holds shared aliases, $EDITOR, zoxide/fzf, and the `keeper` command.
@@ -225,6 +259,32 @@ if grep -qF "$ZSH_SOURCE_LINE" "$ZSHRC" 2>/dev/null; then
 else
     echo "Adding init.zsh source line to $ZSHRC"
     echo "$ZSH_SOURCE_LINE" >> "$ZSHRC"
+fi
+
+step "Hack worktree tooling"
+bash "$DOTFILES_DIR/scripts/install-hack.sh"
+
+# Start only after Doom and the login-shell environment are ready. Do not hide
+# failures: a successful install must leave Emacs Client.app able to connect.
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    step "Emacs daemon"
+    brew services restart d12frosted/emacs-plus/emacs-plus@30 || \
+        brew services start d12frosted/emacs-plus/emacs-plus@30
+fi
+
+# Universal Ctags preloads *.ctags files from this XDG directory.
+step "Universal Ctags config (~/.config/ctags)"
+CTAGS_CONFIG_SRC="$DOTFILES_DIR/ctags.d"
+CTAGS_CONFIG_DST="$HOME/.config/ctags"
+mkdir -p "$(dirname "$CTAGS_CONFIG_DST")"
+if [[ -L "$CTAGS_CONFIG_DST" ]]; then
+    ln -sfn "$CTAGS_CONFIG_SRC" "$CTAGS_CONFIG_DST"
+    echo "Relinked $CTAGS_CONFIG_DST -> $CTAGS_CONFIG_SRC"
+elif [[ -e "$CTAGS_CONFIG_DST" ]]; then
+    echo "WARNING: $CTAGS_CONFIG_DST exists and is not a symlink; leaving it alone."
+else
+    ln -s "$CTAGS_CONFIG_SRC" "$CTAGS_CONFIG_DST"
+    echo "Linked $CTAGS_CONFIG_DST -> $CTAGS_CONFIG_SRC"
 fi
 
 # --- SSH ControlMaster for tailnet hosts ---

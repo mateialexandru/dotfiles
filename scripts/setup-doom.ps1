@@ -104,14 +104,25 @@ if ($emacsExe) {
     Write-Host 'WARNING: emacs.exe not found — doom install may fail' -ForegroundColor Yellow
 }
 
-# Install Doom if needed, then always upgrade + sync
+# Install Doom if needed, then synchronize the declared configuration. Upgrades
+# remain an explicit operation so a rebuild does not unexpectedly move versions.
 $doomLocal = Join-Path $env:HOME '.config\emacs\.local'
 if (-not (Test-Path $doomLocal)) {
     Write-Host 'Running doom install...' -ForegroundColor Cyan
     powershell -ExecutionPolicy Bypass -File "$doomBin\doom.ps1" install
 }
-Write-Host 'Upgrading Doom + syncing config...' -ForegroundColor Cyan
-powershell -ExecutionPolicy Bypass -File "$doomBin\doom.ps1" upgrade
+Write-Host 'Syncing Doom config...' -ForegroundColor Cyan
+powershell -ExecutionPolicy Bypass -File "$doomBin\doom.ps1" sync
+
+# Doom's PlantUML module checks its profile data directory, while the shared
+# prerequisite installer keeps the downloaded jar under LOCALAPPDATA.
+$plantumlSource = Join-Path $env:LOCALAPPDATA 'plantuml\plantuml.jar'
+$plantumlTarget = Join-Path $doomLocal 'etc\plantuml.jar'
+if (Test-Path $plantumlSource) {
+    New-Item -ItemType Directory -Path (Split-Path $plantumlTarget) -Force | Out-Null
+    Copy-Item $plantumlSource $plantumlTarget -Force
+    Write-Host "Installed Doom PlantUML jar: $plantumlTarget" -ForegroundColor Green
+}
 
 # Install CSharpier (C# formatter for apheleia)
 $csharpierInstalled = dotnet tool list --global 2>$null | Select-String 'csharpier'
@@ -122,18 +133,9 @@ if ($csharpierInstalled) {
     dotnet tool install --global csharpier
 }
 
-# Configure Git bash for POSIX compatibility
+# Platform settings live in the repository's config-windows.el. Never append
+# machine setup to the symlinked public config, which would dirty the checkout.
 $configFile = Join-Path $env:HOME '.config\doom\config.el'
-$bashConfig = "`n;; Windows: Use Git bash for POSIX compatibility (works with Windows paths)`n(setq shell-file-name `"C:/Program Files/Git/bin/bash.exe`")"
-if (Test-Path $configFile) {
-    $content = Get-Content $configFile -Raw
-    if ($content -notlike '*shell-file-name*') {
-        Write-Host 'Configuring Git bash for Emacs...' -ForegroundColor Cyan
-        Add-Content $configFile $bashConfig
-    } else {
-        Write-Host 'Shell already configured in config.el.' -ForegroundColor Green
-    }
-}
 
 # Configure fonts
 $fontConfig = @"

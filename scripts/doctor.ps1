@@ -12,6 +12,7 @@ $coreTools = @(
     @{ Name = "rg"; Fix = "winget install BurntSushi.ripgrep.MSVC" }
     @{ Name = "fd"; Fix = "winget install sharkdp.fd" }
     @{ Name = "clangd"; Fix = "winget install LLVM.clangd" }
+    @{ Name = "clang-format"; Fix = "winget install LLVM.LLVM" }
     @{ Name = "pandoc"; Fix = "winget install JohnMacFarlane.Pandoc" }
     @{ Name = "shellcheck"; Fix = "winget install koalaman.shellcheck" }
     @{ Name = "git"; Fix = "winget install Git.Git" }
@@ -29,6 +30,12 @@ $devTools = @(
     @{ Name = "roslyn-lsp"; Fix = "& `"$PSScriptRoot\install-roslyn-lsp.ps1`"" }
     @{ Name = "yaml-language-server"; Fix = "npm install -g yaml-language-server" }
     @{ Name = "mmdc"; Fix = "npm install -g @mermaid-js/mermaid-cli" }
+    @{ Name = "uv"; Fix = "winget install astral-sh.uv" }
+    @{ Name = "pyright"; Fix = "uv tool install --force pyright" }
+    @{ Name = "ruff"; Fix = "uv tool install --force ruff" }
+    @{ Name = "rust-analyzer"; Fix = "rustup component add rust-analyzer" }
+    @{ Name = "bash-language-server"; Fix = "npm install -g bash-language-server" }
+    @{ Name = "typescript-language-server"; Fix = "npm install -g typescript-language-server" }
 )
 
 # Track results
@@ -96,6 +103,7 @@ function Get-ToolVersion($name) {
             "rg" { & rg --version 2>$null | Select-Object -First 1 }
             "fd" { & fd --version 2>$null }
             "clangd" { & clangd --version 2>$null | Select-Object -First 1 }
+            "clang-format" { & clang-format --version 2>$null | Select-Object -First 1 }
             "pandoc" { & pandoc --version 2>$null | Select-Object -First 1 }
             "shellcheck" { & shellcheck --version 2>$null | Where-Object { $_ -match "version:" } }
             "ctags" {
@@ -123,6 +131,12 @@ function Get-ToolVersion($name) {
             }
             "yaml-language-server" { & yaml-language-server --version 2>$null }
             "mmdc" { & mmdc --version 2>$null }
+            "uv" { & uv --version 2>$null }
+            "pyright" { & pyright --version 2>$null }
+            "ruff" { & ruff --version 2>$null }
+            "rust-analyzer" { & rust-analyzer --version 2>$null }
+            "bash-language-server" { & bash-language-server --version 2>$null }
+            "typescript-language-server" { & typescript-language-server --version 2>$null }
             default { $null }
         }
         if ($output) {

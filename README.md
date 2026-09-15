@@ -9,10 +9,13 @@ All installers are idempotent — safe to re-run.
 ### macOS / Linux
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/master/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/main/install.sh)"
 ```
 
-Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. On macOS, sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011). On macOS it also installs a local LLM layer — Ollama (managed GGUF endpoint at `localhost:11434`, on-demand via `keeper llm start`) plus LM Studio (the GUI/MLX playground you manage yourself); `keeper llm mirror` makes the Ollama models visible in LM Studio too (see ADR-013). Finally it links `git/ignore` to `~/.config/git/ignore` (git's XDG default) so per-machine agent scratch — `.gptel/` chat transcripts, `.claude/` — stays out of every repository (see ADR-014).
+To install the editor/tooling baseline without Ollama, LM Studio, or the
+optional local model set (about 32 GB), append `-- --skip-llm`.
+
+Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. On macOS, sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also installs PowerShell and activates the `hack` worktree tooling, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
 
 ### Windows
 
@@ -72,6 +75,13 @@ ordered directory symlinks beneath `~/.config/dotfiles/layers.d/`; each layer
 may provide `doom/pre.el`, `doom/post.el`, and `shell/init.zsh`. Early Doom
 settings load before Org, while late commands load after the public config.
 See `examples/profile/` for the layer contract.
+
+For a complete rebuild, install this public repository first, then clone each
+private repository and run its profile activation script. Private layers are
+intentionally not cloned here: authentication, repository names, credentials,
+and machine-specific tools remain private. After activation, restart Emacs and
+open a new shell. Restore credentials separately through Keychain,
+`auth-source`, or environment variables.
 
 ## Wallpaper
 

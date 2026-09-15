@@ -2,7 +2,7 @@
 # Install Emacs on macOS via the d12frosted/emacs-plus tap.
 #
 # Workflow: daemon + Emacs Client.app
-#   - `brew services` runs `emacs --fg-daemon` at login.
+#   - `install.sh` starts `emacs --fg-daemon` after Doom is installed and synced.
 #   - Only Emacs Client.app is placed in /Applications (copied, so Spotlight indexes it).
 #   - New frames open via `emacsclient -c -n` in ~50ms.
 #
@@ -57,12 +57,6 @@ if command -v mdimport &>/dev/null; then
     mdimport "/Applications/Emacs Client.app" || true
 fi
 
-# The daemon is started by launchd, so it inherits a bare
-# /usr/bin:/bin:/usr/sbin:/sbin and no LIBRARY_PATH. `shell/init.zsh` exports
-# both, and `doom/config-macos.el` pulls them in via exec-path-from-shell at
-# daemon boot (ADR-009). Doom's `.local/env` file is no longer read by Doom, so
-# it is not used for this.
-
-# Start the Emacs daemon now and on every login (idempotent).
-brew services restart d12frosted/emacs-plus/emacs-plus@30 || \
-    brew services start d12frosted/emacs-plus/emacs-plus@30 || true
+# Daemon startup deliberately happens in install.sh after Doom has been cloned,
+# synced, and the shell environment has been configured. Starting it here on a
+# clean machine would leave Emacs Client.app connected to a vanilla daemon.

@@ -38,7 +38,8 @@ install_zip() {
         return 0
     fi
     echo "=> Downloading $label..."
-    local zip="$WORK/$(basename "$target").zip"
+    local zip
+    zip="$WORK/$(basename "$target").zip"
     curl -fsSL -o "$zip" "$url"
     mkdir -p "$target"
     unzip -qo "$zip" -d "$target"

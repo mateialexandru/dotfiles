@@ -66,20 +66,24 @@ if $daemon_up; then
   esac
 else skip "native-comp" "daemon down"; fi
 
-# 5. doom doctor — hard-fail on error (non-zero exit); warnings are info (mostly benign)
+# 5. doom doctor — hard-fail on errors and stale module names. Symbola is an
+# optional Doom recommendation and is not auto-installed because current
+# releases use a separate font license.
 if [[ -x "$DOOM" ]]; then
   if "$DOOM" doctor >/tmp/keeper-doctor.log 2>&1; then
     warns="$(grep -oE '[0-9]+ warning' /tmp/keeper-doctor.log | grep -oE '[0-9]+' | head -1)"
-    if [[ -z "$warns" || "$warns" == 0 ]]; then pass "doom doctor" "clean"
-    else info "doom doctor" "$warns warnings (mostly benign — \`keeper doctor\` for detail)"; fi
+    if grep -q 'module was moved' /tmp/keeper-doctor.log; then
+      fail "doom doctor" "stale module name — run \`keeper doctor\`"
+    elif [[ -z "$warns" || "$warns" == 0 ]]; then pass "doom doctor" "clean"
+    else info "doom doctor" "$warns warnings (Symbola/pipenv/nose are optional here — \`keeper doctor\` for detail)"; fi
   else fail "doom doctor" "errors — see /tmp/keeper-doctor.log or run \`keeper doctor\`"; fi
 else fail "doom doctor" "doom binary missing at $DOOM — run \`keeper install\`"; fi
 
 # 6. core tools on PATH
 missing=()
-for t in rg fd node dotnet just emacsclient mmdc; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
+for t in rg fd node dotnet just emacsclient mmdc pwsh; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
 [[ -x "$HOME/.dotnet/tools/csharpier" ]] || missing+=(csharpier)
-if [[ ${#missing[@]} -eq 0 ]]; then pass "tools" "rg fd node dotnet just csharpier mmdc"
+if [[ ${#missing[@]} -eq 0 ]]; then pass "tools" "rg fd node dotnet just csharpier mmdc pwsh"
 else fail "tools" "missing: ${missing[*]} — run \`keeper install\`"; fi
 
 # 7. Roslyn C# LSP DLL present
@@ -96,33 +100,38 @@ done
 if [[ ${#lsp_missing[@]} -eq 0 ]]; then pass "lsp servers" "7 present"
 else fail "lsp servers" "missing: ${lsp_missing[*]} — \`keeper install\` (uv tools → ~/.local/bin on PATH)"; fi
 
-# 9. apheleia formatters on PATH
+# 9. formatters required by enabled Doom modules
 fmt_missing=()
-for f in shfmt ruff; do command -v "$f" >/dev/null 2>&1 || fmt_missing+=("$f"); done
-if [[ ${#fmt_missing[@]} -eq 0 ]]; then pass "formatters" "shfmt ruff"
+for f in shfmt ruff clang-format; do command -v "$f" >/dev/null 2>&1 || fmt_missing+=("$f"); done
+if [[ ${#fmt_missing[@]} -eq 0 ]]; then pass "formatters" "shfmt ruff clang-format"
 else fail "formatters" "missing: ${fmt_missing[*]} — run \`keeper install\`"; fi
 
-# 10. Emacs Client.app — GUI/Spotlight entry (ADR-009), copied not symlinked; macOS only
+# 10. PlantUML jar where Doom's module expects it
+if [[ -f "$HOME/.config/emacs/.local/etc/plantuml.jar" ]]; then
+  pass "plantuml" "Doom jar present"
+else fail "plantuml" "jar missing — run \`keeper install\`"; fi
+
+# 11. Emacs Client.app — GUI/Spotlight entry (ADR-009), copied not symlinked; macOS only
 if $IS_MAC; then
   if [[ -d "/Applications/Emacs Client.app" ]]; then pass "emacs client.app" "present in /Applications"
   else fail "emacs client.app" "absent — run \`keeper install\`"; fi
 fi
 
-# 11. org-protocol → Scrim handler pin — Safari capture pipeline (ADR-010); macOS only
+# 12. org-protocol → Scrim handler pin — Safari capture pipeline (ADR-010); macOS only
 if $IS_MAC; then
   h="$(duti -d org-protocol 2>/dev/null)"
   if [[ "$h" == "com.yummymelon.scrim" ]]; then pass "org-protocol" "→ Scrim"
   else fail "org-protocol" "handler '${h:-none}' not Scrim — run scripts/install-scrim-captee-mac.sh"; fi
 fi
 
-# 12. excalidraw export toolchain (ADR-008)
+# 13. excalidraw export toolchain (ADR-008)
 exc_missing=()
 for t in fswatch excalidraw-cli; do command -v "$t" >/dev/null 2>&1 || exc_missing+=("$t"); done
 if [[ ${#exc_missing[@]} -eq 0 ]]; then pass "excalidraw" "fswatch + excalidraw-cli"
 else fail "excalidraw" "missing: ${exc_missing[*]} — run scripts/install-excalidraw-mac.sh"; fi
 
-# 13. Ollama local LLM (ADR-013) — the managed runtime. Daemon is on-demand
-# (`keeper llm start`), so down is advisory, not a failure; only a missing binary fails.
+# 14. Ollama local LLM (ADR-013) — optional and on-demand. A missing binary is
+# informational because install.sh supports --skip-llm.
 # LM Studio is user-managed, so it's not gated here.
 if $IS_MAC; then
   if command -v ollama >/dev/null 2>&1; then
@@ -137,10 +146,10 @@ if $IS_MAC; then
       if [[ ${#miss[@]} -eq 0 ]]; then pass "ollama" "up + models present"
       else info "ollama" "up; models not pulled: ${miss[*]} (\`keeper install\` to pull)"; fi
     else info "ollama" "installed, down — \`keeper llm start\` to serve"; fi
-  else fail "ollama" "not installed — run \`keeper install\`"; fi
+  else info "ollama" "not installed (optional — \`keeper install\` without --skip-llm)"; fi
 fi
 
-# 14. gptel LLM client (ADR-014) — packages built, and the global gitignore
+# 15. gptel LLM client (ADR-014) — packages built, and the global gitignore
 # actually in effect. The second half is the one that bites silently: project
 # transcripts live in <repo>/.gptel/, so a missing link makes them committable.
 gptel_missing=()
@@ -151,12 +160,25 @@ if [[ ${#gptel_missing[@]} -eq 0 ]]; then pass "gptel" "gptel + gptel-agent buil
 else fail "gptel" "not built: ${gptel_missing[*]} — run \`keeper sync\`"; fi
 
 if git -C "$REPO" check-ignore -q .gptel/chat.org 2>/dev/null; then
+  # shellcheck disable=SC2088  # literal display text
   pass "global gitignore" "~/.config/git/ignore in effect"
 else
   fail "global gitignore" "'.gptel/' not ignored — run \`keeper install\`"
 fi
 
-# 15. ssh ControlMaster block for tailnet
+# 16. Universal Ctags options are connected through the XDG preload directory
+ctags_want="$REPO/ctags.d"; ctags_got="$(readlink "$HOME/.config/ctags" 2>/dev/null || true)"
+# shellcheck disable=SC2088  # literal display text
+if [[ "$ctags_got" == "$ctags_want" ]]; then pass "ctags config" "~/.config/ctags → $ctags_got"
+else fail "ctags config" "is '${ctags_got:-missing}', want '$ctags_want' — run \`keeper install\`"; fi
+
+# 17. PowerShell worktree tooling
+pwsh_profile="$HOME/.config/powershell/Microsoft.PowerShell_profile.ps1"
+if grep -qF "$REPO/shell/hack.ps1" "$pwsh_profile" 2>/dev/null; then
+  pass "hack tooling" "PowerShell profile sources hack.ps1"
+else fail "hack tooling" "not activated — run scripts/install-hack.sh"; fi
+
+# 18. ssh ControlMaster block for tailnet
 if grep -q 'Host \*.ts.net' "$HOME/.ssh/config" 2>/dev/null; then pass "ssh controlmaster" "Host *.ts.net present"
 else fail "ssh controlmaster" "block absent — run \`keeper install\`"; fi
 
