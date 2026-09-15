@@ -228,17 +228,16 @@ SPC o x p   # (re)install tmux.conf on a host
 
 ### Worktree tooling (`hack`)
 
-`tools/hack` is a small compiled Rust tool for a catalog of repositories and their worktrees. It keeps one hidden bare clone per repository under `<baseDir>/.trees/`. Spawning always fetches first and creates a new task branch directly from the configured `origin/<baseBranch>` (`develop` by default), so a stale local base branch cannot leak into a new task. If the task branch already exists on the remote, it is resumed instead. The tool does not launch agents or editors.
+`tools/hack` is a small, dependency-free Rust tool that lazily indexes Git repositories beneath `~/Source` (plus roots in `HACK_SOURCE_ROOTS`) and creates their task worktrees beneath `~/worktree`. Normal lookup reads `~/.cache/hack/repos`; an unknown alias triggers one filesystem-only refresh, avoiding repeated walks and Git subprocesses on Windows. Spawning always fetches first and creates a new task branch directly from `origin/develop` when it exists, otherwise from `origin/HEAD`, so a stale local base branch cannot leak into a new task. A repository may override inference with local `git config hack.baseBranch BRANCH`. If the task branch already exists on the remote, it is resumed instead. The tool does not launch agents or editors.
 
 ```text
-hack repo add <alias> <url> [base]  # Register a repository
-hack repo list                      # Show the catalog
 hack <repo>/<branch-slug>           # Fetch + create/resume worktree
+hack repos [--refresh]              # Show or explicitly refresh the index
 hack list                           # Show active worktrees
 hack remove <repo>/<branch-slug>    # Remove only when clean and merged
 ```
 
-Config lives at `~/.config/hack/config.json` and remains compatible with the earlier PowerShell implementation. See `shell/hack-config.sample.json` for the format. Install with `scripts/install-hack.sh` or `scripts/install-hack.ps1`.
+There is no manually maintained repository catalog. Clone a repository beneath a discovery root and its first lookup indexes it automatically. Local Git config supplies the uncommon per-repository overrides (`hack.baseBranch` and `hack.branchPrefix`). Install with `scripts/install-hack.sh` or `scripts/install-hack.ps1`.
 
 ### Shell (`shell/init.zsh`)
 
@@ -284,7 +283,7 @@ Significant design choices are documented in `decisions/` as ADRs. Check there b
 | `013-llm-ollama-lmstudio.md` | Local LLM: Ollama managed GGUF endpoint (`:11434`) + LM Studio user-managed MLX GUI; why stores can't be shared (Ollama copies in; GGUF≠MLX); `keeper llm` on-demand control + `mirror` symlink bridge; curated 64 GB set |
 | `014-gptel-emacs-llm-client.md` | gptel on Doom's `:tools llm`: ChatGPT-subscription OAuth (not an API key), Ollama as second backend, gptel-agent for project sessions/tools/sub-agents, in-repo transcripts + global gitignore |
 | `015-python-uv.md` | Python: `+uv` auto-activates the project `.venv`, ruff replaces black+isort+pyflakes, pyright pinned to `.venv`, `uv run pytest`, projectile `python-uv` type; only `pyright`+`ruff` stay global, only bootstrapping (`SPC m u`) is scripted |
-| `017-compiled-hack-worktrees.md` | Compiled catalog-driven worktrees; every task starts from freshly fetched `origin/<base>` |
+| `017-compiled-hack-worktrees.md` | Compiled, lazily indexed worktrees; every task starts from freshly fetched `origin/<base>` |
 
 ## Related files
 

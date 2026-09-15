@@ -1,46 +1,15 @@
-use serde::{Deserialize, Serialize};
 use std::{
-    collections::BTreeMap,
-    env,
-    ffi::OsStr,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     process::{Command, ExitCode, Stdio},
 };
 
 type Result<T> = std::result::Result<T, String>;
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Config {
-    base_dir: PathBuf,
-    #[serde(default = "default_prefix")]
-    branch_prefix: String,
-    #[serde(default = "default_base")]
-    default_base_branch: String,
-    #[serde(default)]
-    default_repo: Option<String>,
-    #[serde(default)]
-    repos: BTreeMap<String, Repo>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 struct Repo {
-    url: String,
-    #[serde(default)]
-    base_branch: Option<String>,
-}
-
-fn default_base() -> String {
-    "develop".into()
-}
-
-fn default_prefix() -> String {
-    let user = env::var("USER")
-        .or_else(|_| env::var("USERNAME"))
-        .unwrap_or_else(|_| "me".into());
-    format!("user/{user}")
+    alias: String,
+    path: PathBuf,
 }
 
 fn home() -> Result<PathBuf> {
@@ -50,78 +19,49 @@ fn home() -> Result<PathBuf> {
         .ok_or_else(|| "HOME/USERPROFILE is not set".into())
 }
 
-fn hack_home() -> Result<PathBuf> {
-    env::var_os("HACK_HOME")
+fn source_roots() -> Result<Vec<PathBuf>> {
+    if let Some(value) = env::var_os("HACK_SOURCE_ROOTS") {
+        return Ok(env::split_paths(&value).collect());
+    }
+
+    let user_home = home()?;
+    #[allow(unused_mut)]
+    let mut roots = vec![user_home.join("Source")];
+    #[cfg(windows)]
+    roots.push(PathBuf::from(r"C:\avd"));
+    Ok(roots.into_iter().filter(|path| path.is_dir()).collect())
+}
+
+fn worktree_root() -> Result<PathBuf> {
+    Ok(env::var_os("HACK_WORKTREE_ROOT")
         .map(PathBuf::from)
-        .map(Ok)
-        .unwrap_or_else(home)
+        .unwrap_or(home()?.join("worktree")))
 }
 
-fn config_path() -> Result<PathBuf> {
-    Ok(hack_home()?.join(".config/hack/config.json"))
+fn cache_path() -> Result<PathBuf> {
+    if let Some(path) = env::var_os("HACK_CACHE") {
+        return Ok(PathBuf::from(path));
+    }
+    if let Some(directory) = env::var_os("XDG_CACHE_HOME") {
+        return Ok(PathBuf::from(directory).join("hack/repos"));
+    }
+    Ok(home()?.join(".cache/hack/repos"))
 }
 
-impl Config {
-    fn load() -> Result<Self> {
-        let path = config_path()?;
-        if !path.exists() {
-            return Ok(Self {
-                base_dir: hack_home()?.join("worktree"),
-                branch_prefix: default_prefix(),
-                default_base_branch: default_base(),
-                default_repo: None,
-                repos: BTreeMap::new(),
-            });
-        }
-        let text = fs::read_to_string(&path)
-            .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
-        serde_json::from_str(&text).map_err(|e| format!("cannot parse {}: {e}", path.display()))
-    }
-
-    fn save(&self) -> Result<()> {
-        let path = config_path()?;
-        fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
-        let text = serde_json::to_string_pretty(self).map_err(|e| e.to_string())?;
-        fs::write(&path, format!("{text}\n"))
-            .map_err(|e| format!("cannot write {}: {e}", path.display()))
-    }
-
-    fn repo(&self, alias: &str) -> Result<&Repo> {
-        self.repos.get(alias).ok_or_else(|| {
-            format!("unknown repository '{alias}'; add it with: hack repo add {alias} URL")
-        })
-    }
-
-    fn base_for(&self, repo: &Repo) -> String {
-        repo.base_branch
-            .clone()
-            .unwrap_or_else(|| self.default_base_branch.clone())
-    }
-
-    fn store(&self, alias: &str) -> PathBuf {
-        self.base_dir.join(".trees").join(alias)
-    }
-
-    fn worktree(&self, alias: &str, task: &str) -> PathBuf {
-        self.base_dir.join(alias).join(task)
-    }
-}
-
-fn git<I, S>(dir: Option<&Path>, args: I) -> Result<String>
+fn git<I, S>(dir: &Path, args: I) -> Result<String>
 where
     I: IntoIterator<Item = S>,
-    S: AsRef<OsStr>,
+    S: AsRef<std::ffi::OsStr>,
 {
-    let mut command = Command::new("git");
-    if let Some(dir) = dir {
-        command.arg("-C").arg(dir);
-    }
-    let output = command
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(dir)
         .args(args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .output()
         .map_err(|e| format!("could not run git: {e}"))?;
+
     if output.status.success() {
         Ok(String::from_utf8_lossy(&output.stdout).trim().into())
     } else {
@@ -137,7 +77,7 @@ where
 fn git_ok<I, S>(dir: &Path, args: I) -> bool
 where
     I: IntoIterator<Item = S>,
-    S: AsRef<OsStr>,
+    S: AsRef<std::ffi::OsStr>,
 {
     Command::new("git")
         .arg("-C")
@@ -149,32 +89,157 @@ where
         .is_ok_and(|status| status.success())
 }
 
-fn ensure_store(config: &Config, alias: &str) -> Result<PathBuf> {
-    let repo = config.repo(alias)?;
-    let store = config.store(alias);
-    if !store.exists() {
-        fs::create_dir_all(store.parent().unwrap()).map_err(|e| e.to_string())?;
-        println!("Cloning {alias} metadata...");
-        git(
-            None,
-            [
-                OsStr::new("clone"),
-                OsStr::new("--bare"),
-                OsStr::new(&repo.url),
-                store.as_os_str(),
-            ],
-        )?;
-        git(
-            Some(&store),
-            [
-                "config",
-                "remote.origin.fetch",
-                "+refs/heads/*:refs/remotes/origin/*",
-            ],
-        )?;
+fn git_config(repo: &Path, key: &str) -> Option<String> {
+    git(repo, ["config", "--get", key])
+        .ok()
+        .filter(|value| !value.is_empty())
+}
+
+fn has_git_marker(path: &Path) -> bool {
+    path.join(".git").exists()
+}
+
+fn discover_in(directory: &Path, depth: usize, repos: &mut Vec<Repo>) {
+    if depth == 0 {
+        return;
     }
-    git(Some(&store), ["fetch", "--prune", "origin"])?;
-    Ok(store)
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') || matches!(name.as_str(), "node_modules" | "target") {
+            continue;
+        }
+        if has_git_marker(&path) {
+            repos.push(Repo { alias: name, path });
+        } else {
+            discover_in(&path, depth - 1, repos);
+        }
+    }
+}
+
+fn refresh_index() -> Result<Vec<Repo>> {
+    let mut repos = Vec::new();
+    for root in source_roots()? {
+        discover_in(&root, 3, &mut repos);
+    }
+    repos.sort_by(|left, right| left.alias.cmp(&right.alias));
+    let path = cache_path()?;
+    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    let contents = repos
+        .iter()
+        .map(|repo| format!("{}\t{}", repo.alias, repo.path.display()))
+        .collect::<Vec<_>>()
+        .join("\n");
+    fs::write(&path, format!("{contents}\n"))
+        .map_err(|e| format!("cannot write {}: {e}", path.display()))?;
+    Ok(repos)
+}
+
+fn load_index() -> Result<Vec<Repo>> {
+    let path = cache_path()?;
+    if !path.exists() {
+        return refresh_index();
+    }
+    let contents =
+        fs::read_to_string(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+    Ok(contents
+        .lines()
+        .filter_map(|line| line.split_once('\t'))
+        .map(|(alias, path)| Repo {
+            alias: alias.into(),
+            path: PathBuf::from(path),
+        })
+        .filter(|repo| has_git_marker(&repo.path))
+        .collect())
+}
+
+fn matching(repos: Vec<Repo>, alias: &str) -> Vec<Repo> {
+    repos
+        .into_iter()
+        .filter(|repo| repo.alias.eq_ignore_ascii_case(alias))
+        .collect()
+}
+
+fn resolve(alias: &str) -> Result<Repo> {
+    let had_index = cache_path()?.exists();
+    let mut matches = matching(load_index()?, alias);
+    if matches.is_empty() && had_index {
+        matches = matching(refresh_index()?, alias);
+    }
+    match matches.as_slice() {
+        [] => Err(format!(
+            "unknown repository '{alias}'; clone it beneath a source root or set HACK_SOURCE_ROOTS"
+        )),
+        [repo] => Ok(Repo {
+            alias: repo.alias.clone(),
+            path: repo.path.clone(),
+        }),
+        _ => Err(format!(
+            "repository name '{alias}' is ambiguous across the configured source roots"
+        )),
+    }
+}
+
+fn remote_ref_exists(repo: &Path, branch: &str) -> bool {
+    git_ok(
+        repo,
+        [
+            "show-ref",
+            "--verify",
+            "--quiet",
+            &format!("refs/remotes/origin/{branch}"),
+        ],
+    )
+}
+
+fn base_branch(repo: &Path) -> Result<String> {
+    if let Some(branch) =
+        git_config(repo, "hack.baseBranch").or_else(|| env::var("HACK_BASE_BRANCH").ok())
+    {
+        if remote_ref_exists(repo, &branch) {
+            return Ok(branch);
+        }
+        return Err(format!("configured base origin/{branch} does not exist"));
+    }
+
+    if remote_ref_exists(repo, "develop") {
+        return Ok("develop".into());
+    }
+
+    let _ = git(repo, ["remote", "set-head", "origin", "--auto"]);
+    if let Ok(head) = git(
+        repo,
+        ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"],
+    ) {
+        if let Some(branch) = head.strip_prefix("origin/") {
+            return Ok(branch.into());
+        }
+    }
+    for candidate in ["main", "master"] {
+        if remote_ref_exists(repo, candidate) {
+            return Ok(candidate.into());
+        }
+    }
+    Err("could not determine the remote base branch; set git config hack.baseBranch BRANCH".into())
+}
+
+fn branch_prefix(repo: &Path) -> String {
+    if let Some(prefix) =
+        git_config(repo, "hack.branchPrefix").or_else(|| env::var("HACK_BRANCH_PREFIX").ok())
+    {
+        return prefix.trim_matches('/').into();
+    }
+    let user = env::var("USER")
+        .or_else(|_| env::var("USERNAME"))
+        .unwrap_or_else(|_| "me".into());
+    format!("user/{user}")
 }
 
 fn split_spec(spec: &str) -> Result<(&str, &str)> {
@@ -193,158 +258,116 @@ fn split_spec(spec: &str) -> Result<(&str, &str)> {
     Ok((alias, task))
 }
 
-fn spawn(config: &Config, spec: &str) -> Result<()> {
-    let (alias, task) = split_spec(spec)?;
-    let repo = config.repo(alias)?;
-    let base = config.base_for(repo);
-    let store = ensure_store(config, alias)?;
-    let path = config.worktree(alias, task);
-    let branch = if config.branch_prefix.is_empty() {
-        task.to_string()
-    } else {
-        format!("{}/{task}", config.branch_prefix.trim_end_matches('/'))
-    };
+fn fetch(repo: &Path) -> Result<()> {
+    println!("Fetching origin...");
+    git(repo, ["fetch", "--prune", "origin"]).map(|_| ())
+}
 
-    if path.exists() {
-        println!("{}", path.display());
+fn spawn(spec: &str) -> Result<()> {
+    let (requested_alias, task) = split_spec(spec)?;
+    let repo = resolve(requested_alias)?;
+    fetch(&repo.path)?;
+
+    let base = base_branch(&repo.path)?;
+    let prefix = branch_prefix(&repo.path);
+    let branch = if prefix.is_empty() {
+        task.into()
+    } else {
+        format!("{prefix}/{task}")
+    };
+    let destination = worktree_root()?.join(&repo.alias).join(task);
+    if destination.exists() {
+        println!("{}", destination.display());
         return Ok(());
     }
-    fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    fs::create_dir_all(destination.parent().unwrap()).map_err(|e| e.to_string())?;
 
-    let remote_branch = format!("refs/remotes/origin/{branch}");
-    let local_branch = format!("refs/heads/{branch}");
-    let base_ref = format!("refs/remotes/origin/{base}");
-    if !git_ok(&store, ["show-ref", "--verify", "--quiet", &base_ref]) {
-        return Err(format!("origin/{base} does not exist for '{alias}'"));
-    }
-
-    if git_ok(&store, ["show-ref", "--verify", "--quiet", &local_branch]) {
-        if git_ok(&store, ["show-ref", "--verify", "--quiet", &remote_branch]) {
+    let local_ref = format!("refs/heads/{branch}");
+    let remote_ref = format!("refs/remotes/origin/{branch}");
+    if git_ok(&repo.path, ["show-ref", "--verify", "--quiet", &local_ref]) {
+        if git_ok(&repo.path, ["show-ref", "--verify", "--quiet", &remote_ref]) {
             git(
-                Some(&store),
+                &repo.path,
                 ["branch", "--force", &branch, &format!("origin/{branch}")],
             )?;
         }
         git(
-            Some(&store),
+            &repo.path,
             [
-                OsStr::new("worktree"),
-                OsStr::new("add"),
-                path.as_os_str(),
-                OsStr::new(&branch),
+                "worktree",
+                "add",
+                destination.to_string_lossy().as_ref(),
+                &branch,
             ],
         )?;
-    } else if git_ok(&store, ["show-ref", "--verify", "--quiet", &remote_branch]) {
+    } else if git_ok(&repo.path, ["show-ref", "--verify", "--quiet", &remote_ref]) {
         git(
-            Some(&store),
+            &repo.path,
             [
-                OsStr::new("worktree"),
-                OsStr::new("add"),
-                OsStr::new("--track"),
-                OsStr::new("-b"),
-                OsStr::new(&branch),
-                path.as_os_str(),
-                OsStr::new(&format!("origin/{branch}")),
+                "worktree",
+                "add",
+                "--track",
+                "-b",
+                &branch,
+                destination.to_string_lossy().as_ref(),
+                &format!("origin/{branch}"),
             ],
         )?;
     } else {
         git(
-            Some(&store),
+            &repo.path,
             [
-                OsStr::new("worktree"),
-                OsStr::new("add"),
-                OsStr::new("-b"),
-                OsStr::new(&branch),
-                path.as_os_str(),
-                OsStr::new(&format!("origin/{base}")),
+                "worktree",
+                "add",
+                "-b",
+                &branch,
+                destination.to_string_lossy().as_ref(),
+                &format!("origin/{base}"),
             ],
         )?;
     }
-    println!("{}", path.display());
+    println!("{}", destination.display());
     Ok(())
 }
 
-fn repo_command(config: &mut Config, args: &[String]) -> Result<()> {
-    match args {
-        [command] if command == "list" => {
-            if config.repos.is_empty() {
-                println!("No repositories. Add one with: hack repo add NAME URL [BASE]");
-            }
-            for (alias, repo) in &config.repos {
-                println!("{alias}\t{}\t{}", config.base_for(repo), repo.url);
-            }
-            Ok(())
-        }
-        [command, alias, url] if command == "add" => add_repo(config, alias, url, None),
-        [command, alias, url, base] if command == "add" => {
-            add_repo(config, alias, url, Some(base.clone()))
-        }
-        [command, alias] if command == "remove" => {
-            config.repo(alias)?;
-            let store = config.store(alias);
-            if store.exists() {
-                let records = git(Some(&store), ["worktree", "list", "--porcelain"])?;
-                if records
-                    .split("\n\n")
-                    .any(|record| record.lines().any(|line| line.starts_with("branch ")))
-                {
-                    return Err(format!(
-                        "'{alias}' still has worktrees; remove them before forgetting it"
-                    ));
-                }
-                fs::remove_dir_all(&store)
-                    .map_err(|e| format!("cannot remove {}: {e}", store.display()))?;
-            }
-            config
-                .repos
-                .remove(alias)
-                .ok_or_else(|| format!("unknown repository '{alias}'"))?;
-            config.save()
-        }
-        _ => Err(
-            "usage: hack repo add NAME URL [BASE] | hack repo list | hack repo remove NAME".into(),
-        ),
+fn list_repos(refresh: bool) -> Result<()> {
+    let repos = if refresh {
+        refresh_index()?
+    } else {
+        load_index()?
+    };
+    if repos.is_empty() {
+        println!("No repositories found in the configured source roots.");
     }
-}
-
-fn add_repo(config: &mut Config, alias: &str, url: &str, base: Option<String>) -> Result<()> {
-    if alias.is_empty() || alias.contains(['/', '\\']) || alias == ".trees" {
-        return Err("repository name must be a single safe path component".into());
+    for repo in repos {
+        println!("{}\t{}", repo.alias, repo.path.display());
     }
-    config.repos.insert(
-        alias.into(),
-        Repo {
-            url: url.into(),
-            base_branch: base,
-        },
-    );
-    config.save()?;
-    println!("Added {alias}");
     Ok(())
 }
 
-fn list(config: &Config) -> Result<()> {
+fn managed_path(path: &str, root: &Path, alias: &str) -> bool {
+    let expected = root.join(alias);
+    match (fs::canonicalize(path), fs::canonicalize(expected)) {
+        (Ok(candidate), Ok(expected)) => candidate.starts_with(expected),
+        _ => false,
+    }
+}
+
+fn list_worktrees() -> Result<()> {
+    let root = worktree_root()?;
     let mut found = false;
-    for alias in config.repos.keys() {
-        let store = config.store(alias);
-        if !store.exists() {
-            continue;
-        }
-        let output = git(Some(&store), ["worktree", "list", "--porcelain"])?;
-        let worktree_root = fs::canonicalize(config.base_dir.join(alias)).ok();
-        for block in output.split("\n\n") {
-            let path = block
+    for repo in load_index()? {
+        let records = git(&repo.path, ["worktree", "list", "--porcelain"])?;
+        for record in records.split("\n\n") {
+            let path = record
                 .lines()
                 .find_map(|line| line.strip_prefix("worktree "));
-            let branch = block
+            let branch = record
                 .lines()
                 .find_map(|line| line.strip_prefix("branch refs/heads/"));
             if let (Some(path), Some(branch)) = (path, branch) {
-                let is_managed = worktree_root.as_ref().is_some_and(|root| {
-                    fs::canonicalize(path).is_ok_and(|candidate| candidate.starts_with(root))
-                });
-                if is_managed {
-                    println!("{alias}\t{branch}\t{path}");
+                if managed_path(path, &root, &repo.alias) {
+                    println!("{}\t{}\t{}", repo.alias, branch, path);
                     found = true;
                 }
             }
@@ -356,63 +379,62 @@ fn list(config: &Config) -> Result<()> {
     Ok(())
 }
 
-fn remove(config: &Config, spec: &str) -> Result<()> {
-    let (alias, task) = split_spec(spec)?;
-    let path = config.worktree(alias, task);
-    if !path.exists() {
+fn remove(spec: &str) -> Result<()> {
+    let (requested_alias, task) = split_spec(spec)?;
+    let repo = resolve(requested_alias)?;
+    let destination = worktree_root()?.join(&repo.alias).join(task);
+    if !destination.exists() {
         return Err(format!("worktree '{spec}' does not exist"));
     }
-    let store = ensure_store(config, alias)?;
-    if !git(Some(&path), ["status", "--porcelain"])?.is_empty() {
+    if !git(&destination, ["status", "--porcelain"])?.is_empty() {
         return Err(format!(
             "'{spec}' has uncommitted changes; refusing to remove it"
         ));
     }
-    let branch = git(Some(&path), ["branch", "--show-current"])?;
-    let repo = config.repo(alias)?;
-    let base = format!("origin/{}", config.base_for(repo));
-    if !git_ok(&store, ["merge-base", "--is-ancestor", &branch, &base]) {
+
+    fetch(&repo.path)?;
+    let branch = git(&destination, ["branch", "--show-current"])?;
+    let base = format!("origin/{}", base_branch(&repo.path)?);
+    if !git_ok(&repo.path, ["merge-base", "--is-ancestor", &branch, &base]) {
         return Err(format!(
             "'{branch}' is not merged into {base}; refusing to remove it"
         ));
     }
     git(
-        Some(&store),
-        [
-            OsStr::new("worktree"),
-            OsStr::new("remove"),
-            path.as_os_str(),
-        ],
+        &repo.path,
+        ["worktree", "remove", destination.to_string_lossy().as_ref()],
     )?;
-    git(Some(&store), ["branch", "-d", &branch])?;
+    git(&repo.path, ["branch", "-d", &branch])?;
     println!("Removed {spec}");
     Ok(())
 }
 
 fn usage() {
     println!(
-        "hack — catalog-driven Git worktrees\n\n\
-         Usage:\n  hack REPO/TASK\n  hack repo add NAME URL [BASE]\n  hack repo list\n  hack repo remove NAME\n  hack list\n  hack remove REPO/TASK\n\n\
-         A new task always starts at the freshly fetched origin/BASE."
+        "hack — discovered Git worktrees\n\n\
+         Usage:\n  hack REPO/TASK\n  hack repos [--refresh]\n  hack list\n  hack remove REPO/TASK\n\n\
+         Repositories are indexed beneath ~/Source or HACK_SOURCE_ROOTS.\n\
+         Every spawn fetches and starts at origin/develop when it exists,\n\
+         otherwise at the remote default branch."
     );
 }
 
 fn run() -> Result<()> {
     let args: Vec<String> = env::args().skip(1).collect();
-    let mut config = Config::load()?;
     match args.as_slice() {
         [] => {
             usage();
             Ok(())
         }
-        [arg] if arg == "--help" || arg == "-h" || arg == "help" => {
+        [arg] if matches!(arg.as_str(), "--help" | "-h" | "help") => {
             usage();
             Ok(())
         }
-        [command, rest @ ..] if command == "repo" => repo_command(&mut config, rest),
-        [command] if command == "list" => list(&config),
-        [command, spec] if command == "remove" => remove(&config, spec),
-        [spec] if spec.contains('/') => spawn(&config, spec),
+        [command] if command == "repos" => list_repos(false),
+        [command, flag] if command == "repos" && flag == "--refresh" => list_repos(true),
+        [command] if command == "list" => list_worktrees(),
+        [command, spec] if command == "remove" => remove(spec),
+        [spec] if spec.contains('/') => spawn(spec),
         _ => Err("invalid arguments; run 'hack --help'".into()),
     }
 }

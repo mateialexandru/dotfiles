@@ -13,6 +13,7 @@ fi
 
 cargo install --locked --force --root "$HOME/.local" --path "$TOOL_DIR"
 echo "Installed hack to $HOME/.local/bin/hack"
+"$HOME/.local/bin/hack" repos --refresh >/dev/null
 
 # v3 was dot-sourced into the PowerShell profile. Remove that now-dead source line.
 LEGACY_PROFILE="$HOME/.config/powershell/Microsoft.PowerShell_profile.ps1"

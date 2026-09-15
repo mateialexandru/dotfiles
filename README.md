@@ -31,20 +31,24 @@ Run `scripts\doctor.ps1` afterwards to verify the environment.
 
 ## Repository worktrees
 
-`hack` keeps a small catalog of repositories and creates isolated task checkouts from
-the latest remote base branch:
+`hack` lazily indexes existing repositories beneath `~/Source` and creates isolated task
+checkouts from the latest remote base branch:
 
 ```text
-hack repo add product git@github.com:company/product.git develop
 hack product/fix-login
+hack repos --refresh
 hack list
 hack remove product/fix-login
 ```
 
-Each spawn fetches first and starts a new task at `origin/develop` (or the base supplied
-when the repository was added). An existing remote task branch is resumed. Hack only
-manages Git state; opening the worktree in Emacs or delegating work happens separately.
-The catalog is stored in `~/.config/hack/config.json`.
+Each spawn fetches first and starts a new task at `origin/develop` when that branch
+exists, otherwise at the remote default branch. An existing remote task branch is
+resumed. Hack only manages Git state; opening the worktree in Emacs or delegating work
+happens separately. Use local `git config hack.baseBranch BRANCH` for a repository whose
+base is not inferred correctly. A private layer can set `HACK_SOURCE_ROOTS` to add more
+checkout roots without exposing their paths here. Normal commands read
+`~/.cache/hack/repos`; an unknown name triggers one filesystem-only refresh, so Windows
+does not pay for a directory walk or a series of Git processes on every invocation.
 
 ## Mermaid diagrams in Emacs
 

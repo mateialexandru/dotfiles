@@ -1,4 +1,4 @@
-# 017 — Compiled catalog-driven worktrees
+# 017 — Compiled discovered worktrees
 
 **Date:** 2026-09-14
 **Status:** Accepted
@@ -6,8 +6,8 @@
 
 ## Context
 
-The useful part of `hack` is being able to remember a collection of repositories and
-spawn an isolated checkout for any of them. The PowerShell implementation also grew
+The useful part of `hack` is being able to work cleanly across a collection of repositories
+and spawn an isolated checkout for any of them. The PowerShell implementation also grew
 navigation, interactive selection, status presentation, shell aliases, and cleanup UI.
 Those features made the tool and its installation larger without improving the core
 workflow.
@@ -17,38 +17,41 @@ from a local `develop` can silently start behind the remote branch.
 
 ## Decision
 
-`hack` is a compiled Rust program with two responsibilities:
+`hack` is a compiled, dependency-free Rust program with two responsibilities:
 
-1. Maintain a small repository catalog in `~/.config/hack/config.json`.
-2. Create and safely remove Git worktrees for catalogued repositories.
+1. Discover existing Git repositories beneath conventional source roots.
+2. Create and safely remove Git worktrees for those repositories.
 
-Each repository has one bare metadata/object store at `<baseDir>/.trees/<alias>`.
-`hack <repo>/<task>` always performs `git fetch --prune origin` and creates a new branch
-from `origin/<baseBranch>`, where the default base is `develop`. It never creates from
-a local base branch. If `origin/<branchPrefix>/<task>` already exists, Hack creates a
-tracking worktree for that branch instead.
+The existing checkout is the source of truth for its `origin` and Git object store; Hack
+does not maintain a second catalog or clone. Repositories are indexed beneath `~/Source`,
+plus any paths supplied by `HACK_SOURCE_ROOTS`. The generated index lives at
+`~/.cache/hack/repos`. Normal lookup reads only that file. A missing name or stale path
+triggers one filesystem-only rescan; scanning never launches Git once per directory.
+`hack repos --refresh` forces the same refresh explicitly. Worktrees live beneath
+`~/worktree`, overridable with `HACK_WORKTREE_ROOT`.
 
-The config format and disk layout remain compatible with v3 so existing catalogs and
-worktrees do not need to move.
+`hack <repo>/<task>` always performs `git fetch --prune origin`. It creates from
+`origin/develop` when that branch exists, otherwise from `origin/HEAD`. It never creates
+from a local base branch. Local Git config `hack.baseBranch` handles exceptions. If the
+task branch already exists on the remote, Hack creates a tracking worktree for it instead.
 
 ## Command surface
 
 ```text
-hack repo add NAME URL [BASE]
-hack repo list
-hack repo remove NAME
 hack REPO/TASK
+hack repos [--refresh]
 hack list
 hack remove REPO/TASK
 ```
 
 Removal is conservative: a worktree must be clean and its branch must be merged into
-the freshly fetched remote base. Repository removal refuses while worktrees remain.
+the freshly fetched remote base.
 
 ## Deliberate omissions
 
 - No editor, terminal, LLM, or agent launching. Emacs and other tools own that step.
 - No `cd` or shell profile functions; a child process cannot change its parent shell.
-- No fuzzy picker. Zoxide and editor project navigation already solve discovery.
+- No repository-add step or separate JSON configuration.
+- No fuzzy picker. Zoxide and editor project navigation already solve navigation.
 - No PR/provider integration.
 - No forced removal of dirty or unmerged work.

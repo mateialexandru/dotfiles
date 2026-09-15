@@ -12,6 +12,7 @@ cargo install --locked --force --path $toolDir
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host "Installed hack." -ForegroundColor Green
+hack repos --refresh | Out-Null
 
 # v3 was dot-sourced into the PowerShell profile. Remove that now-dead source line.
 $profileCandidates = @(
