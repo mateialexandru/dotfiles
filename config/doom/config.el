@@ -591,6 +591,14 @@ is cropped in split windows.  The cached PNG remains full resolution."
 ;; Refresh a changed image with `C-c C-x C-v' / `org-redisplay-inline-images'.
 (setq org-startup-with-inline-images t)
 
+;; Emacs 30's image-mode prefers ImageMagick for every format it advertises.
+;; Its SVG path can collapse percentage-sized Mermaid exports to a blank 30x30
+;; image even though the native librsvg renderer handles them correctly.
+(after! image
+  (dolist (type '(SVG SVGZ))
+    (add-to-list 'imagemagick-types-inhibit type))
+  (imagemagick-register-types))
+
 ;; --- Excalidraw ---
 ;; `excalidraw:' org links open the JSON in the Chrome PWA (File Handling API);
 ;; saving there triggers Emacs file notifications → excalidraw-cli → SVG.
