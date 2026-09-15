@@ -91,6 +91,7 @@ Mermaid is rendered locally with `mmdc`; diagram source is never sent to a
 remote service.
 
 - In Org, use a file result such as `#+begin_src mermaid :file diagram.svg`.
+  Type `<merm` then `TAB` at the beginning of a line to name and scaffold one.
   `C-c C-c` renders it and refreshes the inline image. `SPC m M` does the same
   but refuses to run unless point is in a Mermaid block.
 - In Markdown, fenced `mermaid` blocks receive Mermaid syntax highlighting and
@@ -107,6 +108,18 @@ remote service.
 Automatic Markdown previews are disabled over TRAMP. Org blocks remain
 explicitly executed rather than running merely because a document was opened.
 See `docs/decisions/016-mermaid-previews.md` for the design and safety rationale.
+
+## Excalidraw diagrams in Org
+
+At the beginning of a line in Org, type `<excali` then `TAB` to name a new
+Excalidraw drawing, insert its link, and open the editable `.excalidraw` file in
+the PWA. Type `<merm` then `TAB` to name and insert a basic Mermaid flowchart
+block. Saving in Excalidraw automatically regenerates the SVG shown inline in
+Org. Left-click the preview image to reopen it for editing. The `SPC m D`
+(diagram) menu provides new, open-at-point, and rename actions. See
+[`docs/examples/excalidraw-org-example.org`](docs/examples/excalidraw-org-example.org)
+for a worksheet where you can bootstrap a diagram on the spot and follow the
+complete edit/save/refresh loop.
 
 ## gptel in Emacs
 

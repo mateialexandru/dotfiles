@@ -1,0 +1,73 @@
+#+title: Excalidraw in Org
+#+startup: inlineimages
+#+options: toc:nil
+
+This is a hands-on worksheet for creating and maintaining Excalidraw diagrams
+from an ordinary Org note.  The editable =.excalidraw= source lives in
+=~/Documents/org/excalidraw/= by default; Org displays the exported =.svg=.
+
+* Bootstrap a diagram here
+
+1. On the blank line below, type =<excali= and press =TAB=.
+2. Enter a useful name, such as =request lifecycle=.
+3. Draw in the Excalidraw PWA that opens, then save the file.
+4. Return here and press =C-c C-x C-v= if the inline image has not refreshed yet.
+
+Insert the new diagram on the next line:
+
+
+The command inserts a link shaped like this and opens its editable source:
+
+#+begin_example
+[[excalidraw:/Users/you/Documents/org/excalidraw/request-lifecycle.excalidraw.svg]]
+#+end_example
+
+The real link uses an absolute path, so this example note can move without
+moving the drawing library.  Name collisions are safe: a second drawing gets a
+=-1= suffix.  Leaving the name empty falls back to a UUID.
+
+=SPC m D n= (diagram → new) performs the same operation when you prefer a
+discoverable key menu over the YASnippet trigger.
+
+* Edit the diagram again
+
+Left-click the preview image.  From the keyboard, put point on the
+=excalidraw:= link and press =SPC m D o= (diagram → open), or use Org's
+standard =C-c C-o=.
+That opens the corresponding =.excalidraw= source in the PWA.  Each save causes
+=fswatch= to run =excalidraw-cli= and replace the adjacent =.svg= preview.
+
+Use =C-c C-x C-v= to toggle or refresh all inline images after returning to
+Emacs.  Saving the Org file is only needed to keep its link; the drawing itself
+is saved by Excalidraw.
+
+* Rename without breaking the link
+
+Put point on the link and press =SPC m D r= (diagram → rename).  Enter the new
+name.  The command
+renames both the editable =.excalidraw= file and its exported =.svg=, then
+rewrites every matching link in this Org buffer.
+
+Leave the name blank when creating a diagram if a descriptive filename does not
+matter; the same command falls back to a UUID.
+
+* Command card
+
+| Key           | Action                                      |
+|---------------+---------------------------------------------|
+| =<excali TAB=  | Prompt, create, insert, and open a drawing  |
+| =mouse-1=      | Open the preview for editing in Excalidraw  |
+| =SPC m D n=   | Diagram → new (blank name uses a UUID)      |
+| =SPC m D o=   | Diagram → open at point in Excalidraw       |
+| =SPC m D r=   | Diagram → rename source, preview, and link  |
+| =C-c C-x C-v= | Toggle or refresh Org's inline image views  |
+
+* If the first diagram does not open or render
+
+On macOS, run =scripts/install-excalidraw-mac.sh=, complete the printed Chrome
+PWA/file-handler steps, then restart Emacs.  =sys check= verifies that =fswatch=
+and =excalidraw-cli= are available.  Package or module changes require
+=sys doom sync=, although creating and editing drawings does not.
+
+The full setup and design rationale are in
+[[file:../decisions/008-excalidraw-integration.md][ADR-008]].

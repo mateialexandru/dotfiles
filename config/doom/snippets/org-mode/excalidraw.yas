@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: Excalidraw drawing
+# key: <excali
+# --
+`(my/org-excalidraw-create-link (read-string "Drawing name: "))`$0

@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: Mermaid diagram
+# key: <merm
+# --
+#+name: ${1:diagram}
+#+begin_src mermaid :file ${1}.svg
+flowchart LR
+    ${2:A[Start] --> B[Finish]}
+#+end_src
+$0

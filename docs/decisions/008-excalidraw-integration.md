@@ -137,15 +137,16 @@ so a partial/missing install never aborts Doom boot (cf. libgccjit boot-abort, A
              (executable-find "fswatch"))
     (org-excalidraw-initialize)
     (when (fboundp 'org-link-preview-file)
-      (org-link-set-parameters "excalidraw" :preview #'org-link-preview-file))))
+      (org-link-set-parameters "excalidraw" :preview #'my/org-excalidraw-preview))))
 ```
 
 **Inline-preview gotcha (org 9.7+):** the package registers the link's inline
 image via the old `:image-data-fun' link param, which org 9.7 dropped for the new
 `:preview' API — on org 9.8 the thumbnail silently doesn't render (0 overlays).
 Re-register a `:preview' fn; the excalidraw: link path is the exported `.svg`, so
-org's built-in `org-link-preview-file' handles it directly. Also needs inline
-images on: `(setq org-startup-with-inline-images t)` (or `#+STARTUP: inlineimages`).
+`my/org-excalidraw-preview' delegates rendering to Org's built-in
+`org-link-preview-file' and adds a `mouse-1` open action. Also needs inline images
+on: `(setq org-startup-with-inline-images t)` (or `#+STARTUP: inlineimages`).
 
 `~/.config/emacs/bin/doom sync` → restart.
 
@@ -164,22 +165,29 @@ images on: `(setq org-startup-with-inline-images t)` (or `#+STARTUP: inlineimage
 
 ### 6. Usage
 
-Named-file wrapper + rename live on the org localleader under `SPC m E`
-(`e` is export in Doom), backed by `my/org-excalidraw-*` in `config.el`
-(upstream only offers UUID filenames):
+At the beginning of an Org line, `<excali TAB` prompts for a drawing name, creates
+the backing file, inserts its `excalidraw:` preview link, and opens the PWA.
+This is the fast creation path and parallels the `<merm TAB` YASnippet, which
+inserts a named, scaffolded Mermaid block.
+
+Named-file wrapper + rename live on the Org localleader under `SPC m D`
+(`D` is diagram; lowercase `d` is Doom's date/deadline menu), backed by
+`my/org-excalidraw-*` in `config.el` (upstream only offers UUID filenames):
 
 | Key | Action |
 |-----|--------|
-| `SPC m E n` | New (named) — prompts, slugifies → `my-diagram.excalidraw` |
-| `SPC m E u` | New (uuid) — upstream `org-excalidraw-create-drawing` |
-| `SPC m E r` | Rename drawing at point — renames `.excalidraw` + `.svg`, rewrites link |
-| `SPC m E o` | Open in app (Chrome PWA) |
+| `<excali TAB` | Prompt, create, insert, and open a named drawing |
+| `SPC m D n` | Diagram → new — prompts, slugifies → `my-diagram.excalidraw`; blank uses UUID |
+| `SPC m D o` | Diagram → open at point in the Chrome PWA |
+| `SPC m D r` | Diagram → rename at point — renames `.excalidraw` + `.svg`, rewrites link |
 
-Blank name → UUID fallback; slug collisions auto-suffix `-1`, `-2`. Click a link
-(or `SPC m E o`) → PWA; save there → fswatch regenerates the SVG. Toggle/refresh
-inline images with `C-c C-x C-v` (they're on at startup via `org-startup-with-inline-images`).
+Blank name → UUID fallback; slug collisions auto-suffix `-1`, `-2`. Left-click a
+preview (or use `SPC m D o`) → PWA; save there → fswatch regenerates the SVG.
+Toggle/refresh inline images with `C-c C-x C-v` (they're on at startup via
+`org-startup-with-inline-images`).
 
 ## Related
 
 - ADR-001 — Emacs package rationale.
 - `config/doom/packages.el` — Mermaid + `ob-mermaid` wiring.
+- `docs/examples/excalidraw-org-example.org` — hands-on create/edit/rename worksheet.

@@ -308,11 +308,25 @@ The first that exists is opened; the first in the list is what gets created.")
 (load! "config-super-save")
 (load! "config-compile-on-close")
 (load! "config-notify")
+;; When Corfu auto-opens on a YASnippet trigger, TAB should expand the exact
+;; snippet rather than merely select the next completion candidate.
+(after! corfu
+  (setq +corfu-want-tab-prefer-expand-snippets t))
 
 ;;; winpulse — flash focused window
 (use-package! winpulse
   :config
   (winpulse-mode +1))
+
+;; --- Diagrams ---
+(defun my/org-diagram--slug (name &optional fallback)
+  "Return a filesystem-safe slug for NAME.
+Use FALLBACK when NAME is empty, or an Org UUID when FALLBACK is nil."
+  (let ((slug (replace-regexp-in-string
+               "\\`-+\\|-+\\'" ""
+               (replace-regexp-in-string
+                "[^a-z0-9]+" "-" (downcase (string-trim name))))))
+    (if (string-empty-p slug) (or fallback (org-id-uuid)) slug)))
 
 ;; --- Mermaid diagrams ---
 (defconst my/mermaid-config-file
@@ -554,6 +568,24 @@ is cropped in split windows.  The cached PNG remains full resolution."
 ;; `excalidraw:' org links open the JSON in the Chrome PWA (File Handling API);
 ;; saving there triggers fswatch → excalidraw-cli → SVG, shown inline.
 ;; `org-excalidraw-initialize' starts the filewatcher. See ADR-008.
+(defun my/org-excalidraw-open-at-mouse (event)
+  "Open the Excalidraw link beneath mouse EVENT."
+  (interactive "e")
+  (mouse-set-point event)
+  (org-open-at-point))
+
+(defun my/org-excalidraw-preview (ov path link)
+  "Preview Excalidraw SVG PATH in OV and make it clickable.
+LINK is the Org link element passed to `org-link-preview-file'."
+  (when (org-link-preview-file ov path link)
+    (let ((map (make-sparse-keymap)))
+      (set-keymap-parent map image-map)
+      (define-key map [mouse-1] #'my/org-excalidraw-open-at-mouse)
+      (overlay-put ov 'keymap map)
+      (overlay-put ov 'mouse-face 'highlight)
+      (overlay-put ov 'help-echo "mouse-1: edit in Excalidraw"))
+    t))
+
 (use-package! org-excalidraw
   :after org
   :commands (org-excalidraw-create-drawing)
@@ -574,22 +606,15 @@ is cropped in split windows.  The cached PNG remains full resolution."
     (org-excalidraw-initialize)
     ;; org 9.7+ dropped the `:image-data-fun' link param the package registers
     ;; for inline previews, in favour of `:preview'. Re-register so excalidraw
-    ;; thumbnails render — the link path is the exported .svg, so org's own file
-    ;; previewer handles it directly.
+    ;; thumbnails render — the link path is the exported .svg. Our small wrapper
+    ;; delegates rendering to Org, then makes the preview open on mouse-1.
     (when (fboundp 'org-link-preview-file)
-      (org-link-set-parameters "excalidraw" :preview #'org-link-preview-file))))
+      (org-link-set-parameters "excalidraw" :preview #'my/org-excalidraw-preview))))
 
 ;; The upstream `org-excalidraw-create-drawing' names files by UUID. These wrap
 ;; it to name a drawing up front (or rename one later), so the drawings dir stays
 ;; browsable. Defined top-level (not in `:config') so the localleader binds work
 ;; before the package loads; each `require's it, which runs the `:config' above.
-(defun my/org-excalidraw--slug (name)
-  "Filesystem-safe slug for NAME; fall back to a UUID when empty."
-  (let ((s (replace-regexp-in-string
-            "\\`-+\\|-+\\'" ""
-            (replace-regexp-in-string
-             "[^a-z0-9]+" "-" (downcase (string-trim name))))))
-    (if (string-empty-p s) (org-id-uuid) s)))
 
 (defun my/org-excalidraw--unique (slug)
   "Absolute .excalidraw path for SLUG in the drawings dir, uniquified."
@@ -601,18 +626,21 @@ is cropped in split windows.  The cached PNG remains full resolution."
             n (1+ n)))
     path))
 
-(defun my/org-excalidraw-create-named (name)
-  "Create a named excalidraw drawing and insert a link at point.
-Like `org-excalidraw-create-drawing' but uses NAME (slugified) not a UUID."
-  (interactive "sDrawing name: ")
+(defun my/org-excalidraw-create-link (name)
+  "Create and open a named Excalidraw drawing, returning its Org link."
   (require 'org-excalidraw)
   (unless (file-directory-p org-excalidraw-directory)
     (user-error "org-excalidraw-directory %s does not exist" org-excalidraw-directory))
-  (let* ((path (my/org-excalidraw--unique (my/org-excalidraw--slug name)))
+  (let* ((path (my/org-excalidraw--unique (my/org-diagram--slug name)))
          (link (format "[[excalidraw:%s.svg]]" path)))
-    (insert link)
     (with-temp-file path (insert org-excalidraw-base))
-    (shell-command (org-excalidraw--shell-cmd-open path system-type))))
+    (shell-command (org-excalidraw--shell-cmd-open path system-type))
+    link))
+
+(defun my/org-excalidraw-create-named (name)
+  "Create a named Excalidraw drawing and insert its link at point."
+  (interactive "sDrawing name: ")
+  (insert (my/org-excalidraw-create-link name)))
 
 (defun my/org-excalidraw-rename (new-name)
   "Rename the excalidraw drawing linked at point to NEW-NAME.
@@ -624,7 +652,7 @@ Renames the .excalidraw and .excalidraw.svg files and rewrites the link."
       (user-error "Point is not on an excalidraw link"))
     (let* ((old-svg (org-element-property :path ctx))
            (old-excal (string-remove-suffix ".svg" old-svg))
-           (new-excal (my/org-excalidraw--unique (my/org-excalidraw--slug new-name)))
+           (new-excal (my/org-excalidraw--unique (my/org-diagram--slug new-name)))
            (new-svg (concat new-excal ".svg")))
       (when (file-exists-p old-excal) (rename-file old-excal new-excal))
       (when (file-exists-p old-svg) (rename-file old-svg new-svg))
@@ -638,11 +666,10 @@ Renames the .excalidraw and .excalidraw.svg files and rewrites the link."
 (map! :after org
       :map org-mode-map
       :localleader
-      (:prefix ("E" . "excalidraw")
-       :desc "New (named)" "n" #'my/org-excalidraw-create-named
-       :desc "New (uuid)"  "u" #'org-excalidraw-create-drawing
-       :desc "Rename"      "r" #'my/org-excalidraw-rename
-       :desc "Open in app" "o" #'org-open-at-point))
+      (:prefix ("D" . "diagram")
+       :desc "New Excalidraw diagram"    "n" #'my/org-excalidraw-create-named
+       :desc "Open diagram at point"     "o" #'org-open-at-point
+       :desc "Rename diagram at point"   "r" #'my/org-excalidraw-rename))
 
 ;; Eshell inline-image tooling (cat/rinku), shared across platforms
 (load! "config-eshell")

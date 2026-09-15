@@ -6,6 +6,10 @@ This diagram is an Org Babel source block. Put point inside it and press
 Press =SPC m v= to toggle a pristine reading view that hides the Mermaid source
 while keeping the rendered diagram visible.
 
+To scaffold another one, type =<merm= at the beginning of a line and press
+=TAB=.  The first YASnippet field names both the Org block and its =:file= SVG
+result.  Edit the second field's nodes and arrows, then render with =C-c C-c=.
+
 #+begin_src mermaid :file mermaid-org-example.svg
 sequenceDiagram
     participant U as You
