@@ -1,10 +1,10 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+This file provides guidance to coding agents working in this repository.
 
 ## Overview
 
-Cross-platform dotfiles repository managing Doom Emacs configuration for macOS, Windows, and Linux (Bluefin/Fedora). The core pattern is symlink-based: install scripts link `doom/` to `~/.config/doom`, so edits here are live immediately in Emacs.
+Cross-platform dotfiles repository managing Doom Emacs configuration for macOS, Windows, and Linux (Bluefin/Fedora). The core pattern is symlink-based: install scripts link `config/doom/` to `~/.config/doom`, so edits here are live immediately in Emacs.
 
 ## Installation
 
@@ -19,7 +19,7 @@ Installs Homebrew, core tools (`fzf`, `zoxide`, `gh`, `ripgrep`, `fd`, `node`, `
 
 On macOS, Emacs is installed by `scripts/install-emacs-mac.sh` (via `d12frosted/emacs-plus` → `emacs-plus@30`, native-comp, `retro-gnu-meditate-levitate` icon). The setup uses a **daemon + client workflow**: `emacs --fg-daemon` runs via `brew services` at login, and only `Emacs Client.app` is copied (not symlinked) into `/Applications` so Spotlight indexes it. New frames open in ~50ms via `emacsclient -c -n`.
 
-The daemon is started by launchd, so it inherits a bare `/usr/bin:/bin:/usr/sbin:/sbin` and none of the shell's env. `doom/config-macos.el` fixes that with `exec-path-from-shell` gated on `(or (daemonp) (memq window-system '(mac ns)))` — the `daemonp` half matters, since `window-system` is nil while the daemon boots. It also pulls in `LIBRARY_PATH` (exported by `shell/init.zsh`) so libgccjit's linker finds `libemutls_w.a` on Apple Silicon. Without this, Emacs sees no Homebrew binaries (vterm can't find cmake) and native-comp can abort boot mid-module-load. Doom's env file (`~/.config/emacs/.local/env`) is **not** read by current Doom — don't put env there. See ADR-009; daemon stderr is at `/tmp/homebrew.mxcl.emacs-plus.stderr.log`.
+The daemon is started by launchd, so it inherits a bare `/usr/bin:/bin:/usr/sbin:/sbin` and none of the shell's env. `config/doom/config-macos.el` fixes that with `exec-path-from-shell` gated on `(or (daemonp) (memq window-system '(mac ns)))` — the `daemonp` half matters, since `window-system` is nil while the daemon boots. It also pulls in `LIBRARY_PATH` (exported by `config/shell/init.zsh`) so libgccjit's linker finds `libemutls_w.a` on Apple Silicon. Without this, Emacs sees no Homebrew binaries (vterm can't find cmake) and native-comp can abort boot mid-module-load. Doom's env file (`~/.config/emacs/.local/env`) is **not** read by current Doom — don't put env there. See ADR-009; daemon stderr is at `/tmp/homebrew.mxcl.emacs-plus.stderr.log`.
 
 ### Windows
 
@@ -27,7 +27,7 @@ The daemon is started by launchd, so it inherits a bare `/usr/bin:/bin:/usr/sbin
 .\install.ps1
 ```
 
-Orchestrates: profile isolation, prerequisites (via `scripts/install-prerequisites.ps1`), Doom Emacs, hack worktree tooling, and Codex setup.
+Orchestrates: profile isolation, prerequisites (via `scripts/install-prerequisites.ps1`), Doom Emacs, and hack worktree tooling.
 
 ### Verifying
 
@@ -35,8 +35,8 @@ There is no test suite — the "tests" are: (a) install scripts must remain idem
 
 ## After changing Doom config
 
-- `doom/config.el` changes take effect immediately (no sync needed).
-- `doom/init.el` or `doom/packages.el` changes require `doom sync` and an Emacs restart.
+- `config/doom/config.el` changes take effect immediately (no sync needed).
+- `config/doom/init.el` or `config/doom/packages.el` changes require `doom sync` and an Emacs restart.
 
 ```bash
 ~/.config/emacs/bin/doom sync
@@ -48,18 +48,18 @@ There is no test suite — the "tests" are: (a) install scripts must remain idem
 
 | File | Purpose |
 |------|---------|
-| `doom/config.el` | Shared configuration loaded on all platforms |
-| `doom/config-profile.el` | Portable defaults + ordered optional private-layer loader |
-| `doom/config-eshell.el` | Shared eshell inline-image tooling (`cat`/`rinku`, TRAMP-aware; adapted from xenodium) |
-| `doom/config-tramp.el` | TRAMP performance tuning for remote editing (ControlMaster reuse, direct-async, skip vc) — see ADR-011 |
-| `doom/config-remote.el` | Tailnet host picker + persistent vterm→tmux terminals + tmux.conf provisioning (`SPC o x`) — see ADR-011 |
-| `doom/config-gptel.el` | LLM client on top of `:tools llm` — ChatGPT-OAuth + Ollama backends, gptel-agent, project chats (`SPC o l`) — see ADR-014 |
-| `doom/config-python.el` | uv-owned venvs, ruff format/lint, pyright against the project `.venv`, projectile `python-uv` type, `SPC m u` bootstrap — see ADR-015 |
-| `doom/config-macos.el` | macOS-specific (Command=Meta, exec-path-from-shell, dired) |
-| `doom/config-linux.el` | Linux-specific (dired ls flags, libnotify alerts) |
-| `doom/config-windows.el` | Windows-specific (fonts, Git Bash shell, Magit perf, symon monitors, toast alerts) |
-| `doom/init.el` | Module declarations — controls which Doom modules are loaded |
-| `doom/packages.el` | Extra package declarations beyond Doom modules |
+| `config/doom/config.el` | Shared configuration loaded on all platforms |
+| `config/doom/config-profile.el` | Portable defaults + ordered optional private-layer loader |
+| `config/doom/config-eshell.el` | Shared eshell inline-image tooling (`cat`/`rinku`, TRAMP-aware; adapted from xenodium) |
+| `config/doom/config-tramp.el` | TRAMP performance tuning for remote editing (ControlMaster reuse, direct-async, skip vc) — see ADR-011 |
+| `config/doom/config-remote.el` | Tailnet host picker + persistent vterm→tmux terminals + tmux.conf provisioning (`SPC o x`) — see ADR-011 |
+| `config/doom/config-gptel.el` | LLM client on top of `:tools llm` — ChatGPT-OAuth + Ollama backends, gptel-agent, project chats (`SPC o l`) — see ADR-014 |
+| `config/doom/config-python.el` | uv-owned venvs, ruff format/lint, pyright against the project `.venv`, projectile `python-uv` type, `SPC m u` bootstrap — see ADR-015 |
+| `config/doom/config-macos.el` | macOS-specific (Command=Meta, exec-path-from-shell, dired) |
+| `config/doom/config-linux.el` | Linux-specific (dired ls flags, libnotify alerts) |
+| `config/doom/config-windows.el` | Windows-specific (fonts, Git Bash shell, Magit performance) |
+| `config/doom/init.el` | Module declarations — controls which Doom modules are loaded |
+| `config/doom/packages.el` | Extra package declarations beyond Doom modules |
 
 Platform detection uses `(pcase system-type ...)` at the bottom of `config.el`, which `load!`s the appropriate file.
 
@@ -67,16 +67,7 @@ Platform detection uses `(pcase system-type ...)` at the bottom of `config.el`, 
 
 - **`devcontainer`** — build/start Docker containers; compile inside them. C# test error pattern registered with `compilation-error-regexp-alist`.
 - **`winpulse`** — flashes window background on focus.
-- **`Codex`** — Codex CLI in a vterm side buffer (`stevemolitor/Codex.el`); opens on the right when the frame is ≥160 cols, otherwise on the bottom.
 - **`apheleia`** — format-on-save. C# uses `csharpier` via `dotnet csharpier --write-stdout`.
-
-### Archived / shelf
-
-Code preserved in `archived/` for potential revival — see `decisions/007-archived-packages.md`:
-
-- `archived/symon.el` — system monitor sparklines (Windows PowerShell backend, never worked on macOS)
-- `archived/ntfy-alert.el` — alert.el + ntfy.sh push notifications + compile-finish hook
-- `archived/roslyn-lsp.el` — Microsoft Roslyn LSP for C# (Doom's csharp module remains, falls back to OmniSharp)
 
 ### org-roam contexts
 
@@ -117,7 +108,7 @@ pulls it, idempotently). Default 64 GB set: `gpt-oss:20b` (all-rounder/reasoning
 
 Doom's `:tools llm` module is **on** — it brings gptel plus `gptel-quick` (explain at point),
 `gptel-magit` (generated commit messages, `M-g` in a commit buffer), `ob-gptel` (org-babel
-`gptel` blocks), a popup rule, and the `SPC o l` map. `doom/config-gptel.el` layers on top
+`gptel` blocks), a popup rule, and the `SPC o l` map. `config/doom/config-gptel.el` layers on top
 rather than re-declaring any of it. See ADR-014.
 
 Auth is the **ChatGPT subscription over OAuth** (`gptel-make-openai-oauth`) — no OpenAI
@@ -126,7 +117,8 @@ platform API key, no second bill. First request opens a browser login; force it 
 
 A second backend points at ADR-013's Ollama endpoint. `gptel-agent` supplies the agentic
 layer: ~32 tools (read/grep/glob free, bash/edit/write confirmed), sub-agents, skills from
-`~/.Codex/skills/`, and TRAMP support. Sub-agent calls are routed to local Ollama so
+the upstream-compatible `~/.claude/skills/` location (independent of the Claude Code CLI),
+and TRAMP support. Sub-agent calls are routed to local Ollama so
 delegated work costs no quota.
 
 `gptel-quick` (`SPC o l e`, or `?` as an embark action on a candidate/identifier/region)
@@ -152,15 +144,15 @@ SPC o l m   # menu (model/preset)  SPC o l k   # compact conversation
 SPC o l b   # toggle ChatGPT ↔ Ollama          C-c l   # same map, no leader
 ```
 
-Two drop-in growth surfaces, live without a `doom sync` (they ride the `doom/` symlink):
+Two drop-in growth surfaces, live without a `doom sync` (they ride the `config/doom/` symlink):
 
-- `doom/gptel/agents/` — one md/org file per sub-agent (`description` is the only required
+- `config/doom/gptel/agents/` — one md/org file per sub-agent (`description` is the only required
   frontmatter key); `reviewer.md` is the worked example.
-- `doom/gptel/tools.el` — machine-specific tools only (`keeper_health`, `ollama_models`).
+- `config/doom/gptel/tools.el` — machine-specific tools only (`keeper_health`, `ollama_models`).
   Add the name to `my/gptel-extra-tools` so the agent preset picks it up.
 
 Project transcripts live in `<repo>/.gptel/chat.org` and are kept out of commits by
-`git/ignore`, symlinked to `~/.config/git/ignore` by `install.sh`.
+`config/git/ignore`, symlinked to `~/.config/git/ignore` by `install.sh`.
 
 ### Python (uv-first)
 
@@ -175,7 +167,7 @@ sort, lint — replaces black + isort + pyflakes) and **`pyright`**. Everything 
 project dependency run via `uv run`; `install.sh` actively uninstalls the retired tools so
 stale shims can't win on PATH.
 
-`doom/config-python.el` wires apheleia to `(ruff-isort ruff)`, disables the flake8/pylint
+`config/doom/config-python.el` wires apheleia to `(ruff-isort ruff)`, disables the flake8/pylint
 flycheck checkers, sets `lsp-pyright-venv-directory` to `.venv` (without this pyright
 type-checks against its own isolated tool env and flags every third-party import), points
 `python-pytest-executable` at `uv run pytest`, registers a `python-uv` projectile type on
@@ -218,7 +210,7 @@ Two-lane hybrid for working on remote devices from the mac's GUI Emacs — see A
 - **Edit lane** — `config-tramp.el` tunes TRAMP (ssh ControlMaster reuse, direct-async, no vc probing) for snappy remote file editing.
 - **Run lane** — `config-remote.el` opens a vterm bound to `ssh -t HOST 'tmux new -A -s SESSION'`; tmux on the host is the persistent layer (survives disconnect/sleep), the vterm buffer is disposable.
 
-Hosts come from `tailscale status --json` (no host list to maintain). `install.sh` appends a one-time `Host *.ts.net` ControlMaster block to `~/.ssh/config`. `doom/remote/tmux.conf` is provisioned onto a host via TRAMP and offered on first connect.
+Hosts come from `tailscale status --json` (no host list to maintain). `install.sh` appends a one-time `Host *.ts.net` ControlMaster block to `~/.ssh/config`. `config/doom/remote/tmux.conf` is provisioned onto a host via TRAMP and offered on first connect.
 
 ```
 SPC o x t   # pick host + tmux session → persistent vterm terminal
@@ -239,7 +231,7 @@ hack remove <repo>/<branch-slug>    # Remove only when clean and merged
 
 There is no manually maintained repository catalog. Clone a repository beneath a discovery root and its first lookup indexes it automatically. Local Git config supplies the uncommon per-repository overrides (`hack.baseBranch` and `hack.branchPrefix`). Install with `scripts/install-hack.sh` or `scripts/install-hack.ps1`.
 
-### Shell (`shell/init.zsh`)
+### Shell (`config/shell/init.zsh`)
 
 Source this from `.zshrc` for shared aliases (`e`, `et`, `g`, `gs`, `gd`, `gl`), `$EDITOR=emacsclient -c`, zoxide and fzf init.
 
@@ -248,7 +240,7 @@ Source this from `.zshrc` for shared aliases (`e`, `et`, `g`, `gs`, `gd`, `gl`),
 | Script | Purpose |
 |--------|---------|
 | `scripts/install-doom.sh` / `.ps1` | Symlink doom dir + install Doom Emacs; detects & repairs wrong symlink targets |
-| `scripts/install-emacs-mac.sh` | macOS-only: emacs-plus@30 + Emacs Client.app; `install.sh` starts the daemon after Doom sync (daemon env/libgccjit fix lives in `shell/init.zsh` + `doom/config-macos.el`) |
+| `scripts/install-emacs-mac.sh` | macOS-only: emacs-plus@30 + Emacs Client.app; `install.sh` starts the daemon after Doom sync (daemon env/libgccjit fix lives in `config/shell/init.zsh` + `config/doom/config-macos.el`) |
 | `scripts/install-llm-mac.sh` | macOS-only: local LLM layer — Ollama formula (managed GGUF endpoint, pulls `scripts/ollama-models.txt`) + LM Studio cask (user-managed MLX GUI) + `keeper llm mirror` (symlink Ollama models into LM Studio). Daemon on-demand via `keeper llm start`, not a login service (see ADR-013) |
 | `scripts/install-scrim-captee-mac.sh` | macOS-only, standalone (not in install.sh): opens the App Store "Scrim + Captee for Emacs" bundle + prints org-capture setup (see ADR-010) |
 | `scripts/install-excalidraw-mac.sh` | macOS-only: excalidraw prereqs (fswatch + `@swiftlysingh/excalidraw-cli` faithful exporter + drawings dir) via `install_excalidraw_prereqs`; retires the old `excalidraw_export`/node-canvas/fonts; prints manual Chrome-PWA/handler steps (see ADR-008) |
@@ -258,13 +250,12 @@ Source this from `.zshrc` for shared aliases (`e`, `et`, `g`, `gs`, `gd`, `gl`),
 | `scripts/install-plantuml.sh` | Download PlantUML's jar into Doom's profile data directory |
 | `scripts/install-prerequisites.ps1` | Windows: ctags, node, dotnet, cmake, etc. via winget |
 | `scripts/setup-profile.ps1` | Windows: move PowerShell profile out of OneDrive |
-| `scripts/install-Codex.ps1` | Windows: toast notifications for Codex |
 | `scripts/doctor.ps1` | Verify environment (Windows) |
 | `scripts/Test-DotNetLsp.ps1` | Smoke-test the Roslyn LSP launches and serves requests |
 
 ## Decision records
 
-Significant design choices are documented in `decisions/` as ADRs. Check there before changing package choices or tooling.
+Significant design choices are documented in `docs/decisions/` as ADRs. Check there before changing package choices or tooling.
 
 | ADR | Topic |
 |-----|-------|
@@ -274,7 +265,7 @@ Significant design choices are documented in `decisions/` as ADRs. Check there b
 | `003-dotnet-devcontainer.md` | Devcontainer workflow for .NET projects |
 | `004-csharp-lsp-omnisharp.md` | C# LSP history (now superseded by Roslyn in ADR-001) |
 | `005-hack-worktree-tooling.md` / `006-hack-kiss-redesign.md` | Why `hack`/`workshop` exist and the v3 KISS rewrite |
-| `007-archived-packages.md` | What's in `archived/` and why |
+| `007-archived-packages.md` | Retired package history; removed implementations remain recoverable from Git |
 | `008-excalidraw-integration.md` | Excalidraw diagramming |
 | `009-macos-emacs-plus.md` | macOS Emacs via emacs-plus@30 + daemon/client workflow + libgccjit `LIBRARY_PATH` workaround |
 | `010-safari-org-capture.md` | Safari → org capture via org-protocol; now via the Scrim + Captee App Store bundle (DIY extension/handler/Xcode retired — see Revision 2026-05-22) |
@@ -284,6 +275,8 @@ Significant design choices are documented in `decisions/` as ADRs. Check there b
 | `014-gptel-emacs-llm-client.md` | gptel on Doom's `:tools llm`: ChatGPT-subscription OAuth (not an API key), Ollama as second backend, gptel-agent for project sessions/tools/sub-agents, in-repo transcripts + global gitignore |
 | `015-python-uv.md` | Python: `+uv` auto-activates the project `.venv`, ruff replaces black+isort+pyflakes, pyright pinned to `.venv`, `uv run pytest`, projectile `python-uv` type; only `pyright`+`ruff` stay global, only bootstrapping (`SPC m u`) is scripted |
 | `017-compiled-hack-worktrees.md` | Compiled, lazily indexed worktrees; every task starts from freshly fetched `origin/<base>` |
+| `018-drop-claude-code.md` | Claude Code removed after its subscription was discontinued; gptel remains the Emacs LLM surface |
+| `019-repository-layout.md` | KISS layout: configuration, documentation, assets, scripts, and tools have distinct homes |
 
 ## Related files
 

@@ -5,8 +5,8 @@
 
 ## Context
 
-Emacs had exactly one LLM surface: `claude-code` in a vterm side buffer (ADR-007 era config,
-`doom/config.el`). That is an external CLI agent — good at "go do this", useless for "explain
+Emacs previously had exactly one LLM surface: `claude-code` in a vterm side buffer (later
+removed by ADR-018). That was an external CLI agent — good at "go do this", useless for "explain
 this region", "rewrite this paragraph", "write this commit message". There was no in-buffer
 client, no way to aim a model at a local endpoint, and no place to grow tools.
 
@@ -27,11 +27,11 @@ The module is not a thin gptel wrapper. It brings `gptel-quick` (explain at poin
 completion-at-point), a Doom popup rule for gptel buffers, and a `SPC o l` leader map with nine
 bindings. `:tools magit` and `:lang org` are both on here, so all of it activates.
 
-Consequently `doom/config-gptel.el` never re-declares what the module owns —
+Consequently `config/doom/config-gptel.el` never re-declares what the module owns —
 `gptel-default-mode`, `gptel-display-buffer-action` and the popup rule are left alone, and our
 keys are *added* to `SPC o l` rather than given a second prefix of their own. `C-c l` mirrors
-the map without the leader, as `C-c c` does for claude-code; it is free because Doom only binds
-`doom-localleader-alt-key` to `C-c l` in non-evil setups.
+the map without the leader; it is free because Doom only binds `doom-localleader-alt-key` to
+`C-c l` in non-evil setups.
 
 ### OAuth, not an API key
 
@@ -129,7 +129,8 @@ explicitly, which also prevents an automatic rewrite in one buffer from changing
 `karthink/gptel-agent` — gptel's own author — supplies what the module doesn't: 16 core tools
 (`Bash Eval WebSearch WebFetch YouTube Diagnostics Mkdir Edit Insert Write Glob Read Grep
 TodoWrite Skill Agent`) plus ~16 Emacs introspection tools, sub-agents defined as md/org files,
-skills read from `~/.claude/skills/`, an [Agent]/[Plan] header toggle, `gptel-agent-compact`,
+skills read from the upstream-compatible `~/.claude/skills/` path (this does not require the
+Claude Code CLI), an [Agent]/[Plan] header toggle, `gptel-agent-compact`,
 and TRAMP support (so it works against ADR-011's remote hosts with no Emacs on them).
 
 Its per-tool `:confirm` flags already encode the wanted policy — `Read`/`Grep`/`Glob`/
@@ -161,18 +162,18 @@ per-request. **If a future gptel drops it, this is the thing that breaks**; plai
 stays bound at `SPC o l A` as the escape hatch.
 
 Because transcripts live inside other repositories, they must never be committable, and that
-has to be solved once rather than per repo. `install.sh` links `git/ignore` to
+has to be solved once rather than per repo. `install.sh` links `config/git/ignore` to
 `~/.config/git/ignore` — git's XDG default, so no `core.excludesfile` setting is needed — and
 `keeper health` gates on the symptom: `git check-ignore .gptel/chat.org` must resolve.
 
 ### Growth surfaces
 
-Two drop-in directories, both under `doom/` so they ride the existing `~/.config/doom` symlink
-and are live without a sync (the `doom/remote/tmux.conf` trick):
+Two drop-in directories, both under `config/doom/` so they ride the existing `~/.config/doom` symlink
+and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 
-- `doom/gptel/agents/` — one md/org file per sub-agent; only `description` is mandatory.
+- `config/doom/gptel/agents/` — one md/org file per sub-agent; only `description` is mandatory.
   Seeded with `reviewer.md` as a worked example.
-- `doom/gptel/tools.el` — deliberately thin, for tools only the dotfiles can answer
+- `config/doom/gptel/tools.el` — deliberately thin, for tools only the dotfiles can answer
   (`keeper_health`, `ollama_models`). General filesystem/shell/web tools come from gptel-agent.
   Names listed in `my/gptel-extra-tools` are appended to the agent preset by an `:after` advice
   on `gptel-agent-update`, since the preset's tool list is rebuilt from upstream's
@@ -181,9 +182,8 @@ and are live without a sync (the `doom/remote/tmux.conf` trick):
 ## Consequences
 
 - The ChatGPT subscription is the only credential; no OpenAI platform spend.
-- gptel and claude-code coexist and do different jobs: in-buffer chat/rewrite/commit-message and
-  an in-Emacs agent (gptel) vs. an external CLI agent in a vterm (claude-code). `SPC o c` and
-  `SPC o l` stay distinct.
+- gptel is the single Emacs LLM surface. Claude Code was subsequently removed by ADR-018 after
+  its separate subscription was discontinued.
 - Doom's LLM ecosystem is now on: org-babel `gptel` blocks work in Org notes, magit offers
   generated commit messages, `SPC o l e` explains at point.
 - Every repo the user works in may grow a `.gptel/` directory. Invisible to git via the global

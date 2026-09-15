@@ -50,7 +50,7 @@ Module line:
 ### Style and lint: ruff only
 
 `ruff format` is black-compatible and `ruff check --select I --fix` does what isort does, in
-one binary, roughly two orders of magnitude faster. `doom/config-python.el` points apheleia
+one binary, roughly two orders of magnitude faster. `config/doom/config-python.el` points apheleia
 at `(ruff-isort ruff)` for both `python-mode` and `python-ts-mode` — both are needed because
 `+tree-sitter` means `python-ts-mode` is what actually runs. `python-check-command` and the
 flycheck checker follow suit; `python-flake8` and `python-pylint` are disabled so flycheck

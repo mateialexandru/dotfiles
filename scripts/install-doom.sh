@@ -5,7 +5,7 @@
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-DOOM_SOURCE="$DOTFILES_DIR/doom"
+DOOM_SOURCE="$DOTFILES_DIR/config/doom"
 DOOM_TARGET="$HOME/.config/doom"
 DOOM_EMACS="$HOME/.config/emacs"
 

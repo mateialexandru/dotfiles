@@ -22,11 +22,7 @@ Write-Host "`n--- Doom Emacs ---" -ForegroundColor Cyan
 Write-Host "`n--- Hack worktree tooling ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-hack.ps1")
 
-# 5. Claude Code (toast notifications)
-Write-Host "`n--- Claude Code ---" -ForegroundColor Cyan
-& (Join-Path $scriptsDir "install-claude.ps1")
-
-# 6. Git performance settings (Windows-specific)
+# 5. Git performance settings (Windows-specific)
 Write-Host "`n--- Git performance ---" -ForegroundColor Cyan
 git config --global core.preloadindex true
 git config --global core.fscache true

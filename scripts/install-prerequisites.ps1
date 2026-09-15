@@ -71,22 +71,15 @@ npm install -g @mermaid-js/mermaid-cli
 npm install -g @github/copilot
 npm install -g bash-language-server typescript-language-server vscode-langservers-extracted
 
-# Claude Code (native installer - auto-updates, no Node.js dependency)
-Write-Host "`nInstalling Claude Code..." -ForegroundColor Cyan
-$claudeBin = Join-Path $env:USERPROFILE ".local\bin"
-if (Get-Command claude -ErrorAction SilentlyContinue) {
-    Write-Host "  Claude Code already installed" -ForegroundColor Gray
-} else {
-    Invoke-RestMethod https://claude.ai/install.ps1 | Invoke-Expression
-    # Ensure ~/.local/bin is in PATH (installer doesn't do this automatically)
-    $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    if ($userPath -notlike "*$claudeBin*") {
-        [Environment]::SetEnvironmentVariable("PATH", "$userPath;$claudeBin", "User")
-        Write-Host "  Added $claudeBin to user PATH" -ForegroundColor Green
+# PowerShell notifications used by config/shell/doom.ps1
+if (-not (Get-Module -ListAvailable BurntToast)) {
+    Write-Host "`nInstalling BurntToast..." -ForegroundColor Cyan
+    if (Get-Command Install-PSResource -ErrorAction SilentlyContinue) {
+        Install-PSResource BurntToast -Scope CurrentUser -TrustRepository
+    } else {
+        Install-Module BurntToast -Scope CurrentUser -Force
     }
 }
-# Add to session PATH for verification below
-if ($env:PATH -notlike "*$claudeBin*") { $env:PATH = "$env:PATH;$claudeBin" }
 
 # Refresh PATH from registry (picks up changes from winget/MSI installers)
 $machinePath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
@@ -127,7 +120,6 @@ $tools = @{
     "typescript-language-server" = "typescript-language-server --version"
     "gnuplot" = "gnuplot --version"
     "copilot" = "copilot --version"
-    "claude" = "claude --version"
 }
 
 foreach ($tool in $tools.Keys) {

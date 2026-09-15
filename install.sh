@@ -35,10 +35,10 @@ if [[ -f "$SCRIPT_PATH" ]]; then
     # The script exists as a file. Check if it's inside the dotfiles repository.
     TEMP_DIR="$(cd "$(dirname "$SCRIPT_PATH")" &>/dev/null && pwd || echo "")"
     if [[ -n "$TEMP_DIR" ]]; then
-        if [[ -f "$TEMP_DIR/doom/init.el" ]]; then
+        if [[ -f "$TEMP_DIR/config/doom/init.el" ]]; then
             IS_LOCAL=true
             DOTFILES_DIR="$TEMP_DIR"
-        elif [[ -f "$TEMP_DIR/../doom/init.el" ]]; then
+        elif [[ -f "$TEMP_DIR/../config/doom/init.el" ]]; then
             IS_LOCAL=true
             DOTFILES_DIR="$(cd "$TEMP_DIR/.." && pwd)"
         fi
@@ -181,7 +181,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     # org-protocol:// scheme, which collides with Scrim (the Captee capture proxy)
     # and steals captures — emacsclient then spawns a stray Emacs. The pin itself
     # lives in scripts/install-scrim-captee-mac.sh (it needs Scrim installed first);
-    # here we just ensure the tool is present. See decisions/010-safari-org-capture.md.
+    # here we just ensure the tool is present. See docs/decisions/010-safari-org-capture.md.
     brew install duti
 else
     if ! command -v emacs &>/dev/null; then
@@ -209,7 +209,7 @@ fi
 # Global NPM Packages (AI & Language Servers)
 step "NPM global packages"
 npm install -g \
-    @google/gemini-cli @anthropic-ai/claude-code yaml-language-server \
+    @google/gemini-cli yaml-language-server \
     @mermaid-js/mermaid-cli @github/copilot markdownlint-cli \
     vscode-langservers-extracted bash-language-server \
     dockerfile-language-server-nodejs typescript-language-server
@@ -232,7 +232,7 @@ bash "$DOTFILES_DIR/scripts/install-tlaplus.sh"
 
 # --- Python Tooling (uv owns interpreters/venvs; ruff + pyright are global) ---
 # Per-project tools (pytest, mypy, ...) come from the project's own .venv and are
-# invoked with `uv run'. See decisions/015-python-uv.md.
+# invoked with `uv run'. See docs/decisions/015-python-uv.md.
 echo "Installing uv and Python editor tools..."
 brew install uv
 for pkg in pyright ruff; do
@@ -253,8 +253,15 @@ bash "$DOTFILES_DIR/scripts/install-plantuml.sh"
 # Source it from ~/.zshrc so every shell picks it up.
 step "Shell init (source init.zsh from ~/.zshrc)"
 ZSHRC="$HOME/.zshrc"
-ZSH_SOURCE_LINE='source "$HOME/Source/dotfiles/shell/init.zsh"'
-if grep -qF "$ZSH_SOURCE_LINE" "$ZSHRC" 2>/dev/null; then
+ZSH_SOURCE_LINE='source "$HOME/Source/dotfiles/config/shell/init.zsh"'
+LEGACY_ZSH_SOURCE_LINE='source "$HOME/Source/dotfiles/shell/init.zsh"'
+if grep -qF "$LEGACY_ZSH_SOURCE_LINE" "$ZSHRC" 2>/dev/null; then
+    CLEAN_ZSHRC="$(mktemp "${ZSHRC}.XXXXXX")"
+    grep -vF "$LEGACY_ZSH_SOURCE_LINE" "$ZSHRC" > "$CLEAN_ZSHRC" || true
+    printf '%s\n' "$ZSH_SOURCE_LINE" >> "$CLEAN_ZSHRC"
+    mv "$CLEAN_ZSHRC" "$ZSHRC"
+    echo "Migrated init.zsh source in $ZSHRC"
+elif grep -qF "$ZSH_SOURCE_LINE" "$ZSHRC" 2>/dev/null; then
     echo "init.zsh already sourced from $ZSHRC; skipping."
 else
     echo "Adding init.zsh source line to $ZSHRC"
@@ -274,7 +281,7 @@ fi
 
 # Universal Ctags preloads *.ctags files from this XDG directory.
 step "Universal Ctags config (~/.config/ctags)"
-CTAGS_CONFIG_SRC="$DOTFILES_DIR/ctags.d"
+CTAGS_CONFIG_SRC="$DOTFILES_DIR/config/ctags"
 CTAGS_CONFIG_DST="$HOME/.config/ctags"
 mkdir -p "$(dirname "$CTAGS_CONFIG_DST")"
 if [[ -L "$CTAGS_CONFIG_DST" ]]; then
@@ -311,10 +318,10 @@ fi
 
 # --- Global gitignore ---
 # ~/.config/git/ignore is git's XDG default, so linking the repo's copy there
-# needs no core.excludesfile setting. It keeps agent scratch (.gptel/, .claude/)
+# needs no core.excludesfile setting. It keeps agent scratch (.gptel/)
 # out of every repo without editing each one's .gitignore. See ADR-014.
 step "Global gitignore (~/.config/git/ignore)"
-GIT_IGNORE_SRC="$DOTFILES_DIR/git/ignore"
+GIT_IGNORE_SRC="$DOTFILES_DIR/config/git/ignore"
 GIT_IGNORE_DST="$HOME/.config/git/ignore"
 mkdir -p "$(dirname "$GIT_IGNORE_DST")"
 if [[ -L "$GIT_IGNORE_DST" ]]; then

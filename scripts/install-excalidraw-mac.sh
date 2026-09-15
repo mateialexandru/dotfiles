@@ -12,7 +12,7 @@
 #   - ~/Documents/org/excalidraw  default org-excalidraw-directory (config.el)
 #
 # Chrome itself + registering it as the .excalidraw handler are GUI-only steps,
-# printed at the end. macOS only. Idempotent. See decisions/008-excalidraw-integration.md.
+# printed at the end. macOS only. Idempotent. See docs/decisions/008-excalidraw-integration.md.
 
 set -euo pipefail
 

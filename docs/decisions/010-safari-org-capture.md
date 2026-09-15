@@ -68,8 +68,8 @@ Trigger becomes **Safari Share button → Captee → Emacs** (two clicks, system
 **Kept:** the Doom `+org-protocol` flag and capture template `L` → `inbox.org`.
 
 **One Emacs-side change forced by Scrim — TCP server.** Scrim is sandboxed and cannot reach Emacs's default unix-domain socket, so the server must run over TCP. Two edits:
-- `doom/config.el`: `(setq server-use-tcp t)` before `(server-start)`. The server then writes a host/port/auth file to `~/.config/emacs/server/server` that Scrim (and emacsclient) read.
-- `shell/init.zsh`: `export EMACS_SERVER_FILE="$HOME/.config/emacs/server/server"` so `EDITOR`/`e`/`et` keep working — emacsclient defaults to the unix socket, which no longer exists under TCP. Point Scrim at the same auth file in its settings.
+- `config/doom/config.el`: `(setq server-use-tcp t)` before `(server-start)`. The server then writes a host/port/auth file to `~/.config/emacs/server/server` that Scrim (and emacsclient) read.
+- `config/shell/init.zsh`: `export EMACS_SERVER_FILE="$HOME/.config/emacs/server/server"` so `EDITOR`/`e`/`et` keep working — emacsclient defaults to the unix socket, which no longer exists under TCP. Point Scrim at the same auth file in its settings.
 
 Note: the old `OrgProtocol.app` needed no TCP (it shelled `emacsclient` over the socket). TCP is purely Scrim's sandbox tax — the price of a notarized, non-rotting handler.
 
@@ -83,7 +83,7 @@ Captures via Captee were spawning a **fresh standalone Emacs** every time instea
 
 Fixes:
 - **Pin the scheme to Scrim** with `duti -s com.yummymelon.scrim org-protocol` (two-arg form = URL scheme). The binding is stored in LaunchServices (`com.apple.launchservices.secure` → `LSHandlers`) and survives emacs-plus upgrades, so it need not be re-applied when `Emacs Client.app` is re-copied. `install.sh` now installs `duti` (macOS); `scripts/install-scrim-captee-mac.sh` applies the pin once Scrim is present. Verified: capture lands in `inbox.org`, no stray Emacs.
-- **Guard `server-start`** in `doom/config.el` with `(unless (server-running-p) ...)` so any stray second Emacs no longer collides with the daemon's server and warns.
+- **Guard `server-start`** in `config/doom/config.el` with `(unless (server-running-p) ...)` so any stray second Emacs no longer collides with the daemon's server and warns.
 - Note on Scrim's "Setup" file-grant: not needed in practice — the auth file is at Emacs's **default** location (`<user-emacs-directory>/server/server` = `~/.config/emacs/server/server`), which Scrim reads on its own. Setup is only required if the file is relocated.
 
 ## References

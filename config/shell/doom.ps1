@@ -1,5 +1,5 @@
 # doom.ps1 — Doom Emacs helpers (dot-source in your PowerShell profile)
-#   . "<dotfiles>/shell/doom.ps1"
+#   . "<dotfiles>/config/shell/doom.ps1"
 
 . "$PSScriptRoot/notify.ps1"
 

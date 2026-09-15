@@ -27,7 +27,7 @@ anywhere, plus a **`keeper health`** target that runs one full confidence pass.
 
 ### The wrapper
 
-`shell/init.zsh` defines `keeper()` → `just -f ~/Source/dotfiles/justfile -d ~/Source/dotfiles`.
+`config/shell/init.zsh` defines `keeper()` → `just -f ~/Source/dotfiles/justfile -d ~/Source/dotfiles`.
 Renamed from `atelier` (commit 68a151c): `keeper` reads as the steward of the rig,
 and avoids collision with `workshop`, already owned by the `hack` worktree tooling
 (ADR-006). Targets: `health doctor update upgrade sync restart vanilla install`.
@@ -101,7 +101,7 @@ Client.app, org-protocol pin) are guarded behind `uname == Darwin`.
 - Building it surfaced a real latent break: uv tools (`pyright black ruff isort pytest`)
   install to `~/.local/bin`, which was **not on PATH** — so Python LSP and format-on-save
   were silently dead in Doom (exec-path-from-shell inherits the same PATH). Fixed at the
-  root by adding `~/.local/bin` to PATH in `shell/init.zsh`, alongside the existing
+  root by adding `~/.local/bin` to PATH in `config/shell/init.zsh`, alongside the existing
   `~/.dotnet/tools`. The health check now guards against regressions.
 - The check set tracks the install surface: adding an installer-managed tool/LSP/formatter
   means adding one line here, or `keeper health` gives false confidence.

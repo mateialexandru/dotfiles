@@ -247,7 +247,7 @@ npm install -g yaml-language-server
 
 ## Revision 2026-08-03: eglot → lsp-mode
 
-`doom/init.el` declares bare `lsp` (no `+eglot`), and `lsp-mode` + `lsp-ui` are what is
+`config/doom/init.el` declares bare `lsp` (no `+eglot`), and `lsp-mode` + `lsp-ui` are what is
 actually built in straight — `consult-eglot` is not. Section 1 above has been corrected to
 match. Rationale: staying on Doom's default is the better long-term-support bet, and
 `:lang python +pyright` is gated on `:tools lsp -eglot`.
@@ -256,6 +256,6 @@ match. Rationale: staying on Doom's default is the better long-term-support bet,
 eglot-specific code (`eglot-workspace-configuration`, the `solution/open` notification via
 `eglot-managed-mode-hook`, the `eglot--uri-path-allowed-chars` colon fix) and an
 eglot-function keybinding table. Only the colon fix still exists in the repo, in
-`doom/config-windows.el`. The rest was dropped in the migration and Doom's `lsp-csharp`
+`config/doom/config-windows.el`. The rest was dropped in the migration and Doom's `lsp-csharp`
 client now handles project discovery. That section needs a rewrite against the lsp-mode
 reality before it is trusted.

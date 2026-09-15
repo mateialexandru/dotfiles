@@ -21,14 +21,14 @@ fail() { printf "${RED}[X]  %-18s %s${RST}\n" "$1" "$2"; fails=$((fails+1)); }
 printf 'keeper health — %s\n\n' "$(date '+%Y-%m-%d %H:%M')"
 
 # 1. doom symlink points at this repo
-want="$REPO/doom"; got="$(readlink "$HOME/.config/doom" 2>/dev/null || true)"
+want="$REPO/config/doom"; got="$(readlink "$HOME/.config/doom" 2>/dev/null || true)"
 # shellcheck disable=SC2088  # tilde here is literal display text, not a path
 if [[ "$got" == "$want" ]]; then pass "doom symlink" "~/.config/doom → $got"
 else fail "doom symlink" "is '${got:-missing}', want '$want' — run \`keeper install\`"; fi
 
 # 2. daemon inherited the login shell's env. launchd starts it with a bare
 # /usr/bin:/bin:/usr/sbin:/sbin, so exec-path-from-shell has to run at daemon boot
-# (doom/config-macos.el). Without it Emacs can't see brew tools — cmake goes missing
+# (config/doom/config-macos.el). Without it Emacs can't see brew tools — cmake goes missing
 # and vterm-module refuses to compile — and libgccjit loses libemutls_w.a (ADR-009).
 if $IS_MAC; then
   if $EMACSCLIENT --eval t >/dev/null 2>&1; then
@@ -167,7 +167,7 @@ else
 fi
 
 # 16. Universal Ctags options are connected through the XDG preload directory
-ctags_want="$REPO/ctags.d"; ctags_got="$(readlink "$HOME/.config/ctags" 2>/dev/null || true)"
+ctags_want="$REPO/config/ctags"; ctags_got="$(readlink "$HOME/.config/ctags" 2>/dev/null || true)"
 # shellcheck disable=SC2088  # literal display text
 if [[ "$ctags_got" == "$ctags_want" ]]; then pass "ctags config" "~/.config/ctags → $ctags_got"
 else fail "ctags config" "is '${ctags_got:-missing}', want '$ctags_want' — run \`keeper install\`"; fi

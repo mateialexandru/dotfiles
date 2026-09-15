@@ -54,7 +54,7 @@ fswatch, the exporter (`@swiftlysingh/excalidraw-cli`), and the drawings dir. On
 the GUI steps stay manual (Chrome PWA install + `.excalidraw` handler), printed by
 the script.
 
-Wiring lives in `doom/packages.el` (`package!`) + `doom/config.el` (`use-package!`).
+Wiring lives in `config/doom/packages.el` (`package!`) + `config/doom/config.el` (`use-package!`).
 `org-excalidraw-initialize` is guarded on the deps + dir existing so a partial
 install never aborts Doom boot (cf. the libgccjit boot-abort class, ADR-009).
 
@@ -108,14 +108,14 @@ Virgil/Cascadia fonts) so a stale binary can't win on PATH.
 - Finder: `.excalidraw` → Get Info → Open with Excalidraw.app → Change All.
 - Verify: `open file.excalidraw` launches the PWA with the file loaded.
 
-### 3. Doom — `doom/packages.el`
+### 3. Doom — `config/doom/packages.el`
 
 ```elisp
 (package! org-excalidraw
   :recipe (:host github :repo "wdavew/org-excalidraw"))
 ```
 
-### 4. Doom — `doom/config.el`
+### 4. Doom — `config/doom/config.el`
 
 `org-excalidraw-initialize` (the filewatcher) is guarded on the deps + dir existing,
 so a partial/missing install never aborts Doom boot (cf. libgccjit boot-abort, ADR-009):
@@ -182,4 +182,4 @@ inline images with `C-c C-x C-v` (they're on at startup via `org-startup-with-in
 ## Related
 
 - ADR-001 — Emacs package rationale.
-- `doom/packages.el` — Mermaid + `ob-mermaid` wiring.
+- `config/doom/packages.el` — Mermaid + `ob-mermaid` wiring.

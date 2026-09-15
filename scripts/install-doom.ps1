@@ -2,7 +2,7 @@
 # Creates symlinks and installs dependencies
 
 $dotfilesDir = Split-Path $PSScriptRoot -Parent
-$doomSource = Join-Path $dotfilesDir "doom"
+$doomSource = Join-Path (Join-Path $dotfilesDir "config") "doom"
 $doomTarget = Join-Path $env:USERPROFILE ".config\doom"
 
 Write-Host "Installing Doom Emacs..." -ForegroundColor Cyan
@@ -14,48 +14,44 @@ if (-not (Test-Path $configDir)) {
     Write-Host "Created $configDir"
 }
 
-# Create Doom symlink
-if (Test-Path $doomTarget) {
-    $item = Get-Item $doomTarget -Force
-    if ($item.LinkType -eq "SymbolicLink") {
-        Write-Host "Doom symlink already exists." -ForegroundColor Green
-    } else {
-        Write-Host "Backing up existing doom config to doom.backup..." -ForegroundColor Yellow
-        Rename-Item $doomTarget "$doomTarget.backup"
-        New-Item -ItemType SymbolicLink -Path $doomTarget -Target $doomSource | Out-Null
-        Write-Host "Created symlink: $doomTarget -> $doomSource" -ForegroundColor Green
+function Set-DotfilesLink {
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Target,
+        [Parameter(Mandatory)][string]$Label,
+        [switch]$Optional
+    )
+
+    $item = Get-Item -LiteralPath $Target -Force -ErrorAction SilentlyContinue
+    if ($item -and $item.LinkType -eq "SymbolicLink") {
+        $current = [string]$item.Target
+        if ($current -eq $Source) {
+            Write-Host "$Label symlink already correct." -ForegroundColor Green
+            return
+        }
+        Write-Host "Repairing $Label symlink ($current -> $Source)..." -ForegroundColor Yellow
+        Remove-Item -LiteralPath $Target -Force
+    } elseif ($item) {
+        Write-Host "Backing up existing $Label config to $Target.backup..." -ForegroundColor Yellow
+        Move-Item -LiteralPath $Target -Destination "$Target.backup"
     }
-} else {
-    New-Item -ItemType SymbolicLink -Path $doomTarget -Target $doomSource | Out-Null
-    Write-Host "Created symlink: $doomTarget -> $doomSource" -ForegroundColor Green
+
+    try {
+        New-Item -ItemType SymbolicLink -Path $Target -Target $Source -ErrorAction Stop | Out-Null
+        Write-Host "Created symlink: $Target -> $Source" -ForegroundColor Green
+    } catch {
+        if (-not $Optional) { throw }
+        Write-Host "$Label symlink failed (need admin or Developer Mode)." -ForegroundColor Yellow
+    }
 }
 
+Set-DotfilesLink -Source $doomSource -Target $doomTarget -Label "Doom"
+
 # Ctags configuration symlink (Universal CTags uses ctags.d, no dot)
-$ctagsSource = Join-Path $dotfilesDir "ctags.d"
+$ctagsSource = Join-Path (Join-Path $dotfilesDir "config") "ctags"
 $ctagsTarget = Join-Path $env:USERPROFILE "ctags.d"
 if (Test-Path $ctagsSource) {
-    if (Test-Path $ctagsTarget) {
-        $item = Get-Item $ctagsTarget -Force
-        if ($item.LinkType -eq "SymbolicLink") {
-            Write-Host "Ctags symlink already exists." -ForegroundColor Green
-        } else {
-            Write-Host "Backing up existing ctags config to ctags.d.backup..." -ForegroundColor Yellow
-            Rename-Item $ctagsTarget "$ctagsTarget.backup"
-            try {
-                New-Item -ItemType SymbolicLink -Path $ctagsTarget -Target $ctagsSource -ErrorAction Stop | Out-Null
-                Write-Host "Created symlink: $ctagsTarget -> $ctagsSource" -ForegroundColor Green
-            } catch {
-                Write-Host "Symlink failed (need admin or Developer Mode). Citre will still work." -ForegroundColor Yellow
-            }
-        }
-    } else {
-        try {
-            New-Item -ItemType SymbolicLink -Path $ctagsTarget -Target $ctagsSource -ErrorAction Stop | Out-Null
-            Write-Host "Created symlink: $ctagsTarget -> $ctagsSource" -ForegroundColor Green
-        } catch {
-            Write-Host "Symlink failed (need admin or Developer Mode). Citre will still work." -ForegroundColor Yellow
-        }
-    }
+    Set-DotfilesLink -Source $ctagsSource -Target $ctagsTarget -Label "Ctags" -Optional
 }
 
 # Install dependencies and set up Doom

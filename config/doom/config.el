@@ -314,38 +314,6 @@ The first that exists is opened; the first in the list is what gets created.")
   :config
   (winpulse-mode +1))
 
-;;; Claude Code — CLI in a vterm side buffer
-(defun my/claude-code-display-smart (buffer)
-  "Display Claude Code BUFFER right if frame is wide enough, otherwise bottom.
-Selects the window so focus moves to Claude immediately."
-  (let* ((wide (>= (frame-width) 160))
-         (win  (display-buffer buffer
-                               (if wide
-                                   '((display-buffer-in-side-window)
-                                     (side . right)
-                                     (window-width . 80))
-                                 '((display-buffer-in-side-window)
-                                   (side . bottom)
-                                   (window-height . 0.35))))))
-    (when win (select-window win))))
-
-(use-package! claude-code
-  :bind-keymap ("C-c c" . claude-code-command-map)
-  :config
-  (setq claude-code-terminal-backend 'vterm
-        claude-code-display-window-fn #'my/claude-code-display-smart))
-
-;; Leader bindings for the most common operations
-(map! :leader
-      (:prefix "o"
-       :desc "Claude Code"        "c" #'claude-code
-       :desc "Claude Code toggle" "C" #'claude-code-toggle)
-      (:prefix "c"
-       :desc "Send region → Claude"   "r" #'claude-code-send-region
-       :desc "Fix error at point"     "e" #'claude-code-fix-error-at-point
-       :desc "Send buffer → Claude"   "b" #'claude-code-send-buffer-file))
-
-
 ;; --- Mermaid diagrams ---
 (defconst my/mermaid-config-file
   (expand-file-name "mermaid-config.json" doom-user-dir)

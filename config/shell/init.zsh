@@ -21,7 +21,7 @@ fi
 
 # libgccjit (native-comp) on Apple Silicon: the JIT's child gcc can't find
 # libgcc's libemutls_w.a, which lives under a target-tuple subdir. Emacs picks
-# this up via exec-path-from-shell (see doom/config-macos.el, ADR-009).
+# this up via exec-path-from-shell (see config/doom/config-macos.el, ADR-009).
 if [[ "$OSTYPE" == "darwin"* ]]; then
     for _libemutls in /opt/homebrew/lib/gcc/current/gcc/*/*/libemutls_w.a(N); do
         export LIBRARY_PATH="${_libemutls:h}${LIBRARY_PATH:+:$LIBRARY_PATH}"

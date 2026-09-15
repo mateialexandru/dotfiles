@@ -113,11 +113,6 @@
 ;; chooses the face; olivetti chooses the column width.
 (package! olivetti)
 
-;; Claude Code CLI in Emacs (vterm-based)
-(package! claude-code
-  :recipe (:host github :repo "stevemolitor/claude-code.el"
-           :files ("*.el")))
-
 ;; `:tools llm' pins gptel to a release commit; gptel-agent tracks gptel master.
 (unpin! gptel)
 

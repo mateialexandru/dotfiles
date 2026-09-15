@@ -15,7 +15,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/
 To install the editor/tooling baseline without Ollama, LM Studio, or the
 optional local model set (about 32 GB), append `-- --skip-llm`.
 
-Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. On macOS, sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
+Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. On macOS, sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `config/git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
 
 ### Windows
 
@@ -71,7 +71,7 @@ remote service.
 
 Automatic Markdown previews are disabled over TRAMP. Org blocks remain
 explicitly executed rather than running merely because a document was opened.
-See `decisions/016-mermaid-previews.md` for the design and safety rationale.
+See `docs/decisions/016-mermaid-previews.md` for the design and safety rationale.
 
 ## Capture into Emacs org (macOS)
 
@@ -86,7 +86,7 @@ One-time setup:
 3. **Captee → Settings** → Format **Org**, Payload **Capture**, Use **Protocol**, capture template key **L**.
 4. Capture: in Safari, **Share button → Captee → Share to Emacs** (optionally select text first — it rides along in the body). Bind a global hotkey via **System Settings → Keyboard → Shortcuts** if you want one-key capture.
 
-Requires the Doom `+org-protocol` flag, capture template `L`, and the Emacs server on **TCP** (`server-use-tcp t`) so the sandboxed Scrim can connect — all configured in `doom/config.el` / `shell/init.zsh`. Open Emacs frames via **Emacs Client.app / `emacsclient`**, not a second full `Emacs.app`. See `decisions/010-safari-org-capture.md` for the rationale.
+Requires the Doom `+org-protocol` flag, capture template `L`, and the Emacs server on **TCP** (`server-use-tcp t`) so the sandboxed Scrim can connect — all configured in `config/doom/config.el` / `config/shell/init.zsh`. Open Emacs frames via **Emacs Client.app / `emacsclient`**, not a second full `Emacs.app`. See `docs/decisions/010-safari-org-capture.md` for the rationale.
 
 ## Private configuration layers
 
@@ -95,7 +95,7 @@ Private repositories can extend it without being named by this repository. Add
 ordered directory symlinks beneath `~/.config/dotfiles/layers.d/`; each layer
 may provide `doom/pre.el`, `doom/post.el`, and `shell/init.zsh`. Early Doom
 settings load before Org, while late commands load after the public config.
-See `examples/profile/` for the layer contract.
+See `docs/examples/profile/` for the layer contract.
 
 For a complete rebuild, install this public repository first, then clone each
 private repository and run its profile activation script. Private layers are
@@ -106,9 +106,9 @@ open a new shell. Restore credentials separately through Keychain,
 
 ## Wallpaper
 
-To match the `retro-gnu-meditate-levitate` Emacs icon (Nevrax Design Team), use the original GNU artwork as desktop wallpaper: <https://www.gnu.org/graphics/meditate-fs.jpg>.
+To match the `retro-gnu-meditate-levitate` Emacs icon (Nevrax Design Team), use [`assets/gnu/meditate-fs.jpg`](assets/gnu/meditate-fs.jpg) as desktop wallpaper. It is the unmodified [GNU original](https://www.gnu.org/graphics/meditate-fs.jpg).
 
 ## Further reading
 
-- `CLAUDE.md` — architecture, key packages, scripts, and tooling.
-- `decisions/` — Architecture Decision Records (ADRs) documenting design rationale.
+- `AGENTS.md` — architecture, key packages, scripts, and tooling.
+- `docs/decisions/` — Architecture Decision Records (ADRs) documenting design rationale.

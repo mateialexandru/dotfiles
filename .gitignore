@@ -14,10 +14,7 @@ Thumbs.db
 TAGS
 
 # Emacs auto-generated
-doom/custom.el
-
-# Claude Code session data
-.claude/
+config/doom/custom.el
 
 # VS Code PowerShell extension artifact
 PowerShellEditorServices.json

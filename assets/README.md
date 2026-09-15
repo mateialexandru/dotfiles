@@ -2,9 +2,9 @@
 
 The following image files are redistributed under the GNU General Public
 License, version 3 or later. The license text is in
-[`LICENSES/GPL-3.0-or-later.txt`](LICENSES/GPL-3.0-or-later.txt).
+[`LICENSES/GPL-3.0-or-later.txt`](../LICENSES/GPL-3.0-or-later.txt).
 
-## `meditate-fs.jpg`
+## `gnu/meditate-fs.jpg`
 
 - Title: *Levitating, Meditating, Flute-playing Gnu*
 - Artist: Nevrax Design Team
@@ -15,7 +15,7 @@ License, version 3 or later. The license text is in
   GPL-3.0-or-later); the source also offers GFDL-1.1-or-later
 - Modification: none; this file is byte-for-byte identical to the GNU source
 
-## `doom/Emacs2.png`
+## `../config/doom/Emacs2.png`
 
 - Title: GNU Emacs logo
 - Author: Nicolas Petton

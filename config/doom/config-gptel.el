@@ -16,7 +16,8 @@
 ;;
 ;; - gptel-agent, which turns a buffer into a project-scoped agent: ~32 tools
 ;;   (read/grep/glob free, bash/edit/write confirmed), sub-agents read from
-;;   md/org files, and skills picked up from ~/.claude/skills. Sub-agent calls
+;;   md/org files, and skills picked up from ~/.claude/skills (an upstream
+;;   compatibility path; the Claude Code CLI is not required). Sub-agent calls
 ;;   are routed to the local box so delegated grunt work costs no quota.
 ;;
 ;; - Persistence. `gptel-agent' builds a throwaway buffer; `my/gptel-project'
@@ -384,7 +385,7 @@ The replacement is one undo step; use `u' in Evil normal state to revert it."
                 :desc "Compact conversation"  "k" #'gptel-agent-compact
                 :desc "Toggle backend"        "b" #'my/gptel-toggle-backend)))
 
-;; Same surface without the leader, as claude-code has on C-c c. Free here:
+;; Same surface without the leader. Free here:
 ;; `doom-localleader-alt-key' is only bound to C-c l in non-evil setups.
 (defvar-keymap my/gptel-map
   :doc "gptel commands, mirroring the `SPC o l' leader map."

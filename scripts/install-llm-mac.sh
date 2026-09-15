@@ -15,7 +15,7 @@
 # / `keeper llm stop` / `keeper llm status`. This installer spins it up transiently (via
 # `brew services run`, which does NOT register for login) only to pull the model set.
 #
-# See decisions/013-llm-ollama-lmstudio.md.
+# See docs/decisions/013-llm-ollama-lmstudio.md.
 
 set -euo pipefail
 

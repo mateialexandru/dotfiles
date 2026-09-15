@@ -3,7 +3,6 @@
 
 # Agent scratch space
 .gptel/
-.claude/
 
 # OS files
 .DS_Store

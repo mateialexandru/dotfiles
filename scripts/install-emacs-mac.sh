@@ -6,7 +6,7 @@
 #   - Only Emacs Client.app is placed in /Applications (copied, so Spotlight indexes it).
 #   - New frames open via `emacsclient -c -n` in ~50ms.
 #
-# See decisions/009-macos-emacs-plus.md for the full rationale.
+# See docs/decisions/009-macos-emacs-plus.md for the full rationale.
 
 set -euo pipefail
 

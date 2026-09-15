@@ -22,7 +22,7 @@ configuration to maintain**.
 
 A **two-lane hybrid**, with the tailnet as the host source of truth.
 
-### Lane 1 — edit files: tuned TRAMP (`doom/config-tramp.el`)
+### Lane 1 — edit files: tuned TRAMP (`config/doom/config-tramp.el`)
 
 Settings follow Core Dumped's *Making TRAMP go Brrrr* (2025-06):
 
@@ -40,7 +40,7 @@ Settings follow Core Dumped's *Making TRAMP go Brrrr* (2025-06):
   disabled in remote buffers; `projectile-project-root` short-circuited to
   `nil` on remote paths via around-advice.
 
-### Lane 2 — run things: vterm → persistent tmux (`doom/config-remote.el`)
+### Lane 2 — run things: vterm → persistent tmux (`config/doom/config-remote.el`)
 
 - `my/remote-tmux` picks a tailnet host, then a tmux session, and opens a vterm
   bound to `ssh -t HOST 'tmux new-session -A -s SESSION'`. `tmux new -A` is the
@@ -60,7 +60,7 @@ vterm ssh for every present and future tailnet host.
 
 ### tmux config provisioning
 
-`doom/remote/tmux.conf` (mouse, 50k history, vi copy-mode) is copied onto a host
+`config/doom/remote/tmux.conf` (mouse, 50k history, vi copy-mode) is copied onto a host
 via `my/remote-provision-tmux` (TRAMP `copy-file`). The first time a host is used
 for a remote terminal we offer to install it and persist the answer
 (`remote-seen-hosts.el` in the Doom cache) so the prompt appears once.

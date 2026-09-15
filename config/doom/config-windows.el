@@ -23,7 +23,7 @@
 (defun my/test-dotnet-lsp ()
   "Run DotNet LSP diagnostics for the current project."
   (interactive)
-  (let* ((script (expand-file-name "../scripts/Test-DotNetLsp.ps1" (file-truename doom-user-dir)))
+  (let* ((script (expand-file-name "../../scripts/Test-DotNetLsp.ps1" (file-truename doom-user-dir)))
          (dir (if buffer-file-name
                   (file-name-directory (file-truename buffer-file-name))
                 default-directory))

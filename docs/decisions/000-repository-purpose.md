@@ -11,20 +11,20 @@ This document establishes the fundamental purpose and design principles for this
 
 ### Purpose
 
-Automatically set up a complete development environment with Doom Emacs and Neovim (LazyVim) on Windows and Linux (Bluefin/Fedora) via symlink-based configuration management.
+Automatically set up a complete Doom Emacs development environment on macOS, Windows,
+and Linux (Bluefin/Fedora) via symlink-based configuration management.
 
 ### Goals
 
 1. **Reliable installation** - Fresh machine to working editors in minimal steps
 2. **Idempotent scripts** - Safe to re-run installation scripts without side effects
 3. **Cross-platform** - Windows 10/11 (winget, PowerShell) and Linux (Homebrew, shell scripts)
-4. **Evil mode (Vim keybindings)** - Full Vim emulation in both editors
-5. **Symlink-based config** - Editor configs live in the repo and are symlinked to platform config directories
+4. **Evil mode (Vim keybindings)** - Full Vim emulation in Doom Emacs
+5. **Symlink-based config** - Configuration lives in the repo and is linked to platform config directories
 
 ### Editors
 
 - **Doom Emacs** - Primary editor with full configuration (LSP, org-roam, devcontainers, EWW, ctags)
-- **Neovim (LazyVim)** - Secondary editor for lighter-weight use (quick edits, remote SSH, systems without Emacs)
 
 ### Design Principles
 
@@ -38,5 +38,5 @@ Automatically set up a complete development environment with Doom Emacs and Neov
 
 - Installation scripts must handle missing prerequisites gracefully
 - All tool dependencies documented and installed via scripts
-- Configuration tested on Windows 10/11 and Linux (Bluefin/Fedora)
-- Both `doom/` and `nvim/` directories are symlinked by install scripts
+- Configuration targets macOS, Windows 10/11, and Linux (Bluefin/Fedora)
+- `config/doom/` is linked to `~/.config/doom` by the install scripts

@@ -40,7 +40,7 @@ Switch macOS Emacs to **`emacs-plus@30`** from the `d12frosted/emacs-plus` tap, 
 
 …which is **not** on libgccjit's default linker search path. The result: the first time Doom triggers a JIT trampoline compile (during `doom-after-modules-init-hook` → `general-auto-unbind-keys`), `ld` fails with `library 'emutls_w' not found`, and Doom **aborts boot mid-module-load**. The symptom is "config doesn't apply" — only 3 built-in modules end up in `doom-modules`, theme isn't set, keybindings dead.
 
-**Fix:** `shell/init.zsh` exports `LIBRARY_PATH` to the directory holding `libemutls_w.a`, globbed off the version-stable `/opt/homebrew/lib/gcc/current/gcc/*/*/` symlink (so a `brew upgrade gcc` needs no re-install). `doom/config-macos.el` adds `LIBRARY_PATH` to `exec-path-from-shell-variables` and pulls the login shell's env in at boot.
+**Fix:** `config/shell/init.zsh` exports `LIBRARY_PATH` to the directory holding `libemutls_w.a`, globbed off the version-stable `/opt/homebrew/lib/gcc/current/gcc/*/*/` symlink (so a `brew upgrade gcc` needs no re-install). `config/doom/config-macos.el` adds `LIBRARY_PATH` to `exec-path-from-shell-variables` and pulls the login shell's env in at boot.
 
 ### Revision 2026-07-31 — the env-file route is dead; exec-path-from-shell now covers the daemon
 
@@ -89,7 +89,7 @@ ping, not the label — ADR-012.)
 - Frame creation feels near-instant once the daemon is warm (~50ms).
 - First boot of the daemon after install kicks off a background native-comp queue for all installed packages (5–20 min); UI may feel sluggish until it drains. Check `(length comp-files-queue)` to monitor.
 - `Emacs.app` is no longer in `/Applications`. To start a clean Emacs without the daemon, use `/opt/homebrew/opt/emacs-plus@30/bin/emacs` from a shell.
-- The daemon's environment is only as good as the login shell's. Anything Emacs needs on `PATH` (or in `LIBRARY_PATH`) must be exported from `shell/init.zsh`; adding it to `~/.config/emacs/.local/env` does nothing.
+- The daemon's environment is only as good as the login shell's. Anything Emacs needs on `PATH` (or in `LIBRARY_PATH`) must be exported from `config/shell/init.zsh`; adding it to `~/.config/emacs/.local/env` does nothing.
 - emacs-plus and emacs-mac (Mitsuharu's port, railwaycat/emacsmacport) are mutually exclusive — installing emacs-mac would conflict and require uninstalling emacs-plus first. We chose emacs-plus for upstream-tracking and native-comp parity over emacs-mac's slightly smoother GUI rendering.
 
 ## Alternatives considered

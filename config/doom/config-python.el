@@ -7,7 +7,7 @@
 ;;
 ;; This file only closes the gaps the module leaves: point the rest of the
 ;; toolchain at that venv, teach projectile what a uv project is, and add the
-;; two bootstrap commands uv itself can't infer. See decisions/015-python-uv.md.
+;; two bootstrap commands uv itself can't infer. See docs/decisions/015-python-uv.md.
 
 ;; ruff formats and sorts imports in one binary, so it replaces black + isort.
 ;; Doom's `:editor format' defaults python to black; override both major modes
