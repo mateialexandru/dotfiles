@@ -6,11 +6,13 @@ License, version 3 or later. The license text is in
 
 ## `meditate-fs.jpg`
 
-- Title: *Floating, meditating, flute-playing gnu*
+- Title: *Levitating, Meditating, Flute-playing Gnu*
 - Artist: Nevrax Design Team
-- Copyright: © 2001 Free Software Foundation, Inc.
+- Copyright: © 2001, 2004 Free Software Foundation, Inc.
 - Source: <https://www.gnu.org/graphics/meditate.en.html>
-- License: GPL-3.0-or-later (the source also offers GFDL-1.1-or-later)
+- Historical GNU mirror: <http://gnu.ist.utl.pt/graphics/meditate.html>
+- License: GPL-2.0-or-later (this repository distributes it under
+  GPL-3.0-or-later); the source also offers GFDL-1.1-or-later
 - Modification: none; this file is byte-for-byte identical to the GNU source
 
 ## `doom/Emacs2.png`
