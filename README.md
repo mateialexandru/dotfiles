@@ -108,6 +108,14 @@ Automatic Markdown previews are disabled over TRAMP. Org blocks remain
 explicitly executed rather than running merely because a document was opened.
 See `docs/decisions/016-mermaid-previews.md` for the design and safety rationale.
 
+## gptel in Emacs
+
+The everyday paths are visual `SPC r` for an auto-applied rewrite, `SPC o l e`
+for a quick explanation, and `SPC o l p` for a persistent project-agent chat.
+See [`docs/examples/gptel-workflows.org`](docs/examples/gptel-workflows.org) for a
+short hands-on guide to rewrites, follow-up chats, project context, agents, and
+choosing between ChatGPT and local Ollama.
+
 ## Capture into Emacs org (macOS)
 
 Capture the current page into `~/Documents/org/inbox.org` from the macOS Share Menu, using the one-time **Scrim + Captee for Emacs** App Store bundle (`scripts/install-scrim-captee-mac.sh` opens the page). A private layer may override the destination. Both apps are notarized, one-time purchases — no developer account, no unsigned-extension toggle.

@@ -1,0 +1,67 @@
+#+title: Useful gptel workflows
+
+gptel works from ordinary code, prose, Org, and Markdown buffers. The shortest
+paths cover most daily use; the complete command map is under =SPC o l= and is
+also available without Doom's leader as =C-c l=.
+
+* Rewrite a selection
+
+Select code or prose in Evil visual mode, press =SPC r=, and describe the
+change. The completed response replaces the selection automatically as one undo
+step.
+
+#+begin_example
+This paragraph have too many words and it do not explain the idea clearly.
+#+end_example
+
+For example, select that sentence, press =SPC r=, and ask: “Make this concise
+and grammatical.” Press =u= to reject the applied rewrite, or =C-r= to restore
+it. Use =SPC o l R= instead when you want the review-first overlay before
+accepting a change.
+
+* Explain something quickly
+
+Put point on an identifier or select a region and press =SPC o l e=. The answer
+appears in a small popup:
+
+- =+= asks for a longer answer.
+- =w= copies the answer.
+- =r= carries the question and answer into a chat buffer for follow-up.
+
+When Ollama is running, quick explanations use the local model. Otherwise they
+fall back to the current session backend.
+
+* Work on a project over time
+
+From any project buffer, press =SPC o l p=. This opens the persistent agent chat
+at =<project>/.gptel/chat.org=; the global Git ignore keeps that private
+transcript out of commits.
+
+1. Press =SPC o l F= and select the project files that matter.
+2. Write the task or question at the end of the chat.
+3. Press =SPC o l s= to send it.
+4. Continue writing and sending follow-ups in the same buffer.
+5. Press =SPC o l k= when a long agent conversation needs compacting.
+6. Press =SPC o l c= when the added context should be cleared.
+
+Use =SPC o l A= for a throwaway agent session when the transcript does not need
+to survive an Emacs restart. Use =SPC o l l= for a plain chat without the
+project-agent workflow.
+
+* Choose where the request runs
+
+=SPC o l b= toggles between the ChatGPT subscription and local Ollama, keeping
+the appropriate model for each backend. =SPC o l m= opens gptel's menu for
+choosing a model, preset, tools, context, or response destination.
+
+Treat context as part of the request: selected regions and files are sent to
+the active backend. For private or work material, use only a backend permitted
+for that data. Local Ollama keeps the model request on the machine, although an
+agent can still make external requests when you allow it to use web tools.
+
+* Small useful extras
+
+- In a Magit commit-message buffer, =M-g= drafts a commit message.
+- =SPC o l a= adds or removes the current region or buffer as live context.
+- =SPC o l f= adds a specific file as context.
+- The entire =SPC o l= map is mirrored under =C-c l=.
