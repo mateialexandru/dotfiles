@@ -195,4 +195,4 @@ redisplays matching Org previews. Toggle/refresh inline images manually with
 
 - ADR-001 — Emacs package rationale.
 - `config/doom/packages.el` — Mermaid + `ob-mermaid` wiring.
-- `docs/examples/excalidraw-org-example.org` — hands-on create/edit/rename worksheet.
+- `docs/howto/howto-excalidraw.org` — hands-on create/edit/rename worksheet.

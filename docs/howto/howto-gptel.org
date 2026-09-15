@@ -1,4 +1,9 @@
-#+title: Useful gptel workflows
+:PROPERTIES:
+:ID:       0d9090c9-d47b-49bb-a2a8-bd14423207be
+:END:
+#+title: How-to: gptel
+#+filetags: :howto:dotfiles:
+#+aliases: "GPTel" "Useful gptel workflows"
 
 gptel works from ordinary code, prose, Org, and Markdown buffers. The shortest
 paths cover most daily use; the complete command map is under =SPC o l= and is

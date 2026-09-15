@@ -36,6 +36,8 @@ ADR-007 records why it was retired.
 
 - Installers and health checks must address `config/` paths when creating symlinks.
 - Doom's repository-relative Windows script lookup gains one parent directory.
-- Documentation lives under `docs/decisions/` and `docs/examples/`.
+- Documentation lives under `docs/decisions/`, `docs/howto/`, and
+  `docs/examples/`. Provisioned Org-roam nodes belong in `docs/howto/`;
+  standalone fixtures and non-roam examples remain in `docs/examples/`.
 - `install.sh` and `install.ps1` stay at root because they are stable public interfaces;
   moving their implementation would require wrappers without reducing root noise.

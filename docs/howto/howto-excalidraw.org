@@ -1,4 +1,9 @@
-#+title: Excalidraw in Org
+:PROPERTIES:
+:ID:       5a45f2fa-2a88-49f4-a158-2bed9d424b17
+:END:
+#+title: How-to: Excalidraw in Org
+#+filetags: :howto:dotfiles:
+#+aliases: "Excalidraw"
 #+startup: inlineimages
 #+options: toc:nil
 

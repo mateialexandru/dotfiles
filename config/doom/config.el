@@ -24,6 +24,30 @@
 ;; --- Roam context registry ---
 (defvar my/roam-contexts nil "Alist of (NAME . SETTINGS).")
 
+(defun my/org-roam-directories ()
+  "Return the primary and additional roots in the active roam context."
+  (delete-dups
+   (seq-filter #'file-directory-p
+               (cons (file-name-as-directory
+                      (expand-file-name org-roam-directory))
+                     my/roam-extra-directories))))
+
+(defun my/org-roam-list-files-a (list-files-fn)
+  "Return roam files from every root using LIST-FILES-FN."
+  (delete-dups
+   (apply #'append
+          (mapcar (lambda (directory)
+                    (let ((org-roam-directory directory))
+                      (funcall list-files-fn)))
+                  (my/org-roam-directories)))))
+
+(defun my/org-roam-file-p-a (file-p-fn &optional file)
+  "Ask FILE-P-FN whether FILE belongs to any configured roam root."
+  (seq-some (lambda (directory)
+              (let ((org-roam-directory directory))
+                (funcall file-p-fn file)))
+            (my/org-roam-directories)))
+
 (defun my/roam-register-context (name roam-dir &optional agenda-files)
   "Register roam context NAME with ROAM-DIR and optional AGENDA-FILES."
   (setf (alist-get name my/roam-contexts)
@@ -56,7 +80,14 @@
   (apply #'my/roam-register-context spec))
 
 (after! org-roam
-  (my/roam-switch-context my/roam-context))
+  ;; Org-roam has one native root. Keep captures anchored there while extending
+  ;; discovery and save-time membership checks to provisioned public how-tos.
+  (unless (advice-member-p #'my/org-roam-list-files-a #'org-roam-list-files)
+    (advice-add #'org-roam-list-files :around #'my/org-roam-list-files-a))
+  (unless (advice-member-p #'my/org-roam-file-p-a #'org-roam-file-p)
+    (advice-add #'org-roam-file-p :around #'my/org-roam-file-p-a))
+  (my/roam-switch-context my/roam-context)
+  (org-roam-db-sync))
 
 (map! :leader
       :desc "Toggle roam context" "t r" #'my/roam-toggle-context)

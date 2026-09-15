@@ -1,4 +1,9 @@
-#+title: Mermaid in Org
+:PROPERTIES:
+:ID:       f9bcee02-7c4f-46a8-81f4-53a9f3f34640
+:END:
+#+title: How-to: Mermaid in Org
+#+filetags: :howto:dotfiles:
+#+aliases: "Mermaid"
 #+startup: inlineimages
 
 This diagram is an Org Babel source block. Put point inside it and press

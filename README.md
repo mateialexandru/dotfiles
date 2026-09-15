@@ -127,6 +127,8 @@ remote service.
 Automatic Markdown previews are disabled over TRAMP. Org blocks remain
 explicitly executed rather than running merely because a document was opened.
 See `docs/decisions/016-mermaid-previews.md` for the design and safety rationale.
+The hands-on Org workflow is available as
+[`docs/howto/howto-mermaid.org`](docs/howto/howto-mermaid.org).
 
 ## Excalidraw diagrams in Org
 
@@ -136,7 +138,7 @@ the PWA. Type `<merm` then `TAB` to name and insert a basic Mermaid flowchart
 block. Saving in Excalidraw automatically regenerates the SVG shown inline in
 Org. Left-click the preview image to reopen it for editing. The `SPC m D`
 (diagram) menu provides new, open-at-point, and rename actions. See
-[`docs/examples/excalidraw-org-example.org`](docs/examples/excalidraw-org-example.org)
+[`docs/howto/howto-excalidraw.org`](docs/howto/howto-excalidraw.org)
 for a worksheet where you can bootstrap a diagram on the spot and follow the
 complete edit/save/refresh loop. The same workflow runs on macOS and Windows;
 on Windows, associate `.excalidraw` files with the installed Chrome Excalidraw
@@ -159,11 +161,19 @@ drive export on both platforms—no external watcher is required.
 - Org-roam adds content search and link previews under `SPC m m`: `s` searches
   note contents, `b` previews backlinks, and `l` previews forward links.
 
+## Public how-tos in org-roam
+
+Org-roam keeps captures and daily notes in the active personal or work context,
+but also indexes the provisioned guides under `docs/howto/`. This produces one
+searchable graph without copying public operating knowledge into a private
+repository. Private notes may link to these stable public nodes; backlinks stay
+private because public guides never link back to private IDs.
+
 ## gptel in Emacs
 
 The everyday paths are visual `SPC r` for an auto-applied rewrite, `SPC o l e`
 for a quick explanation, and `SPC o l p` for a persistent project-agent chat.
-See [`docs/examples/gptel-workflows.org`](docs/examples/gptel-workflows.org) for a
+See [`docs/howto/howto-gptel.org`](docs/howto/howto-gptel.org) for a
 short hands-on guide to rewrites, follow-up chats, project context, agents, and
 choosing between a layer-selected primary provider and local Ollama. The public
 configuration is provider-neutral; a private `doom/post.el` registers the

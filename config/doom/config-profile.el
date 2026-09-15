@@ -16,6 +16,13 @@
   (expand-file-name "~/.config/dotfiles/layers.d/")
   "Directory containing ordered private configuration layers.")
 
+(defconst my/dotfiles-root-directory
+  (file-name-as-directory
+   (expand-file-name
+    "../.."
+    (file-name-directory (file-truename (or load-file-name buffer-file-name)))))
+  "Root of the public dotfiles checkout containing this configuration.")
+
 (defvar my/dotfiles-current-layer nil
   "Layer directory dynamically bound while a private file loads.")
 
@@ -38,6 +45,9 @@
 (defvar my/org-directory (expand-file-name "~/Documents/org/"))
 (defvar my/roam-context 'default)
 (defvar my/roam-context-specs nil)
+(defvar my/roam-extra-directories
+  (list (expand-file-name "docs/howto/" my/dotfiles-root-directory))
+  "Additional Org-roam roots indexed alongside every context.")
 (defvar my/org-capture-inbox nil)
 (defvar my/org-excalidraw-directory nil)
 
@@ -52,6 +62,12 @@
       (file-name-as-directory
        (expand-file-name (or my/org-excalidraw-directory "excalidraw/")
                          my/org-directory)))
+
+(setq my/roam-extra-directories
+      (delete-dups
+       (mapcar (lambda (directory)
+                 (file-name-as-directory (expand-file-name directory)))
+               my/roam-extra-directories)))
 
 (unless my/roam-context-specs
   (setq my/roam-context-specs

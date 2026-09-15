@@ -76,7 +76,7 @@ Platform detection uses `(pcase system-type ...)` at the bottom of `config.el`, 
 
 ### org-roam contexts
 
-`my/roam-register-context` / `my/roam-switch-context` support multiple roam databases. Toggle with `SPC t r`. The public default uses `~/Documents/org/roam/`; optional private layers can register additional contexts.
+`my/roam-register-context` / `my/roam-switch-context` support multiple roam databases. Toggle with `SPC t r`. The public default uses `~/Documents/org/roam/`; optional private layers can register additional contexts. Every context also indexes provisioned public nodes from `docs/howto/`, while captures continue to land in the context's primary root. This lets personal and work graphs share operational knowledge without putting private notes in this repository.
 
 ### Project TLDR (`SPC p ?`)
 
@@ -316,6 +316,7 @@ Significant design choices are documented in `docs/decisions/` as ADRs. Check th
 | `019-repository-layout.md` | KISS layout: configuration, documentation, assets, scripts, and tools have distinct homes |
 | `020-nushell-parallel.md` | Install and configure Nu as a parallel interactive shell while retaining zsh/Bash and PowerShell compatibility |
 | `021-pi-private-model-layer.md` | Pi is public and cross-platform; machine-specific local model catalogs and runtime setup come from private layers |
+| `022-org-roam-public-howtos.md` | One roam graph indexes a private context root plus repository-owned how-tos from `docs/howto/` |
 
 ## Related files
 
