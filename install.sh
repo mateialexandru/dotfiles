@@ -288,6 +288,13 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     step "Emacs daemon"
     brew services restart d12frosted/emacs-plus/emacs-plus@30 || \
         brew services start d12frosted/emacs-plus/emacs-plus@30
+
+    step "Ghostel native module"
+    for _ in $(seq 30); do
+        emacsclient --eval t >/dev/null 2>&1 && break
+        sleep 1
+    done
+    bash "$DOTFILES_DIR/scripts/install-ghostel-module.sh"
 fi
 
 # Universal Ctags preloads *.ctags files from this XDG directory.
@@ -307,7 +314,7 @@ fi
 
 # --- SSH ControlMaster for tailnet hosts ---
 # One wildcard block multiplexes connections to every current/future *.ts.net
-# host, so TRAMP and the Emacs vterm->tmux helper reconnect near-instantly.
+# host, so TRAMP and the Emacs Ghostel->tmux helper reconnect near-instantly.
 step "SSH ControlMaster (*.ts.net)"
 SSH_CONFIG="$HOME/.ssh/config"
 mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"

@@ -166,7 +166,7 @@ project dependencies. Scanning is single-file only.
   `+uv` already solves for the one tool in use here, and wants `dasel`/`yq` for TOML.
 - **A `SPC m u` wrapper per uv subcommand** (add/remove/sync/lock/upgrade). Built, then
   removed: they are one-line shell commands with no editor state to contribute, and the repo
-  has vterm and eshell a keystroke away.
+  has Ghostel and Eshell a keystroke away.
 
 - **`+poetry` / `+pipenv` / `+conda`** — all solve environment management, none is what the
   rig already installs. uv is already in `install.sh` and is strictly faster.

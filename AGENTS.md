@@ -19,7 +19,7 @@ Installs Homebrew, core tools (`nu`, `fzf`, `zoxide`, `gh`, `ripgrep`, `fd`, `no
 
 On macOS, Emacs is installed by `scripts/install-emacs-mac.sh` (via `d12frosted/emacs-plus` → `emacs-plus@30`, native-comp, `retro-gnu-meditate-levitate` icon). The setup uses a **daemon + client workflow**: `emacs --fg-daemon` runs via `brew services` at login, and only `Emacs Client.app` is copied (not symlinked) into `/Applications` so Spotlight indexes it. New frames open in ~50ms via `emacsclient -c -n`.
 
-The daemon is started by launchd, so it inherits a bare `/usr/bin:/bin:/usr/sbin:/sbin` and none of the shell's env. `config/doom/config-macos.el` fixes that with `exec-path-from-shell` gated on `(or (daemonp) (memq window-system '(mac ns)))` — the `daemonp` half matters, since `window-system` is nil while the daemon boots. It also pulls in `LIBRARY_PATH` (exported by `config/shell/init.zsh`) so libgccjit's linker finds `libemutls_w.a` on Apple Silicon. Without this, Emacs sees no Homebrew binaries (vterm can't find cmake) and native-comp can abort boot mid-module-load. Doom's env file (`~/.config/emacs/.local/env`) is **not** read by current Doom — don't put env there. See ADR-009; daemon stderr is at `/tmp/homebrew.mxcl.emacs-plus.stderr.log`.
+The daemon is started by launchd, so it inherits a bare `/usr/bin:/bin:/usr/sbin:/sbin` and none of the shell's env. `config/doom/config-macos.el` fixes that with `exec-path-from-shell` gated on `(or (daemonp) (memq window-system '(mac ns)))` — the `daemonp` half matters, since `window-system` is nil while the daemon boots. It also pulls in `LIBRARY_PATH` (exported by `config/shell/init.zsh`) so libgccjit's linker finds `libemutls_w.a` on Apple Silicon. Without this, Emacs sees no Homebrew binaries and native-comp can abort boot mid-module-load. Doom's env file (`~/.config/emacs/.local/env`) is **not** read by current Doom — don't put env there. See ADR-009; daemon stderr is at `/tmp/homebrew.mxcl.emacs-plus.stderr.log`.
 
 ### Windows
 
@@ -52,7 +52,7 @@ There is no test suite — the "tests" are: (a) install scripts must remain idem
 | `config/doom/config-profile.el` | Portable defaults + ordered optional private-layer loader |
 | `config/doom/config-eshell.el` | Shared eshell inline-image tooling (`cat`/`rinku`, TRAMP-aware; adapted from xenodium) |
 | `config/doom/config-tramp.el` | TRAMP performance tuning for remote editing (ControlMaster reuse, direct-async, skip vc) — see ADR-011 |
-| `config/doom/config-remote.el` | Tailnet host picker + persistent vterm→tmux terminals + tmux.conf provisioning (`SPC o x`) — see ADR-011 |
+| `config/doom/config-remote.el` | Tailnet host picker + persistent Ghostel→tmux terminals + tmux.conf provisioning (`SPC o x`) — see ADR-011 |
 | `config/doom/config-gptel.el` | LLM client on top of `:tools llm` — ChatGPT-OAuth + Ollama backends, gptel-agent, project chats (`SPC o l`) — see ADR-014 |
 | `config/doom/config-python.el` | uv-owned venvs, ruff format/lint, pyright against the project `.venv`, projectile `python-uv` type, `SPC m u` bootstrap — see ADR-015 |
 | `config/doom/config-macos.el` | macOS-specific (Command=Meta, exec-path-from-shell, dired) |
@@ -209,12 +209,12 @@ recommends) but is still preview-grade.
 Two-lane hybrid for working on remote devices from the mac's GUI Emacs — see ADR-011.
 
 - **Edit lane** — `config-tramp.el` tunes TRAMP (ssh ControlMaster reuse, direct-async, no vc probing) for snappy remote file editing.
-- **Run lane** — `config-remote.el` opens a vterm bound to `ssh -t HOST 'tmux new -A -s SESSION'`; tmux on the host is the persistent layer (survives disconnect/sleep), the vterm buffer is disposable.
+- **Run lane** — `config-remote.el` opens Ghostel with an argv-safe `ssh -t HOST 'tmux new -A -s SESSION'`; tmux on the host is the persistent layer (survives disconnect/sleep), while the Ghostel buffer is disposable.
 
 Hosts come from `tailscale status --json` (no host list to maintain). `install.sh` appends a one-time `Host *.ts.net` ControlMaster block to `~/.ssh/config`. `config/doom/remote/tmux.conf` is provisioned onto a host via TRAMP and offered on first connect.
 
 ```
-SPC o x t   # pick host + tmux session → persistent vterm terminal
+SPC o x t   # pick host + tmux session → persistent Ghostel terminal
 SPC o x f   # pick host → remote dired (TRAMP)
 SPC o x p   # (re)install tmux.conf on a host
 ```
@@ -257,6 +257,7 @@ macOS-only for now. Set
 | Script | Purpose |
 |--------|---------|
 | `scripts/install-doom.sh` / `.ps1` | Symlink doom dir + install Doom Emacs; detects & repairs wrong symlink targets |
+| `scripts/install-ghostel-module.sh` | macOS daemon-time provisioning of Ghostel's pinned prebuilt native module |
 | `scripts/install-emacs-mac.sh` | macOS-only: emacs-plus@30 + Emacs Client.app; `install.sh` starts the daemon after Doom sync (daemon env/libgccjit fix lives in `config/shell/init.zsh` + `config/doom/config-macos.el`) |
 | `scripts/install-llm-mac.sh` | macOS-only: local LLM layer — Ollama formula (managed GGUF endpoint, pulls `scripts/ollama-models.txt`) + LM Studio cask (user-managed MLX GUI) + `sys llm mirror` (symlink Ollama models into LM Studio). Daemon on-demand via `sys llm start`, not a login service (see ADR-013) |
 | `scripts/install-scrim-captee-mac.sh` | macOS-only, standalone (not in install.sh): opens the App Store "Scrim + Captee for Emacs" bundle + prints org-capture setup (see ADR-010) |
@@ -289,7 +290,7 @@ Significant design choices are documented in `docs/decisions/` as ADRs. Check th
 | `008-excalidraw-integration.md` | Excalidraw diagramming |
 | `009-macos-emacs-plus.md` | macOS Emacs via emacs-plus@30 + daemon/client workflow + libgccjit `LIBRARY_PATH` workaround |
 | `010-safari-org-capture.md` | Safari → org capture via org-protocol; now via the Scrim + Captee App Store bundle (DIY extension/handler/Xcode retired — see Revision 2026-05-22) |
-| `011-emacs-remote-tmux.md` | Effortless Emacs → remote workflow: tuned TRAMP (edit lane) + vterm→persistent-tmux over Tailscale (run lane); tailnet as host source of truth |
+| `011-emacs-remote-tmux.md` | Effortless Emacs → remote workflow: tuned TRAMP (edit lane) + Ghostel→persistent-tmux over Tailscale (run lane); tailnet as host source of truth |
 | `012-sys-ops-cli.md` | Cross-platform compiled `sys` CLI + `sys check` confidence pass; command semantics, gate-on-symptom-not-remedy, ping-authoritative daemon check |
 | `013-llm-ollama-lmstudio.md` | Local LLM: Ollama managed GGUF endpoint (`:11434`) + LM Studio user-managed MLX GUI; why stores can't be shared (Ollama copies in; GGUF≠MLX); `sys llm` on-demand control + `mirror` symlink bridge; curated 64 GB set |
 | `014-gptel-emacs-llm-client.md` | gptel on Doom's `:tools llm`: ChatGPT-subscription OAuth (not an API key), Ollama as second backend, gptel-agent for project sessions/tools/sub-agents, in-repo transcripts + global gitignore |

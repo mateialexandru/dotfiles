@@ -9,7 +9,7 @@
 ;;
 ;; Connection sharing is delegated to ~/.ssh/config (the `Host *.ts.net'
 ;; ControlMaster block installed by install.sh), so it benefits plain `ssh' and
-;; the vterm->tmux helper in config-remote.el too — not just TRAMP.
+;; the Ghostel->tmux helper in config-remote.el too — not just TRAMP.
 
 (after! tramp
   (setq tramp-default-method "ssh"                 ; rides ssh ControlMaster

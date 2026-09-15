@@ -647,6 +647,13 @@ Renames the .excalidraw and .excalidraw.svg files and rewrites the link."
 ;; Eshell inline-image tooling (cat/rinku), shared across platforms
 (load! "config-eshell")
 
+;; Doom's :term ghostel module owns package pinning and integration. Keep the
+;; native module outside its package checkout so upgrades can replace Ghostel
+;; safely while a daemon has the old module mapped, and use upstream binaries
+;; rather than requiring an exact Zig toolchain on every machine.
+(setq ghostel-module-directory (expand-file-name "ghostel/" doom-data-dir)
+      ghostel-module-auto-install 'download)
+
 ;; Remote editing: TRAMP tuning + tailnet host picker / persistent tmux terminals
 (load! "config-tramp")
 (load! "config-remote")

@@ -28,8 +28,8 @@ else fail "doom symlink" "is '${got:-missing}', want '$want' — run \`sys insta
 
 # 2. daemon inherited the login shell's env. launchd starts it with a bare
 # /usr/bin:/bin:/usr/sbin:/sbin, so exec-path-from-shell has to run at daemon boot
-# (config/doom/config-macos.el). Without it Emacs can't see brew tools — cmake goes missing
-# and vterm-module refuses to compile — and libgccjit loses libemutls_w.a (ADR-009).
+# (config/doom/config-macos.el). Without it Emacs can't see Homebrew tools and
+# libgccjit loses libemutls_w.a (ADR-009).
 if $IS_MAC; then
   if $EMACSCLIENT --eval t >/dev/null 2>&1; then
     denv="$($EMACSCLIENT --eval '(list (and (executable-find "cmake") t) (and (getenv "LIBRARY_PATH") t))' 2>/dev/null)"
@@ -75,7 +75,7 @@ if [[ -x "$DOOM" ]]; then
     if grep -q 'module was moved' /tmp/sys-doctor.log; then
       fail "doom doctor" "stale module name — run \`sys doom doctor\`"
     elif [[ -z "$warns" || "$warns" == 0 ]]; then pass "doom doctor" "clean"
-    else info "doom doctor" "$warns warnings (Symbola/pipenv/nose are optional here — \`sys doom doctor\` for detail)"; fi
+    else info "doom doctor" "$warns known optional warnings (Symbola, Zig compile fallback, pipenv/nose — \`sys doom doctor\` for detail)"; fi
   else fail "doom doctor" "errors — see /tmp/sys-doctor.log or run \`sys doom doctor\`"; fi
 else fail "doom doctor" "doom binary missing at $DOOM — run \`sys install\`"; fi
 
@@ -93,6 +93,27 @@ if command -v nu >/dev/null 2>&1; then
   nu_got="$(readlink "$nu_autoload/10-dotfiles.nu" 2>/dev/null || true)"
   if [[ "$nu_got" == "$nu_want" ]]; then pass "nushell config" "autoload linked"
   else fail "nushell config" "missing or stale — run scripts/install-nushell.sh"; fi
+fi
+
+# Ghostel is the terminal backend. Its native module lives outside the package
+# checkout so package upgrades cannot truncate a module mapped by the daemon.
+ghostel_module="$HOME/.config/emacs/.local/etc/ghostel/ghostel-module"
+if $daemon_up; then
+  ghostel_state="$($EMACSCLIENT --eval \
+    '(condition-case err
+         (progn (require (quote ghostel))
+                (if (featurep (quote ghostel-module)) "ready" "not loaded"))
+       (error (format "error: %s" (error-message-string err))))' \
+    2>/dev/null | tr -d '"')"
+  if [[ "$ghostel_state" == ready ]]; then
+    pass "ghostel" "native libghostty module loaded"
+  else
+    fail "ghostel" "$ghostel_state — run \`sys install\` or open M-x ghostel"
+  fi
+elif compgen -G "${ghostel_module}.*" >/dev/null; then
+  pass "ghostel" "native libghostty module present (daemon down)"
+else
+  fail "ghostel" "native module missing — run \`sys install\` or open M-x ghostel"
 fi
 
 # 7. Roslyn C# LSP DLL present

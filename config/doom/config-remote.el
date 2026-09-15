@@ -1,11 +1,11 @@
 ;;; config-remote.el --- Tailnet host picker + persistent remote terminals -*- lexical-binding: t; -*-
 
 ;; The "run lane" of the remote workflow. Pick a live tailnet host, then open
-;; either dired on it (edit lane, via TRAMP — see config-tramp.el) or a vterm
+;; either dired on it (edit lane, via TRAMP — see config-tramp.el) or a Ghostel
 ;; attached to a persistent tmux session there.
 ;;
 ;; tmux is the durable thing: it lives on the remote host and survives
-;; disconnect, sleep, and network changes, and owns the scrollback. The vterm
+;; disconnect, sleep, and network changes, and owns the scrollback. The Ghostel
 ;; buffer is throwaway transport — kill it (or `C-b d') and the session keeps
 ;; running; re-invoking reattaches to identical state via `tmux new -A'.
 ;;
@@ -102,7 +102,7 @@ Reads `tailscale status --json' and collects `Self' plus every online peer."
 
 ;;;###autoload
 (defun my/remote-tmux (host session)
-  "Open a vterm attached to (or creating) tmux SESSION on HOST.
+  "Open Ghostel attached to (or creating) tmux SESSION on HOST.
 Uses `tmux new-session -A' so the same session is reattached every time.
 Offers to install the shared tmux.conf the first time HOST is seen."
   (interactive
@@ -110,10 +110,35 @@ Offers to install the shared tmux.conf the first time HOST is seen."
      (list host
            (completing-read "tmux session: " (my/remote--sessions host)
                             nil nil nil nil "main"))))
-  (require 'vterm)
+  (require 'ghostel)
   (my/remote--maybe-offer-provision host)
-  (let ((vterm-shell (format "ssh -t %s 'tmux new-session -A -s %s'" host session)))
-    (vterm (format "*tmux %s:%s*" host session))))
+  (let* ((name (format "*tmux %s:%s*" host session))
+         (existing (get-buffer name))
+         (live (and existing
+                    (with-current-buffer existing
+                      (and (derived-mode-p 'ghostel-mode)
+                           (bound-and-true-p ghostel--process)
+                           (process-live-p ghostel--process))))))
+    (if live
+        (pop-to-buffer existing)
+      (let* ((buffer (if (and existing
+                              (with-current-buffer existing
+                                (derived-mode-p 'ghostel-mode)))
+                         existing
+                       (generate-new-buffer name)))
+             ;; OpenSSH joins remote command arguments through a shell. Quote
+             ;; the user-selected session name explicitly; the local ssh
+             ;; invocation itself still bypasses a shell via `ghostel-exec'.
+             (remote-command
+              (format "exec tmux new-session -A -s %s"
+                      (shell-quote-argument session))))
+        (pop-to-buffer buffer)
+        (ghostel-exec
+         buffer "ssh" (list "-t" host remote-command)
+         `((kind . remote-tmux)
+           (host . ,host)
+           (session . ,session)
+           (command . ("ssh" "-t" ,host ,remote-command))))))))
 
 ;;;###autoload
 (defun my/remote-dired (host)

@@ -46,6 +46,9 @@ bash "$DOTFILES_DIR/scripts/install-nushell.sh"
 if [[ "$OSTYPE" == darwin* ]]; then
     step "Emacs daemon"
     bash "$DOTFILES_DIR/scripts/restart-emacs-mac.sh" 0
+
+    step "Ghostel native module"
+    bash "$DOTFILES_DIR/scripts/install-ghostel-module.sh"
 fi
 
 step "Environment check"

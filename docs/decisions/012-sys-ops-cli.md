@@ -104,7 +104,7 @@ tool detects a lingering PID instead, keeping rule 1: gate on the symptom).
 
 Full pass, one plain KISS line per check, hard `exit 1` if any check fails, summary
 tail. Colour only on a tty. Checks: doom symlink · daemon · native-comp queue ·
-doom doctor · core tools · Roslyn DLL · eglot LSP servers · apheleia formatters ·
+doom doctor · core tools · Ghostel native module · Roslyn DLL · eglot LSP servers · apheleia formatters ·
 Emacs Client.app · org-protocol→Scrim pin · excalidraw toolchain · ssh ControlMaster.
 
 Three design rules keep it honest rather than noisy:

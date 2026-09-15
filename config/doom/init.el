@@ -81,7 +81,7 @@
        eshell             ; the elisp shell that works everywhere
        shell              ; simple shell REPL for Emacs
        ;;term              ; basic terminal emulator for Emacs
-       (:if (or (featurep :system 'macos) (featurep :system 'linux) ) vterm)  ; the best terminal emulation in Emacs
+       (ghostel +everywhere) ; libghostty terminal + eshell/comint/compile integration
 
        :checkers
        syntax              ; tasing you for every semicolon you forget

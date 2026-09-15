@@ -1,7 +1,8 @@
-# ADR-011: Effortless Emacs → remote workflow (tuned TRAMP + vterm/tmux over Tailscale)
+# ADR-011: Effortless Emacs → remote workflow (tuned TRAMP + Ghostel/tmux over Tailscale)
 
 **Status:** Accepted
 **Date:** 2026-05-25
+**Revised:** 2026-09-15
 
 ## Context
 
@@ -22,6 +23,12 @@ configuration to maintain**.
 
 A **two-lane hybrid**, with the tailnet as the host source of truth.
 
+Doom's official `(ghostel +everywhere)` module is the terminal layer. It supplies
+the pinned Ghostel package plus Evil, Eshell, comint, and compilation integration.
+The prebuilt native module is downloaded into Doom's persistent data directory,
+outside the package checkout, so an upgrade cannot overwrite a library already
+mapped by the daemon.
+
 ### Lane 1 — edit files: tuned TRAMP (`config/doom/config-tramp.el`)
 
 Settings follow Core Dumped's *Making TRAMP go Brrrr* (2025-06):
@@ -40,14 +47,15 @@ Settings follow Core Dumped's *Making TRAMP go Brrrr* (2025-06):
   disabled in remote buffers; `projectile-project-root` short-circuited to
   `nil` on remote paths via around-advice.
 
-### Lane 2 — run things: vterm → persistent tmux (`config/doom/config-remote.el`)
+### Lane 2 — run things: Ghostel → persistent tmux (`config/doom/config-remote.el`)
 
-- `my/remote-tmux` picks a tailnet host, then a tmux session, and opens a vterm
-  bound to `ssh -t HOST 'tmux new-session -A -s SESSION'`. `tmux new -A` is the
-  idempotent attach-or-create pattern: the session is created once and
-  reattached forever.
+- `my/remote-tmux` picks a tailnet host, then a tmux session, and opens Ghostel
+  with `ssh -t HOST 'tmux new-session -A -s SESSION'`. `ghostel-exec` passes the
+  local argv without a shell and the session name is quoted for OpenSSH's remote
+  shell. `tmux new -A` is the idempotent attach-or-create pattern: the session is
+  created once and reattached forever.
 - **tmux is the durable layer** (lives on the host, survives disconnect/sleep,
-  owns scrollback); the **vterm buffer is disposable transport** — kill it, lose
+  owns scrollback); the **Ghostel buffer is disposable transport** — kill it, lose
   nothing, reopen to reattach.
 
 ### Host source of truth — the tailnet
@@ -56,7 +64,7 @@ Settings follow Core Dumped's *Making TRAMP go Brrrr* (2025-06):
 the tailnet appears in the picker with **zero repo changes**. The single static
 artifact is a one-time `Host *.ts.net` ControlMaster block appended to
 `~/.ssh/config` by `install.sh` (idempotent), which speeds both TRAMP and the
-vterm ssh for every present and future tailnet host.
+Ghostel ssh for every present and future tailnet host.
 
 ### tmux config provisioning
 
@@ -120,8 +128,10 @@ walk only and keeps on-demand commands working.
   for a daily driver; the mac's GUI Emacs stays the single front-end.
 - **TRAMP-only + `detached.el`** — good for fire-and-forget builds, but weak TRAMP
   support and not a replacement for interactive persistent shells.
-- **eat instead of vterm** — better eshell/TUI integration and a char mode, but
-  ~1.5× slower; vterm is already enabled and ideal as dumb transport to tmux.
+- **Eat instead of Ghostel** — pure Elisp and extremely portable, but Doom has no
+  official Eat module. Ghostel is Doom's current terminal direction and brings
+  libghostty-vt, synchronized output, modern keyboard/graphics protocols, and
+  prebuilt native modules.
 - **mosh** — only helps with roaming/lid-close on flaky links; tmux + ControlMaster
   already give persistence + fast reconnect on this stable path. It is a one-line
   swap in `my/remote-tmux` (`ssh -t HOST` → `mosh HOST --`) if needed; note mosh

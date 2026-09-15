@@ -11,7 +11,7 @@
 ;; Fix path issues on macOS (ensures Emacs has the same PATH as the login shell).
 ;; `window-system' is nil while the launchd-started daemon boots, so gate on
 ;; `daemonp' too — otherwise the daemon keeps launchd's bare
-;; /usr/bin:/bin:/usr/sbin:/sbin and tools like cmake (vterm-module) go missing.
+;; /usr/bin:/bin:/usr/sbin:/sbin and Homebrew tooling goes missing.
 ;; LIBRARY_PATH rides along so libgccjit's linker finds libemutls_w.a (ADR-009).
 (use-package! exec-path-from-shell
   :config
