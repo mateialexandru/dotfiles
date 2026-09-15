@@ -32,6 +32,8 @@ $devTools = @(
     @{ Name = "roslyn-lsp"; Fix = "& `"$PSScriptRoot\install-roslyn-lsp.ps1`"" }
     @{ Name = "yaml-language-server"; Fix = "npm install -g yaml-language-server" }
     @{ Name = "mmdc"; Fix = "npm install -g @mermaid-js/mermaid-cli" }
+    @{ Name = "excalidraw-cli"; Fix = "npm install -g @swiftlysingh/excalidraw-cli" }
+    @{ Name = "excalidraw-dir"; Fix = "New-Item -ItemType Directory -Force -Path (Join-Path `$env:USERPROFILE 'Documents\org\excalidraw') | Out-Null" }
     @{ Name = "uv"; Fix = "winget install astral-sh.uv" }
     @{ Name = "pyright"; Fix = "uv tool install --force pyright" }
     @{ Name = "ruff"; Fix = "uv tool install --force ruff" }
@@ -138,6 +140,7 @@ function Get-ToolVersion($name) {
             }
             "yaml-language-server" { & yaml-language-server --version 2>$null }
             "mmdc" { & mmdc --version 2>$null }
+            "excalidraw-cli" { & excalidraw-cli --version 2>$null }
             "uv" { & uv --version 2>$null }
             "pyright" { & pyright --version 2>$null }
             "ruff" { & ruff --version 2>$null }
@@ -176,6 +179,8 @@ function Test-Tool($tool) {
         $exists = Find-UniversalCtags
     } elseif ($tool.Name -eq "roslyn-lsp") {
         $exists = Find-RoslynLsp
+    } elseif ($tool.Name -eq "excalidraw-dir") {
+        $exists = Test-Path (Join-Path $env:USERPROFILE "Documents\org\excalidraw")
     } else {
         $exists = Get-Command $tool.Name -ErrorAction SilentlyContinue
     }
@@ -368,6 +373,27 @@ function Test-Environment {
     }
 }
 
+function Test-EmacsCapability($name, $expression, $remedy) {
+    & emacs --quick --batch --eval $expression 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        $script:passed++
+        if (-not $Quiet) {
+            Write-Host "  " -NoNewline
+            Write-Host ([char]0x2713) -ForegroundColor Green -NoNewline
+            Write-Host " $name"
+        }
+    } else {
+        $script:failed++
+        Write-Host "  " -NoNewline
+        Write-Host ([char]0x2717) -ForegroundColor Red -NoNewline
+        Write-Host " $name " -NoNewline
+        Write-Host "(unavailable)" -ForegroundColor DarkGray
+        Write-Host "    " -NoNewline
+        Write-Host ([char]0x2192) -ForegroundColor Yellow -NoNewline
+        Write-Host " $remedy" -ForegroundColor Cyan
+    }
+}
+
 # Main execution
 Write-Host ""
 Write-Host "Doom Emacs Doctor" -ForegroundColor Magenta
@@ -388,6 +414,12 @@ Write-Host ""
 
 Write-Host "Environment" -ForegroundColor White
 Test-Environment
+Test-EmacsCapability "Emacs file notifications" `
+    '(unless (and (require (quote filenotify) nil t) (fboundp (quote file-notify-add-watch))) (kill-emacs 1))' `
+    "Install the current GNU.Emacs winget build"
+Test-EmacsCapability "Emacs SVG images" `
+    '(unless (image-type-available-p (quote svg)) (kill-emacs 1))' `
+    "Install a GNU Emacs build with SVG support"
 Write-Host ""
 
 Write-Host "Performance" -ForegroundColor White

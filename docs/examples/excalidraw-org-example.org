@@ -35,7 +35,8 @@ Left-click the preview image.  From the keyboard, put point on the
 =excalidraw:= link and press =SPC m D o= (diagram → open), or use Org's
 standard =C-c C-o=.
 That opens the corresponding =.excalidraw= source in the PWA.  Each save causes
-=fswatch= to run =excalidraw-cli= and replace the adjacent =.svg= preview.
+Emacs's file watcher to run =excalidraw-cli= and replace the adjacent =.svg=
+preview.
 
 Use =C-c C-x C-v= to toggle or refresh all inline images after returning to
 Emacs.  Saving the Org file is only needed to keep its link; the drawing itself
@@ -64,10 +65,12 @@ matter; the same command falls back to a UUID.
 
 * If the first diagram does not open or render
 
-On macOS, run =scripts/install-excalidraw-mac.sh=, complete the printed Chrome
-PWA/file-handler steps, then restart Emacs.  =sys check= verifies that =fswatch=
-and =excalidraw-cli= are available.  Package or module changes require
-=sys doom sync=, although creating and editing drawings does not.
+On macOS, run =scripts/install-excalidraw-mac.sh=.  On Windows, rerun
+=install.ps1= or =scripts/install-prerequisites.ps1=.  Complete the Chrome
+PWA/file-association step, then restart Emacs.  =sys check= on macOS or
+=scripts/doctor.ps1= on Windows verifies that =excalidraw-cli= is available.
+Package or module changes require =sys doom sync=, although creating and editing
+drawings does not.
 
 The full setup and design rationale are in
 [[file:../decisions/008-excalidraw-integration.md][ADR-008]].

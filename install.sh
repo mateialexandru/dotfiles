@@ -194,7 +194,7 @@ else
     fi
 fi
 
-# Excalidraw toolchain (macOS: Chrome PWA editor + excalidraw_export + fonts)
+# Excalidraw toolchain (macOS: faithful CLI exporter + Chrome PWA editor)
 if [[ "$OSTYPE" == "darwin"* ]]; then
     step "Excalidraw prereqs"
     bash "$DOTFILES_DIR/scripts/install-excalidraw-mac.sh"

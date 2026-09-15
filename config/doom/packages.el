@@ -89,7 +89,7 @@
   :pin "e9c8b6a4393dcc28f5796d9cf6d69d7ff05198f2")
 
 ;; Excalidraw — freeform/hand-drawn canvas via `excalidraw:' org links.
-;; Chrome PWA edits the JSON; fswatch → excalidraw_export → SVG inline. See ADR-008.
+;; Chrome PWA edits JSON; Emacs file notifications → excalidraw-cli → SVG. See ADR-008.
 (package! org-excalidraw
   :recipe (:host github :repo "wdavew/org-excalidraw"))
 

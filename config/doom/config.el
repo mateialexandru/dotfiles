@@ -593,8 +593,80 @@ is cropped in split windows.  The cached PNG remains full resolution."
 
 ;; --- Excalidraw ---
 ;; `excalidraw:' org links open the JSON in the Chrome PWA (File Handling API);
-;; saving there triggers fswatch → excalidraw-cli → SVG, shown inline.
-;; `org-excalidraw-initialize' starts the filewatcher. See ADR-008.
+;; saving there triggers Emacs file notifications → excalidraw-cli → SVG.
+;; The watcher and file opener below work on macOS, Windows, and Linux. See ADR-008.
+(defvar my/org-excalidraw--watch-descriptor nil
+  "File notification descriptor for `my/org-excalidraw-directory'.")
+
+(defvar my/org-excalidraw--export-timers (make-hash-table :test #'equal)
+  "Pending debounced Excalidraw exports, keyed by source path.")
+
+(defun my/org-excalidraw-open-file (path)
+  "Open Excalidraw file PATH with the platform's registered application."
+  (setq path (expand-file-name path))
+  (unless (file-exists-p path)
+    (user-error "Excalidraw file does not exist: %s" path))
+  (pcase system-type
+    ('windows-nt
+     (unless (fboundp 'w32-shell-execute)
+       (user-error "This Emacs build has no Windows shell integration"))
+     (w32-shell-execute "open" (convert-standard-filename path)))
+    ('darwin (start-process "org-excalidraw-open" nil "open" path))
+    (_ (start-process "org-excalidraw-open" nil "xdg-open" path))))
+
+(defun my/org-excalidraw-follow (svg-path)
+  "Open the editable Excalidraw source corresponding to SVG-PATH."
+  (my/org-excalidraw-open-file (string-remove-suffix ".svg" svg-path)))
+
+(defun my/org-excalidraw--refresh-previews (svg-path)
+  "Redisplay Org buffers that link to SVG-PATH."
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when (and (derived-mode-p 'org-mode)
+                 (save-excursion
+                   (goto-char (point-min))
+                   (search-forward svg-path nil t)))
+        (org-redisplay-inline-images)))))
+
+(defun my/org-excalidraw--export (path)
+  "Export Excalidraw PATH to its adjacent SVG and refresh Org previews."
+  (remhash path my/org-excalidraw--export-timers)
+  (when (and (file-readable-p path) (executable-find "excalidraw-cli"))
+    (let ((status (shell-command (org-excalidraw--shell-cmd-to-svg path))))
+      (if (zerop status)
+          (my/org-excalidraw--refresh-previews (concat path ".svg"))
+        (message "Excalidraw export failed for %s (exit %s)" path status)))))
+
+(defun my/org-excalidraw--handle-file-change (event)
+  "Schedule an SVG export for a relevant file notification EVENT."
+  (let* ((action (cadr event))
+         (path (pcase action
+                 ('renamed (or (cadddr event) (caddr event)))
+                 ((or 'changed 'created) (caddr event)))))
+    (when (and (stringp path) (string-suffix-p ".excalidraw" path t))
+      ;; PWA saves can emit several events, including `changed' on Windows.
+      ;; Wait for the write to settle and collapse them into one conversion.
+      (setq path (expand-file-name path))
+      (when-let* ((timer (gethash path my/org-excalidraw--export-timers)))
+        (cancel-timer timer))
+      (puthash path
+               (run-at-time 0.4 nil #'my/org-excalidraw--export path)
+               my/org-excalidraw--export-timers))))
+
+(defun my/org-excalidraw--start-watcher ()
+  "Start one Emacs-native watcher for the Excalidraw directory."
+  (when (and (file-directory-p org-excalidraw-directory)
+             (executable-find "excalidraw-cli"))
+    (unless (and my/org-excalidraw--watch-descriptor
+                 (file-notify-valid-p my/org-excalidraw--watch-descriptor))
+      (condition-case err
+          (setq my/org-excalidraw--watch-descriptor
+                (file-notify-add-watch org-excalidraw-directory '(change)
+                                       #'my/org-excalidraw--handle-file-change))
+        (file-notify-error
+         (message "Excalidraw watcher unavailable: %s"
+                  (error-message-string err)))))))
+
 (defun my/org-excalidraw-open-at-mouse (event)
   "Open the Excalidraw link beneath mouse EVENT."
   (interactive "e")
@@ -621,22 +693,19 @@ LINK is the Org link element passed to `org-link-preview-file'."
   ;; The package shells out to `excalidraw_export', whose reimplemented renderer
   ;; garbles bound/multi-line text. Swap in `@swiftlysingh/excalidraw-cli', which
   ;; uses the real Excalidraw `exportToSvg' → faithful layout. Same signature; the
-  ;; fswatch handler `org-excalidraw--handle-file-change' calls this. See ADR-008.
+  ;; Our file-notification handler calls this after a PWA save. See ADR-008.
   (defun org-excalidraw--shell-cmd-to-svg (path)
     "Command to convert the excalidraw file at PATH to `PATH'.svg."
     (format "excalidraw-cli convert %s --format svg --output %s"
             (shell-quote-argument path)
             (shell-quote-argument (concat path ".svg"))))
-  (when (and (file-directory-p org-excalidraw-directory)
-             (executable-find "excalidraw-cli")
-             (executable-find "fswatch"))
-    (org-excalidraw-initialize)
-    ;; org 9.7+ dropped the `:image-data-fun' link param the package registers
-    ;; for inline previews, in favour of `:preview'. Re-register so excalidraw
-    ;; thumbnails render — the link path is the exported .svg. Our small wrapper
-    ;; delegates rendering to Org, then makes the preview open on mouse-1.
-    (when (fboundp 'org-link-preview-file)
-      (org-link-set-parameters "excalidraw" :preview #'my/org-excalidraw-preview))))
+  (my/org-excalidraw--start-watcher)
+  ;; Upstream's opener falls back to xdg-open on Windows, and Org 9.7+ dropped
+  ;; its `:image-data-fun' preview API. Register both portable replacements.
+  (org-link-set-parameters
+   "excalidraw"
+   :follow #'my/org-excalidraw-follow
+   :preview (and (fboundp 'org-link-preview-file) #'my/org-excalidraw-preview)))
 
 ;; The upstream `org-excalidraw-create-drawing' names files by UUID. These wrap
 ;; it to name a drawing up front (or rename one later), so the drawings dir stays
@@ -661,13 +730,26 @@ LINK is the Org link element passed to `org-link-preview-file'."
   (let* ((path (my/org-excalidraw--unique (my/org-diagram--slug name)))
          (link (format "[[excalidraw:%s.svg]]" path)))
     (with-temp-file path (insert org-excalidraw-base))
-    (shell-command (org-excalidraw--shell-cmd-open path system-type))
+    (my/org-excalidraw-open-file path)
     link))
 
 (defun my/org-excalidraw-create-named (name)
   "Create a named Excalidraw drawing and insert its link at point."
   (interactive "sDrawing name: ")
   (insert (my/org-excalidraw-create-link name)))
+
+(defun my/org-excalidraw-create-drawing ()
+  "Create an UUID-named drawing through the portable Excalidraw workflow."
+  (interactive)
+  (insert (my/org-excalidraw-create-link "")))
+
+(after! org-excalidraw
+  ;; Keep the upstream command name useful while avoiding its xdg-open fallback
+  ;; on Windows. The named command remains the normal UI under `SPC m D n'.
+  (unless (advice-member-p #'my/org-excalidraw-create-drawing
+                           'org-excalidraw-create-drawing)
+    (advice-add 'org-excalidraw-create-drawing :override
+                #'my/org-excalidraw-create-drawing)))
 
 (defun my/org-excalidraw-rename (new-name)
   "Rename the excalidraw drawing linked at point to NEW-NAME.

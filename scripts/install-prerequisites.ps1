@@ -72,8 +72,14 @@ Write-Host "`nInstalling Roslyn LSP (C# language server)..." -ForegroundColor Cy
 Write-Host "`nInstalling npm global packages..." -ForegroundColor Cyan
 npm install -g yaml-language-server
 npm install -g @mermaid-js/mermaid-cli
+npm install -g @swiftlysingh/excalidraw-cli
 npm install -g @github/copilot
 npm install -g bash-language-server typescript-language-server vscode-langservers-extracted
+
+# Shared Doom config stores editable drawings here on every platform.
+$excalidrawDir = Join-Path $env:USERPROFILE "Documents\org\excalidraw"
+New-Item -ItemType Directory -Path $excalidrawDir -Force | Out-Null
+Write-Host "  Excalidraw: associate .excalidraw files with the Chrome PWA once installed." -ForegroundColor Gray
 
 # PowerShell notifications used by config/shell/doom.ps1
 if (-not (Get-Module -ListAvailable BurntToast)) {
@@ -117,6 +123,7 @@ $tools = @{
     "roslyn-lsp" = "Test-Path `"$env:LOCALAPPDATA\roslyn-lsp\Microsoft.CodeAnalysis.LanguageServer.dll`""
     "yaml-language-server" = "yaml-language-server --version"
     "mmdc" = "mmdc --version"
+    "excalidraw-cli" = "excalidraw-cli --version"
     "uv" = "uv --version"
     "pyright" = "pyright --version"
     "ruff" = "ruff --version"

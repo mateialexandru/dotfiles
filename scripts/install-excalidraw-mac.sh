@@ -2,9 +2,8 @@
 # Excalidraw prerequisites for the org-excalidraw (wdavew) Doom integration.
 #
 # `excalidraw:' org links open the drawing JSON in the Chrome Excalidraw PWA
-# (File Handling API); on save, fswatch runs the exporter to regenerate an SVG
+# (File Handling API); on save, Emacs file notifications run the exporter to regenerate an SVG
 # that org displays inline. This installs the toolchain that lane needs:
-#   - fswatch            the filewatcher org-excalidraw-initialize starts
 #   - excalidraw-cli     JSON → SVG converter (@swiftlysingh/excalidraw-cli): the
 #                        real @excalidraw/utils exportToSvg() + bundled fonts, so
 #                        bound/multi-line text lays out faithfully. No browser, no
@@ -24,9 +23,6 @@ fi
 EXCALIDRAW_DIR="$HOME/Documents/org/excalidraw"
 
 install_excalidraw_prereqs() {
-    # Filewatcher for org-excalidraw's file-notify watch.
-    brew install fswatch
-
     # Faithful JSON → SVG converter (real Excalidraw renderer, no native build).
     # Node CLI; `npm i -g` is idempotent. Needs Node >= 20.19 (see .nvmrc/brew node).
     npm install -g @swiftlysingh/excalidraw-cli

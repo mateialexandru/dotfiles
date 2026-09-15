@@ -156,10 +156,8 @@ fi
 
 # 13. excalidraw export toolchain (ADR-008) — installed on macOS only
 if $IS_MAC; then
-  exc_missing=()
-  for t in fswatch excalidraw-cli; do command -v "$t" >/dev/null 2>&1 || exc_missing+=("$t"); done
-  if [[ ${#exc_missing[@]} -eq 0 ]]; then pass "excalidraw" "fswatch + excalidraw-cli"
-  else fail "excalidraw" "missing: ${exc_missing[*]} — run scripts/install-excalidraw-mac.sh"; fi
+  if command -v excalidraw-cli >/dev/null 2>&1; then pass "excalidraw" "excalidraw-cli"
+  else fail "excalidraw" "missing: excalidraw-cli — run scripts/install-excalidraw-mac.sh"; fi
 fi
 
 # 14. Ollama local LLM (ADR-013) — optional and on-demand. A missing binary is

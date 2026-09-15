@@ -265,7 +265,7 @@ macOS-only for now. Set
 | `scripts/install-emacs-mac.sh` | macOS-only: emacs-plus@30 + Emacs Client.app; `install.sh` starts the daemon after Doom sync (daemon env/libgccjit fix lives in `config/shell/init.zsh` + `config/doom/config-macos.el`) |
 | `scripts/install-llm-mac.sh` | macOS-only: local LLM layer — Ollama formula (managed GGUF endpoint, pulls `scripts/ollama-models.txt`) + LM Studio cask (user-managed MLX GUI) + `sys llm mirror` (symlink Ollama models into LM Studio). Daemon on-demand via `sys llm start`, not a login service (see ADR-013) |
 | `scripts/install-scrim-captee-mac.sh` | macOS-only, standalone (not in install.sh): opens the App Store "Scrim + Captee for Emacs" bundle + prints org-capture setup (see ADR-010) |
-| `scripts/install-excalidraw-mac.sh` | macOS-only: excalidraw prereqs (fswatch + `@swiftlysingh/excalidraw-cli` faithful exporter + drawings dir) via `install_excalidraw_prereqs`; retires the old `excalidraw_export`/node-canvas/fonts; prints manual Chrome-PWA/handler steps (see ADR-008) |
+| `scripts/install-excalidraw-mac.sh` | macOS Excalidraw prereqs (`@swiftlysingh/excalidraw-cli` faithful exporter + drawings dir); Windows installs the same npm CLI in `install-prerequisites.ps1`; both use Emacs-native file notifications (see ADR-008) |
 | `scripts/update.sh` / `.ps1` | Upgrade the platform package manager, global development tools, Doom packages, and compiled `hack`, then run `sys check` |
 | `scripts/sys-health.sh` | macOS/Linux implementation of `sys check`: full confidence pass over the editor and tooling; hard-exits 1 on any failure |
 | `scripts/install-hack.sh` / `.ps1` | Build and install the Rust `hack` binary with Cargo |

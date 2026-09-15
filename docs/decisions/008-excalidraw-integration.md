@@ -1,6 +1,6 @@
 # ADR-008: Excalidraw Integration in Doom Emacs
 
-**Status:** Accepted (Revision 2026-07-25) — was Proposed/deferred 2026-04-22
+**Status:** Accepted (Revision 2026-09-15) — was Proposed/deferred 2026-04-22
 **Date:** 2026-04-22
 
 ## Context
@@ -9,7 +9,7 @@ Mermaid + PlantUML wired. Text-DSL diagrams covered. Excalidraw adds freeform/ha
 
 ## Options
 
-1. **`wdavew/org-excalidraw`** (161★) — canonical. Custom `excalidraw:` org link. PWA edits JSON on disk. Filewatcher runs `excalidraw_export` → SVG. Org inline-image displays SVG.
+1. **`wdavew/org-excalidraw`** (161★) — canonical. Custom `excalidraw:` Org link. PWA edits JSON on disk. Emacs file notifications run the exporter → SVG. Org displays the SVG inline.
 2. **`4honor/org-excalidraw`** (17★) — fork, less traction. Skip.
 3. **On-demand, no watcher** — `after-save-hook` scoped to `.excalidraw`, or manual command.
 4. **Self-host Excalidraw** (Docker) — offline, but PWA File Handling needs HTTPS + manifest.
@@ -22,7 +22,7 @@ M-x org-excalidraw-create-drawing
   → UUID.excalidraw JSON + [[excalidraw:path]] link
 click link → Chrome PWA opens file (File Handling API)
 save in PWA → JSON rewritten
-  → fswatch → excalidraw_export → UUID.excalidraw.svg
+  → Emacs file notification → excalidraw-cli → UUID.excalidraw.svg
   → org inline image
 ```
 
@@ -30,16 +30,14 @@ save in PWA → JSON rewritten
 
 | Dep | Purpose | Risk |
 |-----|---------|------|
-| `excalidraw_export` (Timmmm) | JSON → SVG | node-canvas native build fails without cairo/pango |
-| `canvas` npm | Exporter backend | Breaks on Node major upgrade |
-| Virgil + Cascadia TTFs | SVG text render | Missing = garbled glyphs |
+| `@swiftlysingh/excalidraw-cli` | JSON → SVG | Requires Node ≥ 20.19 |
 | Chrome/Chromium PWA | Editor | Hard req — Firefox/Safari lack File Handling API |
-| `chrome://flags` File Handling API | Route `.excalidraw` to PWA | Can reset on Chrome update |
-| `fswatch` / `inotify-tools` | Filewatcher | Negligible idle cost |
+| OS file association | Route `.excalidraw` to PWA | One-time GUI setup per platform |
+| Emacs file notifications | Cross-platform save watcher | Backend/event shapes vary by OS |
 
 ## Decision Drivers
 
-- Setup: 6 deps, 3 failure-prone (node-gyp, Chrome flag, fonts).
+- Setup: one CLI dependency plus a one-time Chrome PWA/file-association step.
 - Chromium lock-in.
 - Value ceiling: only freeform beats Mermaid/PlantUML. Boxes-and-arrows → text DSL wins (diff, VC, setup).
 
@@ -49,14 +47,14 @@ save in PWA → JSON rewritten
 
 Freeform/hand-drawn need confirmed; Chrome installed as a dedicated editor app
 (not the daily browser — Safari stays primary, ADR-010). The setup is scripted +
-idempotent (`scripts/install-excalidraw-mac.sh`, run from `install.sh` on macOS):
-fswatch, the exporter (`@swiftlysingh/excalidraw-cli`), and the drawings dir. Only
-the GUI steps stay manual (Chrome PWA install + `.excalidraw` handler), printed by
-the script.
+idempotent: `scripts/install-excalidraw-mac.sh` installs the exporter and drawings
+directory on macOS; `scripts/install-prerequisites.ps1` does the same on Windows.
+Only the GUI steps stay manual (Chrome PWA install + `.excalidraw` file association).
 
 Wiring lives in `config/doom/packages.el` (`package!`) + `config/doom/config.el` (`use-package!`).
-`org-excalidraw-initialize` is guarded on the deps + dir existing so a partial
-install never aborts Doom boot (cf. the libgccjit boot-abort class, ADR-009).
+The shared config owns the `file-notify-add-watch` registration. It is guarded on
+the exporter and directory, handles both atomic `renamed` saves and Windows-style
+`changed` saves, and reports watcher failure without aborting Doom boot.
 
 ### Exporter: dropped `excalidraw_export`, adopted `@swiftlysingh/excalidraw-cli`
 
@@ -79,8 +77,8 @@ both now retired:
 `exportToSvg()` + bundled fonts → faithful bound/multi-line layout (verified on the
 same yelp diagram) and rounded corners. No browser, no node-canvas, brew/npm
 install, offline. So the whole cairo/pango/canvas/fonts stack is gone. The Doom
-side redefines `org-excalidraw--shell-cmd-to-svg` (same signature) to call it;
-the fswatch handler is unchanged.
+side redefines `org-excalidraw--shell-cmd-to-svg` (same signature) to call it and
+supplies its own portable, debounced file-notification handler.
 
 Considered `4honor/org-excalidraw` (kroki-cli) — drops node-gyp but adds a kroki
 server (public kroki.io leaks diagram JSON unless self-hosted). Not needed now.
@@ -92,21 +90,24 @@ Revisit if:
 
 ## Applied Recipe
 
-### 1. Prereqs — `scripts/install-excalidraw-mac.sh`
+### 1. Prerequisites
 
-Scripted + idempotent, run from `install.sh` on macOS: `brew install fswatch`,
-`npm install -g @swiftlysingh/excalidraw-cli` (Node ≥ 20.19; no native build), and
-`mkdir` the drawings dir. It also cleans up any prior `excalidraw_export` install
+Both platforms install `@swiftlysingh/excalidraw-cli` with npm (Node ≥ 20.19; no
+native build) and create `~/Documents/org/excalidraw/`. macOS does this through
+`scripts/install-excalidraw-mac.sh`; Windows uses
+`scripts/install-prerequisites.ps1`. The macOS script also cleans up any prior
+`excalidraw_export` install
 (the `~/.local/share/excalidraw-export` node-canvas host, its PATH symlink, the
 Virgil/Cascadia fonts) so a stale binary can't win on PATH.
 
-### 2. Chrome (GUI, one-time — printed by the script)
+### 2. Chrome (GUI, one-time)
 
 - Install Chrome (dedicated editor app, not the daily browser — Safari stays primary).
 - excalidraw.com → install as PWA. File Handling API is default-on since Chrome 102
   (no `chrome://flags`); grant the `.excalidraw` prompt (or chrome://apps → App info).
-- Finder: `.excalidraw` → Get Info → Open with Excalidraw.app → Change All.
-- Verify: `open file.excalidraw` launches the PWA with the file loaded.
+- Associate `.excalidraw` with the installed Excalidraw PWA: Finder → Get Info →
+  Open with on macOS, or Open with → Choose another app on Windows.
+- Verify that opening a `.excalidraw` file launches the PWA with the file loaded.
 
 ### 3. Doom — `config/doom/packages.el`
 
@@ -117,8 +118,11 @@ Virgil/Cascadia fonts) so a stale binary can't win on PATH.
 
 ### 4. Doom — `config/doom/config.el`
 
-`org-excalidraw-initialize` (the filewatcher) is guarded on the deps + dir existing,
-so a partial/missing install never aborts Doom boot (cf. libgccjit boot-abort, ADR-009):
+The shared configuration registers a guarded Emacs-native watcher. It debounces
+save events and accepts `changed`, `created`, and `renamed` actions, then refreshes
+Org previews after a successful export. Opening uses `open` on macOS,
+`w32-shell-execute` on Windows, and `xdg-open` elsewhere. No external watcher is
+required:
 
 ```elisp
 (use-package! org-excalidraw
@@ -127,17 +131,17 @@ so a partial/missing install never aborts Doom boot (cf. libgccjit boot-abort, A
   :config
   (setq org-excalidraw-directory "~/Documents/org/excalidraw")
   ;; Faithful exporter: real Excalidraw renderer, not excalidraw_export (garbles
-  ;; bound/multi-line text — see Decision). Same signature; fswatch handler uses it.
+  ;; bound/multi-line text — see Decision). Same signature; our watcher uses it.
   (defun org-excalidraw--shell-cmd-to-svg (path)
     (format "excalidraw-cli convert %s --format svg --output %s"
             (shell-quote-argument path)
             (shell-quote-argument (concat path ".svg"))))
-  (when (and (file-directory-p org-excalidraw-directory)
-             (executable-find "excalidraw-cli")
-             (executable-find "fswatch"))
-    (org-excalidraw-initialize)
-    (when (fboundp 'org-link-preview-file)
-      (org-link-set-parameters "excalidraw" :preview #'my/org-excalidraw-preview))))
+  (my/org-excalidraw--start-watcher)
+  (org-link-set-parameters
+   "excalidraw"
+   :follow #'my/org-excalidraw-follow
+   :preview (and (fboundp 'org-link-preview-file)
+                 #'my/org-excalidraw-preview)))
 ```
 
 **Inline-preview gotcha (org 9.7+):** the package registers the link's inline
@@ -182,8 +186,9 @@ Named-file wrapper + rename live on the Org localleader under `SPC m D`
 | `SPC m D r` | Diagram → rename at point — renames `.excalidraw` + `.svg`, rewrites link |
 
 Blank name → UUID fallback; slug collisions auto-suffix `-1`, `-2`. Left-click a
-preview (or use `SPC m D o`) → PWA; save there → fswatch regenerates the SVG.
-Toggle/refresh inline images with `C-c C-x C-v` (they're on at startup via
+preview (or use `SPC m D o`) → PWA; save there → Emacs regenerates the SVG and
+redisplays matching Org previews. Toggle/refresh inline images manually with
+`C-c C-x C-v` if needed (they're on at startup via
 `org-startup-with-inline-images`).
 
 ## Related

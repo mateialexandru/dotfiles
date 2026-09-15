@@ -119,7 +119,10 @@ Org. Left-click the preview image to reopen it for editing. The `SPC m D`
 (diagram) menu provides new, open-at-point, and rename actions. See
 [`docs/examples/excalidraw-org-example.org`](docs/examples/excalidraw-org-example.org)
 for a worksheet where you can bootstrap a diagram on the spot and follow the
-complete edit/save/refresh loop.
+complete edit/save/refresh loop. The same workflow runs on macOS and Windows;
+on Windows, associate `.excalidraw` files with the installed Chrome Excalidraw
+PWA once so `SPC m D o` can open the editor. Emacs's native file notifications
+drive export on both platforms—no external watcher is required.
 
 ## API, JSON, and data tools in Emacs
 
