@@ -1,54 +1,24 @@
 #!/usr/bin/env bash
-# install-hack.sh — Adds hack.ps1 to the PowerShell profile on macOS/Linux
+# Build and install the compiled hack worktree manager.
 
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-HACK_SCRIPT="$DOTFILES_DIR/shell/hack.ps1"
+TOOL_DIR="$DOTFILES_DIR/tools/hack"
 
-if [[ ! -f "$HACK_SCRIPT" ]]; then
-    echo "Error: hack.ps1 not found at $HACK_SCRIPT" >&2
+if ! command -v cargo >/dev/null 2>&1; then
+    echo "Error: cargo is required to build hack." >&2
     exit 1
 fi
 
-# Install dependencies via Homebrew
-if ! command -v brew &>/dev/null; then
-    echo "Error: Homebrew is required. Install from https://brew.sh" >&2
-    exit 1
+cargo install --locked --force --root "$HOME/.local" --path "$TOOL_DIR"
+echo "Installed hack to $HOME/.local/bin/hack"
+
+# v3 was dot-sourced into the PowerShell profile. Remove that now-dead source line.
+LEGACY_PROFILE="$HOME/.config/powershell/Microsoft.PowerShell_profile.ps1"
+if [[ -f "$LEGACY_PROFILE" ]] && grep -qF "$DOTFILES_DIR/shell/hack.ps1" "$LEGACY_PROFILE"; then
+    CLEAN_PROFILE="$(mktemp "${LEGACY_PROFILE}.XXXXXX")"
+    grep -vF "$DOTFILES_DIR/shell/hack.ps1" "$LEGACY_PROFILE" > "$CLEAN_PROFILE" || true
+    mv "$CLEAN_PROFILE" "$LEGACY_PROFILE"
+    echo "Removed the legacy hack.ps1 profile source."
 fi
-
-for dep in fzf python3; do
-    if ! command -v "$dep" &>/dev/null; then
-        echo "Installing $dep..."
-        brew install "$dep"
-    else
-        echo "$dep already installed"
-    fi
-done
-
-# Cross-platform PowerShell 7 profile location outside Windows.
-PWSH_PROFILE="$HOME/.config/powershell/Microsoft.PowerShell_profile.ps1"
-PWSH_PROFILE_DIR="$(dirname "$PWSH_PROFILE")"
-
-if ! command -v pwsh &>/dev/null; then
-    echo "pwsh not found — skipping hack install (install PowerShell first)"
-    exit 0
-fi
-
-mkdir -p "$PWSH_PROFILE_DIR"
-
-if [[ ! -f "$PWSH_PROFILE" ]]; then
-    touch "$PWSH_PROFILE"
-    echo "Created pwsh profile at $PWSH_PROFILE"
-fi
-
-DOT_SOURCE_LINE=". \"$HACK_SCRIPT\""
-
-if grep -qF "$HACK_SCRIPT" "$PWSH_PROFILE" 2>/dev/null; then
-    echo "hack.ps1 already sourced in pwsh profile"
-    exit 0
-fi
-
-printf '\n# Hack worktree tooling\n%s\n' "$DOT_SOURCE_LINE" >> "$PWSH_PROFILE"
-echo "Added hack.ps1 to pwsh profile: $PWSH_PROFILE"
-echo "Restart your shell or run: $DOT_SOURCE_LINE"

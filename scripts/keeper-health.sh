@@ -81,9 +81,9 @@ else fail "doom doctor" "doom binary missing at $DOOM — run \`keeper install\`
 
 # 6. core tools on PATH
 missing=()
-for t in rg fd node dotnet just emacsclient mmdc pwsh; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
+for t in rg fd node dotnet just emacsclient mmdc hack; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
 [[ -x "$HOME/.dotnet/tools/csharpier" ]] || missing+=(csharpier)
-if [[ ${#missing[@]} -eq 0 ]]; then pass "tools" "rg fd node dotnet just csharpier mmdc pwsh"
+if [[ ${#missing[@]} -eq 0 ]]; then pass "tools" "rg fd node dotnet just csharpier mmdc hack"
 else fail "tools" "missing: ${missing[*]} — run \`keeper install\`"; fi
 
 # 7. Roslyn C# LSP DLL present
@@ -172,11 +172,10 @@ ctags_want="$REPO/ctags.d"; ctags_got="$(readlink "$HOME/.config/ctags" 2>/dev/n
 if [[ "$ctags_got" == "$ctags_want" ]]; then pass "ctags config" "~/.config/ctags → $ctags_got"
 else fail "ctags config" "is '${ctags_got:-missing}', want '$ctags_want' — run \`keeper install\`"; fi
 
-# 17. PowerShell worktree tooling
-pwsh_profile="$HOME/.config/powershell/Microsoft.PowerShell_profile.ps1"
-if grep -qF "$REPO/shell/hack.ps1" "$pwsh_profile" 2>/dev/null; then
-  pass "hack tooling" "PowerShell profile sources hack.ps1"
-else fail "hack tooling" "not activated — run scripts/install-hack.sh"; fi
+# 17. Compiled worktree tooling
+if command -v hack >/dev/null 2>&1 && hack --help >/dev/null 2>&1; then
+  pass "hack tooling" "compiled binary available"
+else fail "hack tooling" "not installed — run scripts/install-hack.sh"; fi
 
 # 18. ssh ControlMaster block for tailnet
 if grep -q 'Host \*.ts.net' "$HOME/.ssh/config" 2>/dev/null; then pass "ssh controlmaster" "Host *.ts.net present"

@@ -127,7 +127,7 @@ fi
 step "Core packages, tools, Java, and fonts (Homebrew)"
 
 # Core Runtimes & Build Tools
-brew install node dotnet cmake ninja llvm devcontainer just libtool powershell
+brew install node dotnet cmake ninja llvm devcontainer just libtool
 
 # Everyday tools & Utilities
 brew install fzf zoxide gh git ripgrep fd jq universal-ctags poppler pandoc grip gnuplot shellcheck rust rust-analyzer \

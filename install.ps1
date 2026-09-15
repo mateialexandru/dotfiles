@@ -18,7 +18,7 @@ Write-Host "`n--- Development prerequisites ---" -ForegroundColor Cyan
 Write-Host "`n--- Doom Emacs ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-doom.ps1")
 
-# 4. Hack worktree tooling (fzf + profile dot-source)
+# 4. Compiled Hack worktree tooling
 Write-Host "`n--- Hack worktree tooling ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-hack.ps1")
 

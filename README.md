@@ -15,7 +15,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/
 To install the editor/tooling baseline without Ollama, LM Studio, or the
 optional local model set (about 32 GB), append `-- --skip-llm`.
 
-Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. On macOS, sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also installs PowerShell and activates the `hack` worktree tooling, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
+Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. On macOS, sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
 
 ### Windows
 
@@ -28,6 +28,23 @@ cd C:\avd\dotfiles
 ```
 
 Run `scripts\doctor.ps1` afterwards to verify the environment.
+
+## Repository worktrees
+
+`hack` keeps a small catalog of repositories and creates isolated task checkouts from
+the latest remote base branch:
+
+```text
+hack repo add product git@github.com:company/product.git develop
+hack product/fix-login
+hack list
+hack remove product/fix-login
+```
+
+Each spawn fetches first and starts a new task at `origin/develop` (or the base supplied
+when the repository was added). An existing remote task branch is resumed. Hack only
+manages Git state; opening the worktree in Emacs or delegating work happens separately.
+The catalog is stored in `~/.config/hack/config.json`.
 
 ## Mermaid diagrams in Emacs
 

@@ -228,19 +228,17 @@ SPC o x p   # (re)install tmux.conf on a host
 
 ### Worktree tooling (`hack`)
 
-`shell/hack.ps1` is a PowerShell-based git worktree manager (requires `pwsh` on Linux/macOS). Loaded via dot-source from the shell profile (installed by `scripts/install-hack.ps1` / `install-hack.sh`).
+`tools/hack` is a small compiled Rust tool for a catalog of repositories and their worktrees. It keeps one hidden bare clone per repository under `<baseDir>/.trees/`. Spawning always fetches first and creates a new task branch directly from the configured `origin/<baseBranch>` (`develop` by default), so a stale local base branch cannot leak into a new task. If the task branch already exists on the remote, it is resumed instead. The tool does not launch agents or editors.
 
-```powershell
-hack <repo>/<branch-slug>   # Create worktree
-hack go [filter]            # fzf picker + cd
-hack list [repo]            # Status dashboard
-hack clean [repo]           # Remove merged worktrees
-
-workshop add <alias> <url>  # Register a repo
-workshop default <alias>    # Set default repo
+```text
+hack repo add <alias> <url> [base]  # Register a repository
+hack repo list                      # Show the catalog
+hack <repo>/<branch-slug>           # Fetch + create/resume worktree
+hack list                           # Show active worktrees
+hack remove <repo>/<branch-slug>    # Remove only when clean and merged
 ```
 
-Config lives at `~/.config/hack/config.json` (not committed; auto-created on first `workshop add`). See `shell/hack-config.sample.json` for the format.
+Config lives at `~/.config/hack/config.json` and remains compatible with the earlier PowerShell implementation. See `shell/hack-config.sample.json` for the format. Install with `scripts/install-hack.sh` or `scripts/install-hack.ps1`.
 
 ### Shell (`shell/init.zsh`)
 
@@ -256,7 +254,7 @@ Source this from `.zshrc` for shared aliases (`e`, `et`, `g`, `gs`, `gd`, `gl`),
 | `scripts/install-scrim-captee-mac.sh` | macOS-only, standalone (not in install.sh): opens the App Store "Scrim + Captee for Emacs" bundle + prints org-capture setup (see ADR-010) |
 | `scripts/install-excalidraw-mac.sh` | macOS-only: excalidraw prereqs (fswatch + `@swiftlysingh/excalidraw-cli` faithful exporter + drawings dir) via `install_excalidraw_prereqs`; retires the old `excalidraw_export`/node-canvas/fonts; prints manual Chrome-PWA/handler steps (see ADR-008) |
 | `scripts/keeper-health.sh` | macOS/Linux: full confidence pass — doom symlink, daemon env (PATH/LIBRARY_PATH inherited), daemon (ping-authoritative), native-comp queue, doom doctor, core tools, Roslyn DLL, LSP servers, apheleia formatters, Emacs Client.app, org-protocol→Scrim pin, excalidraw toolchain, Ollama (advisory when down), gptel/gptel-agent built + global gitignore in effect, ssh ControlMaster. Hard-exits 1 on any fail; latent/transient items are advisory. Run via `keeper health` |
-| `scripts/install-hack.sh` / `.ps1` | Dot-source hack.ps1 into pwsh profile |
+| `scripts/install-hack.sh` / `.ps1` | Build and install the Rust `hack` binary with Cargo |
 | `scripts/install-roslyn-lsp.sh` / `.ps1` | Download Microsoft Roslyn LSP NuGet package to `~/.local/share/roslyn-lsp` (or `%LOCALAPPDATA%\roslyn-lsp\` on Windows) |
 | `scripts/install-plantuml.sh` | Download PlantUML's jar into Doom's profile data directory |
 | `scripts/install-prerequisites.ps1` | Windows: ctags, node, dotnet, cmake, etc. via winget |
@@ -286,6 +284,7 @@ Significant design choices are documented in `decisions/` as ADRs. Check there b
 | `013-llm-ollama-lmstudio.md` | Local LLM: Ollama managed GGUF endpoint (`:11434`) + LM Studio user-managed MLX GUI; why stores can't be shared (Ollama copies in; GGUF≠MLX); `keeper llm` on-demand control + `mirror` symlink bridge; curated 64 GB set |
 | `014-gptel-emacs-llm-client.md` | gptel on Doom's `:tools llm`: ChatGPT-subscription OAuth (not an API key), Ollama as second backend, gptel-agent for project sessions/tools/sub-agents, in-repo transcripts + global gitignore |
 | `015-python-uv.md` | Python: `+uv` auto-activates the project `.venv`, ruff replaces black+isort+pyflakes, pyright pinned to `.venv`, `uv run pytest`, projectile `python-uv` type; only `pyright`+`ruff` stay global, only bootstrapping (`SPC m u`) is scripted |
+| `017-compiled-hack-worktrees.md` | Compiled catalog-driven worktrees; every task starts from freshly fetched `origin/<base>` |
 
 ## Related files
 

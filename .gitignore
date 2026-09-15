@@ -24,3 +24,6 @@ PowerShellEditorServices.json
 
 # Windows artifact
 nul
+
+# Rust build output
+tools/hack/target/

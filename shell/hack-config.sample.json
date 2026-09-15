@@ -10,7 +10,7 @@
     },
     "dotfiles": {
       "url": "https://github.com/user/dotfiles",
-      "baseBranch": "master"
+      "baseBranch": "main"
     }
   }
 }
