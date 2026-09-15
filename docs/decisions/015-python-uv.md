@@ -7,7 +7,7 @@
 
 Python was half-provisioned. `install.sh` installed `uv` plus six global Python tools
 (`pyright`, `black`, `isort`, `pyflakes`, `pytest`, `ruff`) as `uv tool`s, and
-`keeper health` checked for them — but Doom's `:lang python` module was enabled **with no
+`sys check` checked for them — but Doom's `:lang python` module was enabled **with no
 flags**. That combination gives a mode with syntax highlighting and nothing else: no LSP
 hook, no virtualenv detection, no tree-sitter. The tools were on PATH and unreachable from
 the editor.
@@ -143,7 +143,7 @@ project dependencies. Scanning is single-file only.
 
 ## Consequences
 
-- Global Python tools drop from six to two (`pyright`, `ruff`). `keeper health` checks the
+- Global Python tools drop from six to two (`pyright`, `ruff`). `sys check` checks the
   same two.
 - Anything project-specific (pytest, mypy, nox, ...) is a project dependency invoked through
   `uv run`, which is where version pinning belongs.
@@ -183,4 +183,4 @@ project dependencies. Scanning is single-file only.
 - [uv](https://github.com/astral-sh/uv) · [ruff](https://github.com/astral-sh/ruff) · [ty](https://github.com/astral-sh/ty)
 - `~/.config/emacs/sources/doom+/modules/lang/python/README.org` — module flags
 - [PEP 668](https://peps.python.org/pep-0668/) — externally managed environments
-- ADR-012 (`keeper` ops wrapper), ADR-001 (LSP client choice)
+- ADR-012 (`sys` ops wrapper), ADR-001 (LSP client choice)

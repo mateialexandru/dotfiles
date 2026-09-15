@@ -7,12 +7,12 @@
 #                        yourself. The installer only ensures it's present.
 #
 # Ollama and LM Studio can't share model files (Ollama always copies into its own
-# content-addressed store; GGUF≠MLX). As a convenience, `keeper llm mirror` symlinks
+# content-addressed store; GGUF≠MLX). As a convenience, `sys llm mirror` symlinks
 # Ollama's GGUF blobs into LM Studio's tree so they also show up there labelled `ollama`
 # — run here at the end (best-effort; self-healing).
 #
-# The Ollama daemon is ON-DEMAND, not a login service: control with `keeper llm start`
-# / `keeper llm stop` / `keeper llm status`. This installer spins it up transiently (via
+# The Ollama daemon is ON-DEMAND, not a login service: control with `sys llm start`
+# / `sys llm stop` / `sys llm status`. This installer spins it up transiently (via
 # `brew services run`, which does NOT register for login) only to pull the model set.
 #
 # See docs/decisions/013-llm-ollama-lmstudio.md.
@@ -35,7 +35,7 @@ brew install ollama
 
 # --- Bring the daemon up just long enough to pull models ---
 # `brew services run` starts it now WITHOUT registering it at login (unlike `start`),
-# matching the on-demand `keeper llm *` model.
+# matching the on-demand `sys llm *` model.
 if ! curl -fsS "$ENDPOINT/api/tags" >/dev/null 2>&1; then
     echo "Starting Ollama (on-demand, no login registration) to pull models..."
     brew services run ollama >/dev/null 2>&1 || true
@@ -46,7 +46,7 @@ if ! curl -fsS "$ENDPOINT/api/tags" >/dev/null 2>&1; then
     done
     echo
     if ! curl -fsS "$ENDPOINT/api/tags" >/dev/null 2>&1; then
-        echo "✗ Ollama endpoint did not come up — run \`keeper llm start\` and re-run." >&2
+        echo "✗ Ollama endpoint did not come up — run \`sys llm start\` and re-run." >&2
         exit 1
     fi
 fi
@@ -62,8 +62,8 @@ while IFS= read -r line; do
 done < "$MANIFEST"
 
 # --- Mirror GGUF models into LM Studio (best-effort convenience) ---
-just -f "$REPO/justfile" -d "$REPO" llm mirror 2>/dev/null || true
+bash "$REPO/scripts/llm-mac.sh" mirror 2>/dev/null || true
 
 echo
-echo "==> Local LLM ready. Ollama on $ENDPOINT (control with \`keeper llm start|stop|status\`)."
+echo "==> Local LLM ready. Ollama on $ENDPOINT (control with \`sys llm start|stop|status\`)."
 echo "    LM Studio: open the app and download MLX models yourself; Ollama models are mirrored in."

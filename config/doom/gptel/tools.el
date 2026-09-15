@@ -27,13 +27,10 @@
       (format "exit %s\n%s" exit (buffer-string)))))
 
 (gptel-make-tool
- :name "keeper_health"
+ :name "sys_check"
  :function (lambda ()
-             (my/gptel--sh "just"
-                           "-f" (expand-file-name "~/Source/dotfiles/justfile")
-                           "-d" (expand-file-name "~/Source/dotfiles")
-                           "health"))
- :description "Run the dotfiles confidence pass (`keeper health'): doom symlink, \
+             (my/gptel--sh "sys" "check"))
+ :description "Run the dotfiles confidence pass (`sys check'): doom symlink, \
 Emacs daemon and its environment, native-comp queue, doom doctor, core tools, \
 LSP servers, formatters, org-protocol handler, excalidraw toolchain, Ollama and \
 ssh ControlMaster. Use this when asked why the Emacs or dotfiles setup is \
@@ -47,7 +44,7 @@ misbehaving. Takes a while; it is read-only."
              (if (eq 0 (call-process "curl" nil nil nil "-fsS" "-m" "2"
                                      "http://localhost:11434/api/tags"))
                  (my/gptel--sh "ollama" "list")
-               "Ollama is not running. Start it with `keeper llm start'."))
+               "Ollama is not running. Start it with `sys llm start'."))
  :description "List the local LLM models pulled into Ollama on this machine, or \
 report that the on-demand daemon is stopped. The manifest of models that \
 *should* be present is scripts/ollama-models.txt in the dotfiles repo."

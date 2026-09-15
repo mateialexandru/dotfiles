@@ -12,7 +12,7 @@
 ;;
 ;; - A second backend on the managed Ollama endpoint from ADR-013. That daemon
 ;;   is on-demand, so switching to it checks the endpoint and points at
-;;   `keeper llm start' rather than failing mid-request.
+;;   `sys llm start' rather than failing mid-request.
 ;;
 ;; - gptel-agent, which turns a buffer into a project-scoped agent: ~32 tools
 ;;   (read/grep/glob free, bash/edit/write confirmed), sub-agents read from
@@ -59,7 +59,7 @@ gptel advertises this one as the best for coding and agentic tasks;
   (setq gptel-temperature nil)
 
   (setq my/gptel-backend-openai (gptel-make-openai-oauth "ChatGPT"))
-  ;; Models mirror scripts/ollama-models.txt; `keeper llm status' lists what is
+  ;; Models mirror scripts/ollama-models.txt; `sys llm status' lists what is
   ;; actually pulled.
   (setq my/gptel-backend-ollama
         (gptel-make-ollama "Ollama"
@@ -97,7 +97,7 @@ Remembers the model last used with each side."
   (require 'gptel)
   (let ((to-ollama (not (eq gptel-backend my/gptel-backend-ollama))))
     (when (and to-ollama (not (my/gptel--ollama-up-p)))
-      (user-error "Ollama is not answering at %s — run `keeper llm start'"
+      (user-error "Ollama is not answering at %s — run `sys llm start'"
                   my/gptel-ollama-endpoint))
     (if to-ollama
         (setq my/gptel-openai-model gptel-model)
@@ -203,7 +203,7 @@ FN is `gptel-quick--callback-posframe', called with RESPONSE and INFO."
 
 ;;; --- Agent ----------------------------------------------------------------
 
-(defvar my/gptel-extra-tools '("keeper_health" "ollama_models")
+(defvar my/gptel-extra-tools '("sys_check" "ollama_models")
   "Names of tools from gptel/tools.el to hand the agent alongside its own.")
 
 (defun my/gptel--extend-agent-preset (&rest _)

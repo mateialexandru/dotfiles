@@ -66,7 +66,7 @@ toggle menu) flips between them and remembers the model last used with each — 
 without switching model would send a model name the other end has never heard of.
 
 That daemon is on-demand, so the toggle probes `/api/tags` first and points at
-`keeper llm start` instead of failing mid-request.
+`sys llm start` instead of failing mid-request.
 
 ### Quick lookups run local
 
@@ -164,7 +164,7 @@ stays bound at `SPC o l A` as the escape hatch.
 Because transcripts live inside other repositories, they must never be committable, and that
 has to be solved once rather than per repo. `install.sh` links `config/git/ignore` to
 `~/.config/git/ignore` — git's XDG default, so no `core.excludesfile` setting is needed — and
-`keeper health` gates on the symptom: `git check-ignore .gptel/chat.org` must resolve.
+`sys check` gates on the symptom: `git check-ignore .gptel/chat.org` must resolve.
 
 ### Growth surfaces
 
@@ -174,7 +174,7 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 - `config/doom/gptel/agents/` — one md/org file per sub-agent; only `description` is mandatory.
   Seeded with `reviewer.md` as a worked example.
 - `config/doom/gptel/tools.el` — deliberately thin, for tools only the dotfiles can answer
-  (`keeper_health`, `ollama_models`). General filesystem/shell/web tools come from gptel-agent.
+  (`sys_check`, `ollama_models`). General filesystem/shell/web tools come from gptel-agent.
   Names listed in `my/gptel-extra-tools` are appended to the agent preset by an `:after` advice
   on `gptel-agent-update`, since the preset's tool list is rebuilt from upstream's
   `agents/gptel-agent.md` on every update.
@@ -189,7 +189,7 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 - Every repo the user works in may grow a `.gptel/` directory. Invisible to git via the global
   ignore, but it is real state on disk in other people's checkouts.
 - gptel now tracks master. Faster access to things like OAuth support, at the cost of the
-  occasional breaking change — `keeper sync` is where that would surface.
+  occasional breaking change — `sys doom sync` is where that would surface.
 - One private-API dependency (`gptel--apply-preset`), documented above.
 
 ## Alternatives considered
@@ -213,5 +213,5 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 ## References
 
 - ADR-011 — the remote workflow gptel-agent's TRAMP support plugs into.
-- ADR-012 — `keeper` + `keeper health`; check 14 follows "gate on the symptom, not the remedy."
+- ADR-012 — `sys` + `sys check`; check 14 follows "gate on the symptom, not the remedy."
 - ADR-013 — the managed Ollama endpoint this uses as its second backend and sub-agent runtime.

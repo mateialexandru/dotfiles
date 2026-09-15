@@ -15,7 +15,7 @@ Cross-platform dotfiles repository managing Doom Emacs configuration for macOS, 
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/main/install.sh)"  # fresh machine bootstrap (clones to ~/Source/dotfiles, then re-execs)
 ```
 
-Installs Homebrew, core tools (`fzf`, `zoxide`, `gh`, `ripgrep`, `fd`, `node`, `dotnet`, `llvm`, etc.), fonts, Doom Emacs, the Roslyn LSP (via `scripts/install-roslyn-lsp.sh`), and syncs the Doom config. Idempotent — safe to re-run.
+Installs Homebrew, core tools (`nu`, `fzf`, `zoxide`, `gh`, `ripgrep`, `fd`, `node`, `dotnet`, `llvm`, etc.), fonts, Doom Emacs, the Roslyn LSP (via `scripts/install-roslyn-lsp.sh`), and syncs the Doom config. Idempotent — safe to re-run. Nushell is installed as a parallel interactive shell; the installer does not change the login shell or terminal default.
 
 On macOS, Emacs is installed by `scripts/install-emacs-mac.sh` (via `d12frosted/emacs-plus` → `emacs-plus@30`, native-comp, `retro-gnu-meditate-levitate` icon). The setup uses a **daemon + client workflow**: `emacs --fg-daemon` runs via `brew services` at login, and only `Emacs Client.app` is copied (not symlinked) into `/Applications` so Spotlight indexes it. New frames open in ~50ms via `emacsclient -c -n`.
 
@@ -27,7 +27,7 @@ The daemon is started by launchd, so it inherits a bare `/usr/bin:/bin:/usr/sbin
 .\install.ps1
 ```
 
-Orchestrates: profile isolation, prerequisites (via `scripts/install-prerequisites.ps1`), Doom Emacs, and hack worktree tooling.
+Orchestrates: profile isolation, prerequisites (via `scripts/install-prerequisites.ps1`), parallel Nushell configuration, Doom Emacs, and compiled `hack` / `sys` tooling.
 
 ### Verifying
 
@@ -60,6 +60,7 @@ There is no test suite — the "tests" are: (a) install scripts must remain idem
 | `config/doom/config-windows.el` | Windows-specific (fonts, Git Bash shell, Magit performance) |
 | `config/doom/init.el` | Module declarations — controls which Doom modules are loaded |
 | `config/doom/packages.el` | Extra package declarations beyond Doom modules |
+| `config/nushell/dotfiles.nu` | Shared Nu environment, paths, editor, and aliases; linked through user autoload without replacing `config.nu` |
 
 Platform detection uses `(pcase system-type ...)` at the bottom of `config.el`, which `load!`s the appropriate file.
 
@@ -88,19 +89,19 @@ runtime: GGUF, reproducible from `scripts/ollama-models.txt`, OpenAI endpoint
 `localhost:11434`. **LM Studio** is kept as the GUI + MLX playground but is *user-managed*
 — you download MLX models in the app yourself; the installer only ensures it's present.
 The two can't share files (Ollama always copies into its own store; GGUF≠MLX), so
-`keeper llm mirror` symlinks Ollama's GGUF models into LM Studio (labelled `ollama`,
+`sys llm mirror` symlinks Ollama's GGUF models into LM Studio (labelled `ollama`,
 self-healing/prune) as a convenience. Both installed by `scripts/install-llm-mac.sh`.
 
-The Ollama daemon is **on-demand, not a login service** — control it via `keeper`:
+The Ollama daemon is **on-demand, not a login service** — control it via `sys`:
 
 ```
-keeper llm start    # brew services run ollama (no login registration) + warm a model resident
-keeper llm stop     # brew services stop ollama (frees RAM)
-keeper llm status   # endpoint up? → ollama list + ollama ps
-keeper llm mirror   # (re)sync Ollama's GGUF models into LM Studio
+sys llm start    # brew services run ollama (no login registration) + warm a model resident
+sys llm stop     # brew services stop ollama (frees RAM)
+sys llm status   # endpoint up? → ollama list + ollama ps
+sys llm mirror   # (re)sync Ollama's GGUF models into LM Studio
 ```
 
-Models live in `scripts/ollama-models.txt` (a `#`-commented manifest; `keeper install`
+Models live in `scripts/ollama-models.txt` (a `#`-commented manifest; `sys install`
 pulls it, idempotently). Default 64 GB set: `gpt-oss:20b` (all-rounder/reasoning),
 `qwen3-coder:30b` (coding), `nomic-embed-text` (embeddings).
 
@@ -148,7 +149,7 @@ Two drop-in growth surfaces, live without a `doom sync` (they ride the `config/d
 
 - `config/doom/gptel/agents/` — one md/org file per sub-agent (`description` is the only required
   frontmatter key); `reviewer.md` is the worked example.
-- `config/doom/gptel/tools.el` — machine-specific tools only (`keeper_health`, `ollama_models`).
+- `config/doom/gptel/tools.el` — machine-specific tools only (`sys_check`, `ollama_models`).
   Add the name to `my/gptel-extra-tools` so the agent preset picks it up.
 
 Project transcripts live in `<repo>/.gptel/chat.org` and are kept out of commits by
@@ -235,17 +236,36 @@ There is no manually maintained repository catalog. Clone a repository beneath a
 
 Source this from `.zshrc` for shared aliases (`e`, `et`, `g`, `gs`, `gd`, `gl`), `$EDITOR=emacsclient -c`, zoxide and fzf init.
 
+Nushell is an additional interactive option, not the login shell. The installers link
+`config/nushell/dotfiles.nu` into Nu's user autoload directory, generate native zoxide/fzf
+integration, and register any private `shell/init.nu` files found under the existing
+layer directory. Run `nu` from any current shell to use it. See ADR-020.
+
+### System operations (`sys`)
+
+`tools/sys` is the compiled cross-platform entry point for routine maintenance:
+`sys install|update|check` plus `sys doom sync|doctor`. The bootstrap installers build it
+alongside `hack`; it then dispatches to the correct Doom launcher and platform
+install/update/check scripts. `sys update` upgrades Homebrew/WinGet packages, global
+npm/uv/Rust/.NET tools, Doom packages, and the compiled `hack` tool, but deliberately
+does not pull the dotfiles repository. `sys restart` and `sys llm` are explicitly
+macOS-only for now. Set
+`SYS_DOTFILES_DIR` for a checkout outside `~/Source/dotfiles`. See ADR-012.
+
 ### Scripts
 
 | Script | Purpose |
 |--------|---------|
 | `scripts/install-doom.sh` / `.ps1` | Symlink doom dir + install Doom Emacs; detects & repairs wrong symlink targets |
 | `scripts/install-emacs-mac.sh` | macOS-only: emacs-plus@30 + Emacs Client.app; `install.sh` starts the daemon after Doom sync (daemon env/libgccjit fix lives in `config/shell/init.zsh` + `config/doom/config-macos.el`) |
-| `scripts/install-llm-mac.sh` | macOS-only: local LLM layer — Ollama formula (managed GGUF endpoint, pulls `scripts/ollama-models.txt`) + LM Studio cask (user-managed MLX GUI) + `keeper llm mirror` (symlink Ollama models into LM Studio). Daemon on-demand via `keeper llm start`, not a login service (see ADR-013) |
+| `scripts/install-llm-mac.sh` | macOS-only: local LLM layer — Ollama formula (managed GGUF endpoint, pulls `scripts/ollama-models.txt`) + LM Studio cask (user-managed MLX GUI) + `sys llm mirror` (symlink Ollama models into LM Studio). Daemon on-demand via `sys llm start`, not a login service (see ADR-013) |
 | `scripts/install-scrim-captee-mac.sh` | macOS-only, standalone (not in install.sh): opens the App Store "Scrim + Captee for Emacs" bundle + prints org-capture setup (see ADR-010) |
 | `scripts/install-excalidraw-mac.sh` | macOS-only: excalidraw prereqs (fswatch + `@swiftlysingh/excalidraw-cli` faithful exporter + drawings dir) via `install_excalidraw_prereqs`; retires the old `excalidraw_export`/node-canvas/fonts; prints manual Chrome-PWA/handler steps (see ADR-008) |
-| `scripts/keeper-health.sh` | macOS/Linux: full confidence pass — doom symlink, daemon env (PATH/LIBRARY_PATH inherited), daemon (ping-authoritative), native-comp queue, doom doctor, core tools, Roslyn DLL, LSP servers, apheleia formatters, Emacs Client.app, org-protocol→Scrim pin, excalidraw toolchain, Ollama (advisory when down), gptel/gptel-agent built + global gitignore in effect, ssh ControlMaster. Hard-exits 1 on any fail; latent/transient items are advisory. Run via `keeper health` |
+| `scripts/update.sh` / `.ps1` | Upgrade the platform package manager, global development tools, Doom packages, and compiled `hack`, then run `sys check` |
+| `scripts/sys-health.sh` | macOS/Linux implementation of `sys check`: full confidence pass over the editor and tooling; hard-exits 1 on any failure |
 | `scripts/install-hack.sh` / `.ps1` | Build and install the Rust `hack` binary with Cargo |
+| `scripts/install-sys.sh` / `.ps1` | Build and install the Rust `sys` operations CLI with Cargo |
+| `scripts/install-nushell.sh` / `.ps1` | Link the public Nu autoload config, generate zoxide/fzf integration, and register private Nu layers without changing the default shell |
 | `scripts/install-roslyn-lsp.sh` / `.ps1` | Download Microsoft Roslyn LSP NuGet package to `~/.local/share/roslyn-lsp` (or `%LOCALAPPDATA%\roslyn-lsp\` on Windows) |
 | `scripts/install-plantuml.sh` | Download PlantUML's jar into Doom's profile data directory |
 | `scripts/install-prerequisites.ps1` | Windows: ctags, node, dotnet, cmake, etc. via winget |
@@ -270,13 +290,14 @@ Significant design choices are documented in `docs/decisions/` as ADRs. Check th
 | `009-macos-emacs-plus.md` | macOS Emacs via emacs-plus@30 + daemon/client workflow + libgccjit `LIBRARY_PATH` workaround |
 | `010-safari-org-capture.md` | Safari → org capture via org-protocol; now via the Scrim + Captee App Store bundle (DIY extension/handler/Xcode retired — see Revision 2026-05-22) |
 | `011-emacs-remote-tmux.md` | Effortless Emacs → remote workflow: tuned TRAMP (edit lane) + vterm→persistent-tmux over Tailscale (run lane); tailnet as host source of truth |
-| `012-keeper-ops-wrapper.md` | Global `keeper` ops wrapper (renamed from `atelier`) + `keeper health` full confidence pass; gate-on-symptom-not-remedy, ping-authoritative daemon check |
-| `013-llm-ollama-lmstudio.md` | Local LLM: Ollama managed GGUF endpoint (`:11434`) + LM Studio user-managed MLX GUI; why stores can't be shared (Ollama copies in; GGUF≠MLX); `keeper llm` on-demand control + `mirror` symlink bridge; curated 64 GB set |
+| `012-sys-ops-cli.md` | Cross-platform compiled `sys` CLI + `sys check` confidence pass; command semantics, gate-on-symptom-not-remedy, ping-authoritative daemon check |
+| `013-llm-ollama-lmstudio.md` | Local LLM: Ollama managed GGUF endpoint (`:11434`) + LM Studio user-managed MLX GUI; why stores can't be shared (Ollama copies in; GGUF≠MLX); `sys llm` on-demand control + `mirror` symlink bridge; curated 64 GB set |
 | `014-gptel-emacs-llm-client.md` | gptel on Doom's `:tools llm`: ChatGPT-subscription OAuth (not an API key), Ollama as second backend, gptel-agent for project sessions/tools/sub-agents, in-repo transcripts + global gitignore |
 | `015-python-uv.md` | Python: `+uv` auto-activates the project `.venv`, ruff replaces black+isort+pyflakes, pyright pinned to `.venv`, `uv run pytest`, projectile `python-uv` type; only `pyright`+`ruff` stay global, only bootstrapping (`SPC m u`) is scripted |
 | `017-compiled-hack-worktrees.md` | Compiled, lazily indexed worktrees; every task starts from freshly fetched `origin/<base>` |
 | `018-drop-claude-code.md` | Claude Code removed after its subscription was discontinued; gptel remains the Emacs LLM surface |
 | `019-repository-layout.md` | KISS layout: configuration, documentation, assets, scripts, and tools have distinct homes |
+| `020-nushell-parallel.md` | Install and configure Nu as a parallel interactive shell while retaining zsh/Bash and PowerShell compatibility |
 
 ## Related files
 

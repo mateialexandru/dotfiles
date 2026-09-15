@@ -12,13 +12,15 @@ $wingetPackages = @(
     "Microsoft.DotNet.SDK.8",
     "Microsoft.OpenJDK.21",
     "Kitware.CMake",
-    "Casey.Just",
     "Python.Python.3.13",
     "astral-sh.uv",
     "Rustlang.Rustup",
+    "Nushell.Nushell",
     # Search / file tools
     "BurntSushi.ripgrep.MSVC",
     "sharkdp.fd",
+    "junegunn.fzf",
+    "ajeetdsouza.zoxide",
     "jqlang.jq",
     "UniversalCtags.Ctags",
     "LLVM.LLVM",
@@ -116,6 +118,9 @@ $tools = @{
     "pyright" = "pyright --version"
     "ruff" = "ruff --version"
     "rust-analyzer" = "rust-analyzer --version"
+    "nu" = "nu --version"
+    "fzf" = "fzf --version"
+    "zoxide" = "zoxide --version"
     "bash-language-server" = "bash-language-server --version"
     "typescript-language-server" = "typescript-language-server --version"
     "gnuplot" = "gnuplot --version"

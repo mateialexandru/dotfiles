@@ -1,6 +1,6 @@
-# Ollama model manifest — pulled by scripts/install-llm-mac.sh (`keeper install`).
+# Ollama model manifest — pulled by scripts/install-llm-mac.sh (`sys install`).
 # One model per line; blank lines and `#` comments ignored. Edit freely, then re-run
-# `bash scripts/install-llm-mac.sh` (or `keeper install`) to sync — `ollama pull` is a
+# `bash scripts/install-llm-mac.sh` (or `sys install`) to sync — `ollama pull` is a
 # no-op when the digest is current.
 #
 # Curated SOTA-for-64GB set: a fast reasoning/all-rounder for daily work, a dedicated

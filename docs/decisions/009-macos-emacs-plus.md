@@ -54,7 +54,7 @@ vterm-module--cmake-is-available: Vterm needs CMake to be compiled.  Please, ins
 
 …with cmake installed and on the shell's PATH the whole time.
 
-The gate is now `(or (daemonp) (memq window-system '(mac ns)))`, the `doom env` call is gone from the installer, and `keeper health` check 2 asserts the daemon actually resolves `cmake` and has `LIBRARY_PATH` — a symptom-level gate rather than a check on the (now unread) env file.
+The gate is now `(or (daemonp) (memq window-system '(mac ns)))`, the `doom env` call is gone from the installer, and `sys check` check 2 asserts the daemon actually resolves `cmake` and has `LIBRARY_PATH` — a symptom-level gate rather than a check on the (now unread) env file.
 
 ### Daemon health & "config doesn't apply" debugging
 
@@ -71,7 +71,7 @@ emacsclient -e '(hash-table-count doom-modules)'     # healthy ≈ 50+, broken �
 emacsclient -e 'doom-theme'                          # should be 'doom-one
 ```
 
-`keeper health` (ADR-012) automates these environmental probes — daemon reachability,
+`sys check` (ADR-012) automates these environmental probes — daemon reachability,
 native-comp queue, the daemon's inherited env, the `~/.config/doom` symlink, and Client.app.
 
 ### `brew services` label vs. actual reachability
@@ -81,7 +81,7 @@ its *last exit code*, so after any non-zero exit (a crash the KeepAlive already 
 a stop/start race) the label reads `error`/`stopped` while a live daemon still answers
 `emacsclient`. Observed: `emacs-plus@30 error 1` in the list, yet `emacsclient --eval t`
 returns `t`. **Ping is the source of truth**; treat the service label as informational, and
-`keeper restart` to clear a stale one. (This is why `keeper health` gates the daemon on the
+`sys restart` to clear a stale one. (This is why `sys check` gates the daemon on the
 ping, not the label — ADR-012.)
 
 ## Consequences

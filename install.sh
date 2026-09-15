@@ -127,10 +127,10 @@ fi
 step "Core packages, tools, Java, and fonts (Homebrew)"
 
 # Core Runtimes & Build Tools
-brew install node dotnet cmake ninja llvm devcontainer just libtool
+brew install node dotnet cmake ninja llvm devcontainer libtool
 
 # Everyday tools & Utilities
-brew install fzf zoxide gh git ripgrep fd jq universal-ctags poppler pandoc grip gnuplot shellcheck rust rust-analyzer \
+brew install nushell fzf zoxide gh git ripgrep fd jq universal-ctags poppler pandoc grip gnuplot shellcheck rust rust-analyzer \
     lua-language-server wordnet shfmt graphviz dockerfmt clang-format
 
 # Brave browser (macOS cask only — not available via Linuxbrew)
@@ -249,7 +249,8 @@ bash "$DOTFILES_DIR/scripts/install-doom.sh"
 bash "$DOTFILES_DIR/scripts/install-plantuml.sh"
 
 # --- Shell init (zsh) ---
-# init.zsh holds shared aliases, $EDITOR, zoxide/fzf, and the `keeper` command.
+# init.zsh holds shared aliases, $EDITOR, zoxide, and fzf. The compiled `sys`
+# command is installed separately below.
 # Source it from ~/.zshrc so every shell picks it up.
 step "Shell init (source init.zsh from ~/.zshrc)"
 ZSHRC="$HOME/.zshrc"
@@ -268,8 +269,18 @@ else
     echo "$ZSH_SOURCE_LINE" >> "$ZSHRC"
 fi
 
+step "Nushell (parallel interactive shell)"
+bash "$DOTFILES_DIR/scripts/install-nushell.sh"
+
 step "Hack worktree tooling"
 bash "$DOTFILES_DIR/scripts/install-hack.sh"
+
+step "System operations CLI"
+if [[ "${SYS_SKIP_SELF_INSTALL:-}" == 1 ]]; then
+    echo "sys is running this install; keeping the current executable."
+else
+    bash "$DOTFILES_DIR/scripts/install-sys.sh"
+fi
 
 # Start only after Doom and the login-shell environment are ready. Do not hide
 # failures: a successful install must leave Emacs Client.app able to connect.
@@ -337,3 +348,4 @@ fi
 
 echo
 echo "==> Done! Dotfiles installed."
+echo "    Run 'sys check' to verify the environment."

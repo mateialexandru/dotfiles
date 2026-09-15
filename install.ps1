@@ -14,15 +14,27 @@ Write-Host "`n--- PowerShell profile setup ---" -ForegroundColor Cyan
 Write-Host "`n--- Development prerequisites ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-prerequisites.ps1")
 
-# 3. Doom Emacs (symlinks + deps + doom install)
+# 3. Nushell configuration (parallel; does not change the default shell)
+Write-Host "`n--- Nushell configuration ---" -ForegroundColor Cyan
+& (Join-Path $scriptsDir "install-nushell.ps1")
+
+# 4. Doom Emacs (symlinks + deps + doom install)
 Write-Host "`n--- Doom Emacs ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-doom.ps1")
 
-# 4. Compiled Hack worktree tooling
+# 5. Compiled Hack worktree tooling
 Write-Host "`n--- Hack worktree tooling ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-hack.ps1")
 
-# 5. Git performance settings (Windows-specific)
+# 6. Cross-platform system operations CLI
+Write-Host "`n--- System operations CLI ---" -ForegroundColor Cyan
+if ($env:SYS_SKIP_SELF_INSTALL -eq "1") {
+    Write-Host "sys is running this install; keeping the current executable." -ForegroundColor Gray
+} else {
+    & (Join-Path $scriptsDir "install-sys.ps1")
+}
+
+# 7. Git performance settings (Windows-specific)
 Write-Host "`n--- Git performance ---" -ForegroundColor Cyan
 git config --global core.preloadindex true
 git config --global core.fscache true
@@ -31,4 +43,4 @@ git config --global feature.manyFiles true
 Write-Host "Git performance settings applied." -ForegroundColor Green
 
 Write-Host "`nDotfiles installation complete!" -ForegroundColor Green
-Write-Host "Run 'scripts\doctor.ps1' to verify everything is working." -ForegroundColor Gray
+Write-Host "Run 'sys check' to verify everything is working." -ForegroundColor Gray

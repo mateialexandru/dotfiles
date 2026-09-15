@@ -65,9 +65,6 @@ alias gs="git status"
 alias gd="git diff"
 alias gl="git log --oneline --graph --all"
 
-# keeper — global entry to the dotfiles justfile (see `keeper --list`)
-keeper() { just -f "$HOME/Source/dotfiles/justfile" -d "$HOME/Source/dotfiles" "$@"; }
-
 # Load shell extensions from each optional private layer in lexical order.
 for _dotfiles_layer in "$HOME/.config/dotfiles/layers.d"/*(N-/); do
     [[ -r "$_dotfiles_layer/shell/init.zsh" ]] && source "$_dotfiles_layer/shell/init.zsh"

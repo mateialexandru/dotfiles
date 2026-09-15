@@ -1,0 +1,6 @@
+[package]
+name = "sys"
+version = "0.1.0"
+edition = "2021"
+description = "Cross-platform operations for this dotfiles environment"
+license = "MIT"

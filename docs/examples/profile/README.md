@@ -15,6 +15,9 @@ Every registered layer may provide:
 - `doom/pre.el` for paths, contexts, feature flags, and other early values.
 - `doom/post.el` for commands, keybindings, and late overrides.
 - `shell/init.zsh` for private shell extensions.
+- `shell/init.nu` for private Nushell extensions. Rerun
+  `scripts/install-nushell.sh` (or `.ps1`) after activating a new layer so it is linked
+  into Nu's user autoload directory.
 
 Layers load in lexical order. Keep credentials in the operating-system
 keychain, `auth-source`, or environment—not in a private Git repository.

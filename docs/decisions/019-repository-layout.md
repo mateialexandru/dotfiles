@@ -23,7 +23,7 @@ LICENSES/ third-party license texts
 ```
 
 The root retains only conventional repository metadata and public entrypoints: `README.md`,
-`AGENTS.md`, `.gitignore`, `.gitattributes`, `install.sh`, `install.ps1`, and `justfile`.
+`AGENTS.md`, `.gitignore`, `.gitattributes`, `install.sh`, and `install.ps1`.
 
 Within `config/`, application names remain explicit (`doom`, `shell`, `git`, `ctags`). Private
 layer contracts still use their own `doom/pre.el`, `doom/post.el`, and `shell/init.zsh` paths;

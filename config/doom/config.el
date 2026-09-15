@@ -906,8 +906,8 @@ Calling repeatedly ping-pongs between the current and previous preset."
   :config
   (spacious-padding-mode 1))
 
-;;; --- Graceful daemon restart (driven by `keeper restart`) ---
-;; Called over emacsclient by the justfile's `restart` recipe. Runs entirely inside
+;;; --- Graceful daemon restart (driven by `sys restart`) ---
+;; Called over emacsclient by the compiled sys CLI. Runs entirely inside
 ;; Emacs so it can (a) warn via a native OS notification, (b) save everything without
 ;; prompting, and (c) tear the daemon down cleanly — binding the confirm/persp vars
 ;; that would otherwise pop an interactive prompt (e.g. persp auto-save when no

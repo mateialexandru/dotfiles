@@ -15,7 +15,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/
 To install the editor/tooling baseline without Ollama, LM Studio, or the
 optional local model set (about 32 GB), append `-- --skip-llm`.
 
-Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. On macOS, sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `config/git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
+Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. On macOS, sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool and the cross-platform `sys` operations CLI, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `config/git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
 
 ### Windows
 
@@ -27,7 +27,42 @@ cd C:\avd\dotfiles
 .\install.ps1
 ```
 
-Run `scripts\doctor.ps1` afterwards to verify the environment.
+Run `sys check` afterwards to verify the environment.
+
+## System operations
+
+The installers build one native command for routine operations on every platform:
+
+```text
+sys install
+sys update
+sys check
+sys doom sync
+sys doom doctor
+```
+
+`install` converges the machine on this checkout, `update` upgrades the package and
+tool ecosystems already under management, and `check` validates the complete setup.
+Doom's narrower operations live under `sys doom`. `sys update` deliberately does not
+pull this repository; choosing and integrating Git changes remains explicit.
+
+`sys restart` and `sys llm` currently expose macOS-specific services explicitly; other
+platforms receive an unsupported-operation error. Set `SYS_DOTFILES_DIR` only when the
+checkout does not live at the conventional `~/Source/dotfiles` location.
+
+## Trying Nushell
+
+Nushell is installed and configured as a parallel interactive shell. Nothing changes the
+login shell, terminal default, `.zshrc`, or existing Bash/PowerShell scripts. Start it
+when wanted:
+
+```text
+nu
+```
+
+The public configuration supplies the same editor variables, user-tool paths, aliases,
+zoxide, and fzf integration. It is linked through Nu's user autoload directory, leaving
+an existing `config.nu` untouched. See `docs/decisions/020-nushell-parallel.md`.
 
 ## Repository worktrees
 
@@ -93,7 +128,7 @@ Requires the Doom `+org-protocol` flag, capture template `L`, and the Emacs serv
 The public configuration is complete on its own and uses portable defaults.
 Private repositories can extend it without being named by this repository. Add
 ordered directory symlinks beneath `~/.config/dotfiles/layers.d/`; each layer
-may provide `doom/pre.el`, `doom/post.el`, and `shell/init.zsh`. Early Doom
+may provide `doom/pre.el`, `doom/post.el`, `shell/init.zsh`, and `shell/init.nu`. Early Doom
 settings load before Org, while late commands load after the public config.
 See `docs/examples/profile/` for the layer contract.
 

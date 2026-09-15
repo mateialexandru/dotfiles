@@ -8,7 +8,7 @@
 The rig had no local-LLM layer managed as desired state — only the `lm-studio` cask,
 installed inline in `install.sh`. On an M5 Pro / 64 GB Mac local inference is genuinely
 useful for daily/agentic/editor work, and it should be provisioned and verified like
-everything else here: idempotent installer, `keeper` control, `keeper health` check, ADR.
+everything else here: idempotent installer, `sys` control, `sys check`, ADR.
 
 The design explored whether one runtime could serve everything and whether the two tools
 could share a model store. Two hard facts settled it:
@@ -33,7 +33,7 @@ mirror makes Ollama's models also visible in LM Studio.**
 - **LM Studio (cask)** — kept as the GUI + MLX playground, but **not scripted**: the user
   downloads whatever MLX models they want in the app themselves. The installer only ensures
   it's present (and `lms bootstrap`s the CLI onto PATH for convenience).
-- **`keeper llm mirror`** — symlinks each Ollama GGUF model blob into
+- **`sys llm mirror`** — symlinks each Ollama GGUF model blob into
   `~/.lmstudio/models/ollama/<name>-<tag>/<name>-<tag>.gguf` so the managed Ollama models
   also appear in LM Studio, labelled `ollama`. It walks Ollama's on-disk manifests (no
   daemon needed), and **prunes any link that no longer resolves** — self-healing against
@@ -52,24 +52,24 @@ with Ollama's copy-in design, and it would cost LM Studio its MLX edge).
 
 `scripts/install-llm-mac.sh` (the old inline LM Studio block left `install.sh`):
 `brew install --cask lm-studio` + `brew install ollama`, bring the daemon up transiently
-to `ollama pull` the manifest, then run `keeper llm mirror`.
+to `ollama pull` the manifest, then run `sys llm mirror`.
 
 ### On-demand daemon, not a login service
 
-The user wants Ollama up only when working. `keeper llm <action> [model]`:
+The user wants Ollama up only when working. `sys llm <action> [model]`:
 
-- `keeper llm start [model]` — `brew services run ollama` (**run**, not `start`: starts now
+- `sys llm start [model]` — `brew services run ollama` (**run**, not `start`: starts now
   *without* registering for login/boot), waits for `:11434`, then warms a model resident
   (empty-prompt `/api/generate` with `keep_alive: -1` → stays until `stop`). Default model
-  the all-rounder `gpt-oss:20b`; override e.g. `keeper llm start qwen3-coder:30b`.
-- `keeper llm stop` — `brew services stop ollama`.
-- `keeper llm status` — endpoint reachable? then `ollama list` + `ollama ps`.
-- `keeper llm mirror` — (re)sync the LM Studio symlinks (above).
+  the all-rounder `gpt-oss:20b`; override e.g. `sys llm start qwen3-coder:30b`.
+- `sys llm stop` — `brew services stop ollama`.
+- `sys llm status` — endpoint reachable? then `ollama list` + `ollama ps`.
+- `sys llm mirror` — (re)sync the LM Studio symlinks (above).
 
-### `keeper health` check (ADR-012 rule 1: gate on the symptom, not the remedy)
+### `sys check` (ADR-012 rule 1: gate on the symptom, not the remedy)
 
-Check 13 in `scripts/keeper-health.sh`. Only a missing `ollama` binary is a `[X]` fail
-(`keeper install`); the daemon is on-demand so down is advisory `[..]`. Manifest models are
+Check 13 in `scripts/sys-health.sh`. Only a missing `ollama` binary is a `[X]` fail
+(`sys install`); the daemon is on-demand so down is advisory `[..]`. Manifest models are
 compared against `ollama list` when up. LM Studio is user-managed, so it is deliberately
 **not** gated here.
 
@@ -89,7 +89,7 @@ Documented heavier swap in the manifest: `qwen3-coder-next:80b` (~38 GB, run sol
 - LM Studio stays a first-class MLX GUI the user drives; Ollama's models show up there too
   via the mirror, no manual linking.
 - The daemon costs nothing when idle (on-demand; no login RAM/battery).
-- `keeper health` tracks the managed surface (Ollama); LM Studio is intentionally untracked.
+- `sys check` tracks the managed surface (Ollama); LM Studio is intentionally untracked.
 - Some models may exist twice (GGUF in Ollama, MLX in LM Studio) — unavoidable and fine;
   each copy is the format its runtime is fastest on.
 - Fine-tuning / day-one HF weights aren't available until/unless mlx-lm is added later.
@@ -102,10 +102,10 @@ Documented heavier swap in the manifest: `qwen3-coder-next:80b` (~38 GB, run sol
   manage LM Studio's models by hand; Ollama is the reproducible, scriptable endpoint.
 - **mlx-lm native** — deferred: a Python env (fragile on 3.14) for wins not yet needed.
 - **Login-persistent daemon (like Emacs, ADR-009)** — rejected: local inference is bursty;
-  `keeper llm start` on demand beats always-on RAM.
+  `sys llm start` on demand beats always-on RAM.
 
 ## References
 
 - ADR-009 — the emacs-plus daemon/login-service pattern this deliberately diverges from.
-- ADR-012 — `keeper` wrapper + `keeper health`; the `llm` recipe and check 13 extend it,
+- ADR-012 — compiled `sys` CLI + `sys check`; the `llm` command and check 13 extend it,
   following "gate on the symptom, not the remedy."

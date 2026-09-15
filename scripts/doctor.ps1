@@ -16,6 +16,7 @@ $coreTools = @(
     @{ Name = "pandoc"; Fix = "winget install JohnMacFarlane.Pandoc" }
     @{ Name = "shellcheck"; Fix = "winget install koalaman.shellcheck" }
     @{ Name = "git"; Fix = "winget install Git.Git" }
+    @{ Name = "nu"; Fix = "winget install Nushell.Nushell" }
 )
 
 $devTools = @(
@@ -36,6 +37,10 @@ $devTools = @(
     @{ Name = "rust-analyzer"; Fix = "rustup component add rust-analyzer" }
     @{ Name = "bash-language-server"; Fix = "npm install -g bash-language-server" }
     @{ Name = "typescript-language-server"; Fix = "npm install -g typescript-language-server" }
+    @{ Name = "hack"; Fix = "& `"$PSScriptRoot\install-hack.ps1`"" }
+    @{ Name = "sys"; Fix = "& `"$PSScriptRoot\install-sys.ps1`"" }
+    @{ Name = "fzf"; Fix = "winget install junegunn.fzf" }
+    @{ Name = "zoxide"; Fix = "winget install ajeetdsouza.zoxide" }
 )
 
 # Track results
@@ -137,6 +142,10 @@ function Get-ToolVersion($name) {
             "rust-analyzer" { & rust-analyzer --version 2>$null }
             "bash-language-server" { & bash-language-server --version 2>$null }
             "typescript-language-server" { & typescript-language-server --version 2>$null }
+            "sys" { & sys --version 2>$null }
+            "nu" { & nu --version 2>$null }
+            "fzf" { & fzf --version 2>$null }
+            "zoxide" { & zoxide --version 2>$null }
             default { $null }
         }
         if ($output) {
