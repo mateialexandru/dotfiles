@@ -715,7 +715,7 @@ Renames the .excalidraw and .excalidraw.svg files and rewrites the link."
 ;; Python: uv-owned venvs, ruff formatting/linting, pyright against the .venv
 (load! "config-python")
 
-;; LLM client: ChatGPT subscription + local Ollama backends, agent sessions
+;; LLM client: layer-selected primary provider + local Ollama, agent sessions
 (load! "config-gptel")
 
 ;; Load platform-specific configuration

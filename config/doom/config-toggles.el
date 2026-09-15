@@ -55,7 +55,7 @@
    ("T" "Cycle theme (modus-operandi → modus-vivendi → doom-one)"
     (lambda () (interactive) (my/cycle-theme))
     :transient t)
-   ("g" "Toggle gptel backend (ChatGPT ↔ Ollama)"
+   ("g" "Toggle gptel backend (primary ↔ Ollama)"
     (lambda () (interactive) (my/gptel-toggle-backend))
     :transient t)
    ("q" "Quit" transient-quit-one)])

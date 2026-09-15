@@ -1,14 +1,13 @@
-;;; config-gptel.el --- gptel: ChatGPT subscription, local Ollama, agent sessions -*- lexical-binding: t; -*-
+;;; config-gptel.el --- provider-neutral gptel plumbing and local agents -*- lexical-binding: t; -*-
 
 ;; Layers on top of Doom's `:tools llm' module, which already supplies gptel
 ;; itself, gptel-quick (explain at point), gptel-magit (commit messages),
 ;; ob-gptel (org-babel blocks), a popup rule and the `SPC o l' keymap. Nothing
 ;; here re-declares what that module owns — we add the parts it leaves open:
 ;;
-;; - Auth. `gptel-make-openai-oauth' talks to the Codex endpoint on chatgpt.com
-;;   using a ChatGPT Plus/Pro login, so the subscription is the credential and
-;;   no OpenAI platform API key (billed separately) is involved. The token lands
-;;   in ~/.config/emacs/.cache/gptel-openai/, not in auth-source.
+;; - A provider slot. Private layers register whichever remote/subscription
+;;   backend belongs to that context with `my/gptel-register-primary-backend'.
+;;   The public repository contains no account or provider choice.
 ;;
 ;; - A second backend on the managed Ollama endpoint from ADR-013. That daemon
 ;;   is on-demand, so switching to it checks the endpoint and points at
@@ -32,19 +31,40 @@
 (defvar my/gptel-ollama-endpoint "http://localhost:11434"
   "Base URL of the managed Ollama endpoint (ADR-013).")
 
-(defvar my/gptel-backend-openai nil
-  "The ChatGPT Plus/Pro OAuth backend.")
+(defvar my/gptel-backend-primary nil
+  "Remote or subscription backend registered by a private layer.")
 
 (defvar my/gptel-backend-ollama nil
   "The local Ollama backend.")
 
-(defvar my/gptel-openai-model 'gpt-5.6-sol
-  "Model last used with `my/gptel-backend-openai'.
-gptel advertises this one as the best for coding and agentic tasks;
-`SPC o l m' switches, and this is only the starting point.")
+(defvar my/gptel-primary-model nil
+  "Model last used with `my/gptel-backend-primary'.")
 
 (defvar my/gptel-ollama-model 'gpt-oss:20b
   "Model last used with `my/gptel-backend-ollama'.")
+
+(defvar my/gptel-omit-generation-parameters-predicate nil
+  "Predicate identifying a backend that rejects generation parameters.
+It receives a backend object. Private layers can set this while registering a
+primary backend whose API rejects `temperature' or `max_output_tokens'.")
+
+(defun my/gptel--omit-generation-parameters-p (&optional backend)
+  "Return non-nil when BACKEND must omit optional generation parameters."
+  (and my/gptel-omit-generation-parameters-predicate
+       (funcall my/gptel-omit-generation-parameters-predicate
+                (or backend (bound-and-true-p gptel-backend)))))
+
+(defun my/gptel-register-primary-backend (backend model &optional omit-predicate)
+  "Register BACKEND and MODEL as this layer's primary gptel provider.
+OMIT-PREDICATE, when non-nil, identifies backends that reject optional
+generation parameters. The newly registered provider becomes active."
+  (setq my/gptel-backend-primary backend
+        my/gptel-primary-model model
+        my/gptel-omit-generation-parameters-predicate omit-predicate
+        gptel-backend backend
+        gptel-model model)
+  (when (my/gptel--omit-generation-parameters-p backend)
+    (setq gptel-temperature nil)))
 
 (defun my/gptel--ollama-up-p ()
   "Return non-nil if the Ollama endpoint answers."
@@ -55,10 +75,6 @@ gptel advertises this one as the best for coding and agentic tasks;
   (setq gptel-expert-commands t
         gptel-use-tools t)
 
-  ;; Codex models reject a temperature parameter outright, so leave it unset.
-  (setq gptel-temperature nil)
-
-  (setq my/gptel-backend-openai (gptel-make-openai-oauth "ChatGPT"))
   ;; Models mirror scripts/ollama-models.txt; `sys llm status' lists what is
   ;; actually pulled.
   (setq my/gptel-backend-ollama
@@ -67,21 +83,16 @@ gptel advertises this one as the best for coding and agentic tasks;
           :stream t
           :models '(gpt-oss:20b qwen3-coder:30b qwen3.6:latest)))
 
-  (setq gptel-backend my/gptel-backend-openai
-        gptel-model   my/gptel-openai-model)
+  ;; A private layer loaded later may replace this with its primary provider.
+  (unless my/gptel-backend-primary
+    (setq gptel-backend my/gptel-backend-ollama
+          gptel-model   my/gptel-ollama-model))
 
   ;; gptel writes these into a Local Variables block when a chat is saved;
   ;; marking them safe keeps reopening a transcript prompt-free.
   (dolist (v '(gptel-model gptel--backend-name gptel--bounds
                gptel-max-tokens gptel-temperature))
     (put v 'safe-local-variable #'always)))
-
-(defun my/gptel--codex-p (&optional backend)
-  "Return non-nil if BACKEND (default `gptel-backend') is the Codex endpoint.
-Codex rejects `temperature' and `max_output_tokens', so callers that would
-otherwise set them have to check first."
-  (and (fboundp 'gptel-openai-oauth-p)
-       (gptel-openai-oauth-p (or backend (bound-and-true-p gptel-backend)))))
 
 (defun my/gptel-backend-label ()
   "Short name of the active gptel backend, or \"-\" before gptel loads."
@@ -91,23 +102,26 @@ otherwise set them have to check first."
 
 ;;;###autoload
 (defun my/gptel-toggle-backend ()
-  "Toggle `gptel-backend' between the ChatGPT subscription and local Ollama.
+  "Toggle `gptel-backend' between the layer's primary provider and Ollama.
 Remembers the model last used with each side."
   (interactive)
   (require 'gptel)
+  (unless my/gptel-backend-primary
+    (user-error "No primary gptel backend registered by a private layer"))
   (let ((to-ollama (not (eq gptel-backend my/gptel-backend-ollama))))
     (when (and to-ollama (not (my/gptel--ollama-up-p)))
       (user-error "Ollama is not answering at %s — run `sys llm start'"
                   my/gptel-ollama-endpoint))
     (if to-ollama
-        (setq my/gptel-openai-model gptel-model)
+        (setq my/gptel-primary-model gptel-model)
       (setq my/gptel-ollama-model gptel-model))
-    (setq gptel-backend (if to-ollama my/gptel-backend-ollama my/gptel-backend-openai)
-          gptel-model   (if to-ollama my/gptel-ollama-model my/gptel-openai-model))
-    ;; An agent buffer carries a buffer-local 8192 that Codex refuses; drop it
-    ;; on the way in, restore it on the way back out.
+    (setq gptel-backend (if to-ollama my/gptel-backend-ollama my/gptel-backend-primary)
+          gptel-model   (if to-ollama my/gptel-ollama-model my/gptel-primary-model))
+    ;; Some endpoints reject a buffer-local token limit; drop or restore it as
+    ;; the selected backend requires.
     (when (local-variable-p 'gptel-max-tokens)
-      (setq-local gptel-max-tokens (unless (my/gptel--codex-p) 8192)))
+      (setq-local gptel-max-tokens
+                  (unless (my/gptel--omit-generation-parameters-p) 8192)))
     (message "gptel: %s / %s" (gptel-backend-name gptel-backend) gptel-model)))
 
 ;;; --- Quick lookups --------------------------------------------------------
@@ -118,12 +132,10 @@ Remembers the model last used with each side."
 ;; difference between the command working and not.
 ;;
 ;; Upstream is explicit that reasoning models break it — they emit their
-;; thinking ahead of the answer and the popup fills with that. Every Codex model
-;; is a reasoning model, so the default backend here is exactly the case that
-;; fails; it also warns on each request, since gptel-quick sizes the reply with
-;; `gptel-max-tokens' and that endpoint rejects it. A local instruct model
-;; answers a twelve-word lookup with none of it, off quota. The daemon is
-;; on-demand, so when it is down we fall through to the session's own backend.
+;; thinking ahead of the answer and the popup fills with that. A local instruct
+;; model answers a twelve-word lookup without consuming a remote subscription.
+;; The daemon is on-demand, so when it is down we fall through to the session's
+;; own backend.
 ;;
 ;; The probe shells out to curl. Running it per invocation would put a
 ;; round-trip in front of a command whose appeal is that it costs nothing to
@@ -216,12 +228,12 @@ The preset's tools come from the bundled agents/gptel-agent.md, and
                (append tools (cl-set-difference my/gptel-extra-tools tools
                                                 :test #'equal)))))
 
-(defun my/gptel--agent-without-max-tokens (fn &rest args)
-  "Run FN (`gptel-agent') without letting it set `gptel-max-tokens' on Codex.
+(defun my/gptel--agent-without-unsupported-limits (fn &rest args)
+  "Run FN (`gptel-agent') without setting an unsupported token limit.
 Upstream does `(unless gptel-max-tokens (setq-local gptel-max-tokens 8192))';
 binding it non-nil for the duration makes that a no-op, so the fresh buffer
-inherits the global nil instead of a value the endpoint refuses."
-  (if (my/gptel--codex-p)
+inherits the global nil instead of a value the active endpoint refuses."
+  (if (my/gptel--omit-generation-parameters-p)
       (let ((gptel-max-tokens 'unset)) (apply fn args))
     (apply fn args)))
 
@@ -237,7 +249,7 @@ inherits the global nil instead of a value the endpoint refuses."
   (setq gptel-agent-preset '(:backend "Ollama" :model qwen3-coder:30b))
   (load! "gptel/tools")
   (advice-add 'gptel-agent-update :after #'my/gptel--extend-agent-preset)
-  (advice-add 'gptel-agent :around #'my/gptel--agent-without-max-tokens)
+  (advice-add 'gptel-agent :around #'my/gptel--agent-without-unsupported-limits)
   (gptel-agent-update))
 
 ;;; --- Project sessions -----------------------------------------------------
@@ -253,9 +265,8 @@ chat gets the same tools and system prompt."
   (gptel--apply-preset 'gptel-agent
                        (lambda (sym val) (set (make-local-variable sym) val)))
   ;; gptel-agent raises this to 8192 because most backends default low. The
-  ;; Codex endpoint rejects max_output_tokens outright and warns on every
-  ;; request, so leave it unset there.
-  (unless (or gptel-max-tokens (my/gptel--codex-p))
+  ;; Leave the limit unset for endpoints that reject max_output_tokens.
+  (unless (or gptel-max-tokens (my/gptel--omit-generation-parameters-p))
     (setq-local gptel-max-tokens 8192)))
 
 ;;;###autoload

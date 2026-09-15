@@ -53,7 +53,7 @@ There is no test suite — the "tests" are: (a) install scripts must remain idem
 | `config/doom/config-eshell.el` | Shared eshell inline-image tooling (`cat`/`rinku`, TRAMP-aware; adapted from xenodium) |
 | `config/doom/config-tramp.el` | TRAMP performance tuning for remote editing (ControlMaster reuse, direct-async, skip vc) — see ADR-011 |
 | `config/doom/config-remote.el` | Tailnet host picker + persistent Ghostel→tmux terminals + tmux.conf provisioning (`SPC o x`) — see ADR-011 |
-| `config/doom/config-gptel.el` | LLM client on top of `:tools llm` — ChatGPT-OAuth + Ollama backends, gptel-agent, project chats (`SPC o l`) — see ADR-014 |
+| `config/doom/config-gptel.el` | Provider-neutral LLM client on top of `:tools llm` — layer-selected primary + Ollama, gptel-agent, project chats (`SPC o l`) — see ADR-014 |
 | `config/doom/config-jsonviz.el` | Local JSON validation plus PlantUML structure preview/export (`SPC m v` / `SPC m V`) |
 | `config/doom/config-python.el` | uv-owned venvs, ruff format/lint, pyright against the project `.venv`, projectile `python-uv` type, `SPC m u` bootstrap — see ADR-015 |
 | `config/doom/config-macos.el` | macOS-specific (Command=Meta, exec-path-from-shell, dired) |
@@ -115,9 +115,10 @@ Doom's `:tools llm` module is **on** — it brings gptel plus `gptel-quick` (exp
 `gptel` blocks), a popup rule, and the `SPC o l` map. `config/doom/config-gptel.el` layers on top
 rather than re-declaring any of it. See ADR-014.
 
-Auth is the **ChatGPT subscription over OAuth** (`gptel-make-openai-oauth`) — no OpenAI
-platform API key, no second bill. First request opens a browser login; force it with
-`M-x gptel-openai-oauth-login`. The token lands in `~/.config/emacs/.cache/gptel-openai/`.
+The public config is provider-neutral: a private `doom/post.el` calls
+`my/gptel-register-primary-backend` with the provider and model for that context. The personal
+layer selects **ChatGPT OAuth**; a work layer can select a different subscription.
+With no private provider, gptel defaults to local Ollama.
 
 A second backend points at ADR-013's Ollama endpoint. `gptel-agent` supplies the agentic
 layer: ~32 tools (read/grep/glob free, bash/edit/write confirmed), sub-agents, skills from
@@ -133,7 +134,7 @@ lookup falls back to whatever backend the session is on.
 
 The popup is a ladder, not a dead end — `+` asks for a longer answer, `w` copies it (then
 `p`), and `r` carries the query and the answer into a gptel chat buffer, where the
-conversation continues on the session backend (ChatGPT) and `C-x C-w` keeps it as a file.
+conversation continues on the session's layer-selected backend and `C-x C-w` keeps it as a file.
 `r`/`w` are aliases for upstream's `M-RET`/`M-w`: a GUI frame sends `M-<return>`, which
 org-mode already claims for `org-ctrl-c-ret`, so upstream's key is unreachable in exactly
 the buffers a lookup most wants a follow-up in. `M-<return>` is aliased too, so both
@@ -145,7 +146,7 @@ SPC o l e   # explain at point     SPC o l A   # ephemeral agent session
 SPC o l s   # send                 SPC o l F   # add project files to context
 SPC o l r   # rewrite region       SPC o l c   # clear context
 SPC o l m   # menu (model/preset)  SPC o l k   # compact conversation
-SPC o l b   # toggle ChatGPT ↔ Ollama          C-c l   # same map, no leader
+SPC o l b   # toggle primary ↔ Ollama          C-c l   # same map, no leader
 ```
 
 Two drop-in growth surfaces, live without a `doom sync` (they ride the `config/doom/` symlink):
@@ -296,7 +297,7 @@ Significant design choices are documented in `docs/decisions/` as ADRs. Check th
 | `011-emacs-remote-tmux.md` | Effortless Emacs → remote workflow: tuned TRAMP (edit lane) + Ghostel→persistent-tmux over Tailscale (run lane); tailnet as host source of truth |
 | `012-sys-ops-cli.md` | Cross-platform compiled `sys` CLI + `sys check` confidence pass; command semantics, gate-on-symptom-not-remedy, ping-authoritative daemon check |
 | `013-llm-ollama-lmstudio.md` | Local LLM: Ollama managed GGUF endpoint (`:11434`) + LM Studio user-managed MLX GUI; why stores can't be shared (Ollama copies in; GGUF≠MLX); `sys llm` on-demand control + `mirror` symlink bridge; curated 64 GB set |
-| `014-gptel-emacs-llm-client.md` | gptel on Doom's `:tools llm`: ChatGPT-subscription OAuth (not an API key), Ollama as second backend, gptel-agent for project sessions/tools/sub-agents, in-repo transcripts + global gitignore |
+| `014-gptel-emacs-llm-client.md` | gptel on Doom's `:tools llm`: private-layer primary provider, Ollama fallback, gptel-agent for project sessions/tools/sub-agents, in-repo transcripts + global gitignore |
 | `015-python-uv.md` | Python: `+uv` auto-activates the project `.venv`, ruff replaces black+isort+pyflakes, pyright pinned to `.venv`, `uv run pytest`, projectile `python-uv` type; only `pyright`+`ruff` stay global, only bootstrapping (`SPC m u`) is scripted |
 | `017-compiled-hack-worktrees.md` | Compiled, lazily indexed worktrees; every task starts from freshly fetched `origin/<base>` |
 | `018-drop-claude-code.md` | Claude Code removed after its subscription was discontinued; gptel remains the Emacs LLM surface |

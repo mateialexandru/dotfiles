@@ -1,4 +1,4 @@
-# ADR-014: gptel in Emacs — ChatGPT subscription auth, project agent sessions
+# ADR-014: gptel in Emacs — layered providers and project agent sessions
 
 **Status:** Accepted
 **Date:** 2026-08-01
@@ -13,12 +13,15 @@ client, no way to aim a model at a local endpoint, and no place to grow tools.
 At the same time ADR-013 stood up a managed OpenAI-compatible endpoint at `localhost:11434`
 that nothing in Emacs consumed, and Doom's `:tools llm` module sat commented out in `init.el`.
 
-The user has a ChatGPT subscription and wanted to leverage *that*, not a second bill.
+The personal environment has a ChatGPT subscription, while a work environment may use a
+different provider. Provider choice therefore belongs to a private layer, not the portable
+public configuration.
 
 ## Decision
 
-**Enable Doom's `:tools llm` module, authenticate it against the ChatGPT subscription over
-OAuth, add a local Ollama backend beside it, and layer `gptel-agent` on top for project work.**
+**Enable Doom's `:tools llm` module, expose a provider-neutral primary-backend slot, keep local
+Ollama as the portable fallback, and layer `gptel-agent` on top for project work.** The personal
+personal layer fills that slot with ChatGPT OAuth; another layer can register another provider.
 
 ### Build on `:tools llm`, don't bypass it
 
@@ -33,13 +36,27 @@ keys are *added* to `SPC o l` rather than given a second prefix of their own. `C
 the map without the leader; it is free because Doom only binds `doom-localleader-alt-key` to
 `C-c l` in non-evil setups.
 
-### OAuth, not an API key
+### Personal layer: OAuth, not an API key
 
 `gptel-make-openai-oauth` targets the Codex endpoint on `chatgpt.com` with a ChatGPT Plus/Pro
 login. **ChatGPT Plus does not include OpenAI platform API access** — they are separate
 products with separate billing — so an API-key setup would have meant paying twice for a
 subscription the user already has. The module's README still says an API key is required; that
-predates OAuth support in gptel. Our config never touches `gptel-api-key`.
+predates OAuth support in gptel. The personal layer never touches `gptel-api-key`.
+
+The provider declaration lives in the personal private layer's `doom/post.el`:
+
+```elisp
+(after! gptel
+  (my/gptel-register-primary-backend
+   (gptel-make-openai-oauth "ChatGPT")
+   'gpt-5.6-sol
+   #'gptel-openai-oauth-p))
+```
+
+The final predicate tells the public compatibility plumbing that this backend rejects optional
+generation parameters. A work layer can register its own backend and model without inheriting
+that ChatGPT-specific behavior.
 
 Two consequences worth knowing:
 
@@ -49,20 +66,23 @@ Two consequences worth knowing:
   request if either is present. `gptel-temperature` is set to nil globally. `max_output_tokens`
   is the awkward one: gptel-agent raises `gptel-max-tokens` to 8192 in every agent buffer
   (sensible for backends whose default is low), which made the ChatGPT backend warn
-  constantly. `my/gptel--codex-p` gates it — our own project command skips the raise, and an
-  `:around` advice on `gptel-agent` binds the variable non-nil for the call so upstream's
-  `unless` no-ops. Ollama buffers still get 8192. `my/gptel-toggle-backend` clears/restores
-  the buffer-local value when an agent buffer moves between the two endpoints.
+  constantly. `my/gptel--omit-generation-parameters-p` gates it using the predicate supplied
+  by the private layer — our own project command skips the raise, and an `:around` advice on
+  `gptel-agent` binds the variable non-nil for the call so upstream's `unless` no-ops. Ollama
+  buffers still get 8192. `my/gptel-toggle-backend` clears/restores the buffer-local value when
+  an agent buffer moves between the two endpoints.
 
 Login is `M-x gptel-openai-oauth-login`, or automatic on first request. The default
 `authorization-code` flow needs a localhost callback on port 1455, which is fine for the local
 daemon; over SSH, `gptel-openai-oauth-login-method` must be set to `device`.
 
-### Two backends, one key apart
+### Primary provider and local backend, one key apart
 
-`ChatGPT` (OAuth) is the default. `Ollama` points at ADR-013's managed endpoint with the models
-from `scripts/ollama-models.txt`. `my/gptel-toggle-backend` (`SPC o l b`, also in the `SPC t n`
-toggle menu) flips between them and remembers the model last used with each — switching backend
+The latest private layer to call `my/gptel-register-primary-backend` selects the primary provider
+and makes it active. With no private provider, public gptel remains useful through `Ollama`, which
+points at ADR-013's managed endpoint with the models from `scripts/ollama-models.txt`.
+`my/gptel-toggle-backend` (`SPC o l b`, also in the `SPC t n` toggle menu) flips between the
+registered primary and Ollama and remembers the model last used with each — switching backend
 without switching model would send a model name the other end has never heard of.
 
 That daemon is on-demand, so the toggle probes `/api/tags` first and points at
@@ -110,7 +130,8 @@ map dies with the popup, and deciding to escalate takes longer than reading.
 
 The chat buffer runs on the session backend, since `my/gptel-quick--prefer-local` binds Ollama
 only around the `gptel-quick` call. That is the ladder working as intended — the local model
-answers the twelve-word question off quota, the subscription model picks up the conversation.
+answers the twelve-word question off quota, the layer-selected primary model picks up the
+conversation.
 
 ### Inline rewrites default to optimistic apply
 
@@ -181,7 +202,8 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 
 ## Consequences
 
-- The ChatGPT subscription is the only credential; no OpenAI platform spend.
+- The public repository contains no remote-provider or account choice. Personal ChatGPT OAuth
+  lives in a private layer; work layers may register a different subscription backend.
 - gptel is the single Emacs LLM surface. Claude Code was subsequently removed by ADR-018 after
   its separate subscription was discontinued.
 - Doom's LLM ecosystem is now on: org-babel `gptel` blocks work in Org notes, magit offers

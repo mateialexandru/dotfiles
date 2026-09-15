@@ -143,7 +143,9 @@ The everyday paths are visual `SPC r` for an auto-applied rewrite, `SPC o l e`
 for a quick explanation, and `SPC o l p` for a persistent project-agent chat.
 See [`docs/examples/gptel-workflows.org`](docs/examples/gptel-workflows.org) for a
 short hands-on guide to rewrites, follow-up chats, project context, agents, and
-choosing between ChatGPT and local Ollama.
+choosing between a layer-selected primary provider and local Ollama. The public
+configuration is provider-neutral; a private `doom/post.el` registers the
+subscription backend with `my/gptel-register-primary-backend`.
 
 ## Capture into Emacs org (macOS)
 

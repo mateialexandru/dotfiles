@@ -50,9 +50,10 @@ project-agent workflow.
 
 * Choose where the request runs
 
-=SPC o l b= toggles between the ChatGPT subscription and local Ollama, keeping
-the appropriate model for each backend. =SPC o l m= opens gptel's menu for
-choosing a model, preset, tools, context, or response destination.
+=SPC o l b= toggles between the private layer's primary provider and local
+Ollama, keeping the appropriate model for each backend. =SPC o l m= opens
+gptel's menu for choosing a model, preset, tools, context, or response
+destination.
 
 Treat context as part of the request: selected regions and files are sent to
 the active backend. For private or work material, use only a backend permitted
