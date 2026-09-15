@@ -15,6 +15,11 @@
   :type '(choice (const :tag "No theme" nil) string)
   :group 'my/jsonviz)
 
+;; Doom's enabled `:lang rest +jq' module owns the jq-mode package. Expose its
+;; most useful command in ordinary JSON buffers: iteratively filter the active
+;; region, or the entire buffer when no region is selected.
+(autoload 'jq-interactively "jq-mode" nil t)
+
 (defun my/jsonviz--source ()
   "Return the active region, or the entire current buffer, as plain text."
   (if (use-region-p)
@@ -105,12 +110,14 @@ With PREFIX, use PlantUML's alternate display target."
 (after! json-mode
   (map! :map json-mode-map
         :localleader
+        :desc "Filter with jq"     "q" #'jq-interactively
         :desc "Preview structure" "v" #'my/jsonviz-preview
         :desc "Export structure"  "V" #'my/jsonviz-export))
 
 (after! json-ts-mode
   (map! :map json-ts-mode-map
         :localleader
+        :desc "Filter with jq"     "q" #'jq-interactively
         :desc "Preview structure" "v" #'my/jsonviz-preview
         :desc "Export structure"  "V" #'my/jsonviz-export))
 

@@ -54,7 +54,7 @@ There is no test suite — the "tests" are: (a) install scripts must remain idem
 | `config/doom/config-tramp.el` | TRAMP performance tuning for remote editing (ControlMaster reuse, direct-async, skip vc) — see ADR-011 |
 | `config/doom/config-remote.el` | Tailnet host picker + persistent Ghostel→tmux terminals + tmux.conf provisioning (`SPC o x`) — see ADR-011 |
 | `config/doom/config-gptel.el` | Provider-neutral LLM client on top of `:tools llm` — layer-selected primary + Ollama, gptel-agent, project chats (`SPC o l`) — see ADR-014 |
-| `config/doom/config-jsonviz.el` | Local JSON validation plus PlantUML structure preview/export (`SPC m v` / `SPC m V`) |
+| `config/doom/config-jsonviz.el` | Interactive jq filtering plus local PlantUML structure preview/export (`SPC m q` / `SPC m v` / `SPC m V`) |
 | `config/doom/config-python.el` | uv-owned venvs, ruff format/lint, pyright against the project `.venv`, projectile `python-uv` type, `SPC m u` bootstrap — see ADR-015 |
 | `config/doom/config-macos.el` | macOS-specific (Command=Meta, exec-path-from-shell, dired) |
 | `config/doom/config-linux.el` | Linux-specific (dired ls flags, libnotify alerts) |

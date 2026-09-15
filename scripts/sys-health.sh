@@ -81,9 +81,9 @@ else fail "doom doctor" "doom binary missing at $DOOM — run \`sys install\`"; 
 
 # 6. core tools on PATH
 missing=()
-for t in rg fd node dotnet nu sys emacsclient mmdc hack; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
+for t in rg fd jq node dotnet nu sys emacsclient mmdc hack; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
 [[ -x "$HOME/.dotnet/tools/csharpier" ]] || missing+=(csharpier)
-if [[ ${#missing[@]} -eq 0 ]]; then pass "tools" "rg fd node dotnet nu sys csharpier mmdc hack"
+if [[ ${#missing[@]} -eq 0 ]]; then pass "tools" "rg fd jq node dotnet nu sys csharpier mmdc hack"
 else fail "tools" "missing: ${missing[*]} — run \`sys install\`"; fi
 
 # Nushell remains optional as the login shell, but its managed autoload entry must work.

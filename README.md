@@ -149,6 +149,9 @@ drive export on both platforms—no external watcher is required.
 
 - `.http` files use REST Client; send the request at point with `SPC m e` and
   process responses with jq. REST Client blocks also work from Org Babel.
+- `.jq` files use `jq-mode`. In a JSON buffer, `SPC m q` interactively filters
+  the active region or the whole buffer; `RET` applies and `C-g` cancels. See
+  [`docs/howto/howto-jq.org`](docs/howto/howto-jq.org).
 - JSON files use tree-sitter editing. `SPC m v` renders the selected JSON (or
   the whole buffer) as a local PlantUML structure preview; `SPC m V` exports it
   as SVG or PNG.

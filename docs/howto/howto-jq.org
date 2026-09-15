@@ -1,0 +1,43 @@
+:PROPERTIES:
+:ID:       f4b0610d-fc35-4776-bf3d-8c80640372c9
+:END:
+#+title: How-to: jq in Emacs
+#+filetags: :howto:dotfiles:
+#+aliases: "jq" "jq-mode"
+
+The dotfiles installers provide the =jq= executable on macOS, Linux, and
+Windows. Doom's enabled =:lang rest +jq= module provides =jq-mode= and jq
+filtering for REST Client responses.
+
+* Edit a jq program
+
+Open a file ending in =.jq=. It automatically uses =jq-mode= for syntax
+highlighting, indentation, and completion of jq built-ins.
+
+* Explore JSON interactively
+
+Open a JSON file and press =SPC m q=. If a region is active, only that region
+is used; otherwise the entire buffer is the input.
+
+Type a jq expression in the minibuffer. The buffer previews the result while
+the expression changes:
+
+- =RET= accepts the result and replaces the selected JSON.
+- =C-g= cancels and restores the original JSON.
+- =C-c C-r= toggles jq's raw-output mode.
+
+Start with =.= to pretty-print the input, then try expressions such as:
+
+#+begin_src jq
+.items[] | select(.enabled) | {name, id}
+#+end_src
+
+The command is also available as =M-x jq-interactively=.
+
+* Use jq from the shell
+
+#+begin_src sh
+jq '.items[] | select(.enabled)' response.json
+#+end_src
+
+Use =jq -r= when the output should be raw text rather than JSON strings.
