@@ -3,6 +3,8 @@
 
 This diagram is an Org Babel source block. Put point inside it and press
 =C-c C-c= or =SPC m M= to regenerate the SVG and refresh it inline.
+Press =SPC m v= to toggle a pristine reading view that hides the Mermaid source
+while keeping the rendered diagram visible.
 
 #+begin_src mermaid :file mermaid-org-example.svg
 sequenceDiagram
