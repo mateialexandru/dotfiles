@@ -1,0 +1,15 @@
+# Ollama model manifest — pulled by scripts/install-llm-mac.sh (`keeper install`).
+# One model per line; blank lines and `#` comments ignored. Edit freely, then re-run
+# `bash scripts/install-llm-mac.sh` (or `keeper install`) to sync — `ollama pull` is a
+# no-op when the digest is current.
+#
+# Curated SOTA-for-64GB set: a fast reasoning/all-rounder for daily work, a dedicated
+# coding driver, and an embedder. MoE picks (few active params) → big quality, fast
+# decode on the M5. All co-reside with headroom for macOS + LM Studio.
+#
+# Heavier swaps (run solo, close other apps):
+#   qwen3-coder-next:80b   # ~38 GB, #1 agentic coder at release, 256K→1M ctx
+
+gpt-oss:20b          # all-rounder / reasoning / daily driver — MoE, ~13 GB, fast
+qwen3-coder:30b      # coding — 30B MoE (3.3B active), ~19 GB Q4, 256K ctx
+nomic-embed-text     # embeddings (~274 MB) — RAG / future org-roam

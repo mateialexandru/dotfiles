@@ -1,0 +1,16 @@
+{
+  "baseDir": "C:\\worktree",
+  "branchPrefix": "user/yourname",
+  "defaultBaseBranch": "develop",
+  "defaultRepo": "infra",
+  "repos": {
+    "infra": {
+      "url": "https://dev.azure.com/org/project/_git/example-infra",
+      "baseBranch": "develop"
+    },
+    "dotfiles": {
+      "url": "https://github.com/user/dotfiles",
+      "baseBranch": "master"
+    }
+  }
+}

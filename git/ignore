@@ -1,0 +1,9 @@
+# Global gitignore — linked to ~/.config/git/ignore by install.sh.
+# For per-machine junk that has no business in anyone's repository.
+
+# Agent scratch space
+.gptel/
+.claude/
+
+# OS files
+.DS_Store

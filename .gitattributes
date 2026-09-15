@@ -1,0 +1,8 @@
+# Normalize all text files to LF in the repo and on checkout.
+# This overrides core.autocrlf for all platforms.
+* text=auto eol=lf
+
+# Explicitly mark binary files to prevent corruption
+*.png binary
+*.jpg binary
+*.jar binary
