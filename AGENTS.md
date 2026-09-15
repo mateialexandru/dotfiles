@@ -54,6 +54,7 @@ There is no test suite — the "tests" are: (a) install scripts must remain idem
 | `config/doom/config-tramp.el` | TRAMP performance tuning for remote editing (ControlMaster reuse, direct-async, skip vc) — see ADR-011 |
 | `config/doom/config-remote.el` | Tailnet host picker + persistent Ghostel→tmux terminals + tmux.conf provisioning (`SPC o x`) — see ADR-011 |
 | `config/doom/config-gptel.el` | LLM client on top of `:tools llm` — ChatGPT-OAuth + Ollama backends, gptel-agent, project chats (`SPC o l`) — see ADR-014 |
+| `config/doom/config-jsonviz.el` | Local JSON validation plus PlantUML structure preview/export (`SPC m v` / `SPC m V`) |
 | `config/doom/config-python.el` | uv-owned venvs, ruff format/lint, pyright against the project `.venv`, projectile `python-uv` type, `SPC m u` bootstrap — see ADR-015 |
 | `config/doom/config-macos.el` | macOS-specific (Command=Meta, exec-path-from-shell, dired) |
 | `config/doom/config-linux.el` | Linux-specific (dired ls flags, libnotify alerts) |
@@ -69,6 +70,8 @@ Platform detection uses `(pcase system-type ...)` at the bottom of `config.el`, 
 - **`devcontainer`** — build/start Docker containers; compile inside them. C# test error pattern registered with `compilation-error-regexp-alist`.
 - **`winpulse`** — flashes window background on focus.
 - **`apheleia`** — format-on-save. C# uses `csharpier` via `dotnet csharpier --write-stdout`.
+- **`consult-org-roam`** — full-text roam search plus backlink/forward-link previews.
+- **`sqlite-mode-extras`** — editable navigation and ad-hoc queries in Emacs's built-in SQLite browser.
 
 ### org-roam contexts
 

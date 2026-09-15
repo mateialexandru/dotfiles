@@ -24,6 +24,8 @@ $wingetPackages = @(
     "jqlang.jq",
     "UniversalCtags.Ctags",
     "LLVM.LLVM",
+    # Clipboard image extraction for Doom's Org +dragndrop integration
+    "ImageMagick.ImageMagick",
     # Docs / linting
     "JohnMacFarlane.Pandoc",
     "koalaman.shellcheck",
@@ -109,6 +111,7 @@ $tools = @{
     "jq" = "jq --version"
     "cmake" = "cmake --version"
     "clang-format" = "clang-format --version"
+    "magick" = "magick --version"
     "java" = "java --version"
     "plantuml" = "Test-Path `"$env:LOCALAPPDATA\plantuml\plantuml.jar`""
     "roslyn-lsp" = "Test-Path `"$env:LOCALAPPDATA\roslyn-lsp\Microsoft.CodeAnalysis.LanguageServer.dll`""

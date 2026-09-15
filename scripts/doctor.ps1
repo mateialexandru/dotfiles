@@ -25,6 +25,7 @@ $devTools = @(
     @{ Name = "npm"; Fix = "winget install OpenJS.NodeJS.LTS" }
     @{ Name = "dotnet"; Fix = "winget install Microsoft.DotNet.SDK.8" }
     @{ Name = "jq"; Fix = "winget install jqlang.jq" }
+    @{ Name = "magick"; Fix = "winget install ImageMagick.ImageMagick" }
     @{ Name = "cmake"; Fix = "winget install Kitware.CMake" }
     @{ Name = "java"; Fix = "winget install Microsoft.OpenJDK.21" }
     @{ Name = "plantuml"; Fix = "New-Item -ItemType Directory -Force -Path `"$env:LOCALAPPDATA\plantuml`" | Out-Null; Invoke-WebRequest -Uri 'https://github.com/plantuml/plantuml/releases/latest/download/plantuml.jar' -OutFile `"$env:LOCALAPPDATA\plantuml\plantuml.jar`"" }
@@ -117,6 +118,7 @@ function Get-ToolVersion($name) {
                 if ($ver -match "Universal Ctags") { $ver }
             }
             "jq" { & jq --version 2>$null }
+            "magick" { & magick --version 2>$null | Select-Object -First 1 }
             "cmake" {
                 $cmakeExe = Find-Cmake
                 if ($cmakeExe) { & $cmakeExe --version 2>$null | Select-Object -First 1 }

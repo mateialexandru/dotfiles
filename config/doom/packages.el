@@ -100,6 +100,12 @@
 (package! gnuplot-mode)
 (package! spacious-padding)
 
+;; Consult-powered org-roam search, backlinks, forward links, and previews.
+(package! consult-org-roam)
+
+;; Editable table browser on top of Emacs 29+'s built-in sqlite-mode.
+(package! sqlite-mode-extras)
+
 ;; Named font presets (family + size bundles) with runtime switching and
 ;; persistence across sessions.
 (package! fontaine)

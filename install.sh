@@ -133,9 +133,13 @@ brew install node dotnet cmake ninja llvm devcontainer libtool
 brew install nushell fzf zoxide gh git ripgrep fd jq universal-ctags poppler pandoc grip gnuplot shellcheck rust rust-analyzer \
     lua-language-server wordnet shfmt graphviz dockerfmt clang-format
 
-# Brave browser (macOS cask only — not available via Linuxbrew)
+# Platform clipboard backend for Doom's Org +dragndrop integration.
 if [[ "$OSTYPE" == "darwin"* ]]; then
+    brew install pngpaste
+    # Brave browser (macOS cask only — not available via Linuxbrew)
     brew install --cask brave-browser
+else
+    brew install wl-clipboard
 fi
 
 # Java (Temurin LTS on macOS — registers with /usr/libexec/java_home; openjdk on Linux)

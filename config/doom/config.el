@@ -61,6 +61,27 @@
 (map! :leader
       :desc "Toggle roam context" "t r" #'my/roam-toggle-context)
 
+;; Consult views over the currently selected roam context. Because these read
+;; `org-roam-directory' at invocation time, they follow `my/roam-switch-context'.
+(use-package! consult-org-roam
+  :after org-roam
+  :init
+  (setq consult-org-roam-grep-func #'consult-ripgrep
+        consult-org-roam-buffer-narrow-key ?n
+        consult-org-roam-buffer-after-buffers t
+        consult-org-roam-buffer-enabled nil)
+  :config
+  (consult-org-roam-mode +1)
+  (consult-customize consult-org-roam-forward-links :preview-key "M-.")
+  (map! :map org-mode-map
+        :localleader
+        (:prefix ("m" . "org-roam")
+         :desc "Find roam file"        "e" #'consult-org-roam-file-find
+         :desc "Search roam contents"  "s" #'consult-org-roam-search
+         :desc "Preview backlinks"     "b" #'consult-org-roam-backlinks
+         :desc "Recursive backlinks"   "B" #'consult-org-roam-backlinks-recursive
+         :desc "Preview forward links" "l" #'consult-org-roam-forward-links)))
+
 ;; Start Emacs server for emacsclient support.
 ;; TCP socket required so the sandboxed Scrim org-protocol proxy can connect
 ;; (it can't reach the default unix-domain socket). server-use-tcp writes the
@@ -308,6 +329,12 @@ The first that exists is opened; the first in the list is what gets created.")
 (load! "config-super-save")
 (load! "config-compile-on-close")
 (load! "config-notify")
+(load! "config-jsonviz")
+
+;;; SQLite browser — edit cells/rows and run ad-hoc queries in sqlite-mode
+(use-package! sqlite-mode-extras
+  :hook (sqlite-mode . sqlite-extras-minor-mode))
+
 ;; When Corfu auto-opens on a YASnippet trigger, TAB should expand the exact
 ;; snippet rather than merely select the next completion candidate.
 (after! corfu

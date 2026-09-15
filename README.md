@@ -121,6 +121,22 @@ Org. Left-click the preview image to reopen it for editing. The `SPC m D`
 for a worksheet where you can bootstrap a diagram on the spot and follow the
 complete edit/save/refresh loop.
 
+## API, JSON, and data tools in Emacs
+
+- `.http` files use REST Client; send the request at point with `SPC m e` and
+  process responses with jq. REST Client blocks also work from Org Babel.
+- JSON files use tree-sitter editing. `SPC m v` renders the selected JSON (or
+  the whole buffer) as a local PlantUML structure preview; `SPC m V` exports it
+  as SVG or PNG.
+- In an Org buffer, `SPC m a p` saves a clipboard image as an attachment,
+  `SPC m a P` attaches an image path or URL from the kill ring, and images can
+  be dragged directly into the buffer. The installers supply `pngpaste`,
+  `wl-clipboard`, or ImageMagick as the platform clipboard backend.
+- `M-x sqlite-mode-open-file` opens a database with editable table navigation
+  and ad-hoc query commands from `sqlite-mode-extras`.
+- Org-roam adds content search and link previews under `SPC m m`: `s` searches
+  note contents, `b` previews backlinks, and `l` previews forward links.
+
 ## gptel in Emacs
 
 The everyday paths are visual `SPC r` for an auto-applied rewrite, `SPC o l e`
