@@ -16,6 +16,16 @@ step() {
     echo "==> $*"
 }
 
+# Mermaid CLI is intentionally npm-managed on every platform. Homebrew also
+# ships a mermaid-cli formula, but installing both makes each package manager
+# contend for the same $(brew --prefix)/bin/mmdc symlink and causes `brew
+# upgrade' to return non-zero before the rest of this update can run.
+if brew list --formula mermaid-cli >/dev/null 2>&1; then
+    step "Mermaid CLI package ownership"
+    echo "Removing the duplicate Homebrew formula; npm owns mmdc."
+    brew uninstall mermaid-cli
+fi
+
 step "Homebrew packages"
 brew update
 brew upgrade

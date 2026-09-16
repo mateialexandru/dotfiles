@@ -212,6 +212,12 @@ fi
 
 # Global NPM Packages (AI & Language Servers)
 step "NPM global packages"
+# Mermaid CLI is npm-managed cross-platform. Retire Homebrew's formula if a
+# previous/manual install left it behind: both packages claim bin/mmdc, which
+# otherwise makes the next `brew upgrade' fail during its link step.
+if brew list --formula mermaid-cli >/dev/null 2>&1; then
+    brew uninstall mermaid-cli
+fi
 npm install -g \
     @google/gemini-cli yaml-language-server \
     @mermaid-js/mermaid-cli @github/copilot markdownlint-cli \
