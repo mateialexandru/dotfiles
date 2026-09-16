@@ -131,6 +131,12 @@
   :recipe (:host github :repo "karthink/gptel-agent"
            :files (:defaults "agents")))
 
+;; Native full-project agent UI. agent-shell speaks ACP; pi-acp (installed by
+;; install-pi) adapts the existing Pi configuration and sessions. See ADR-023.
+(package! shell-maker)
+(package! acp)
+(package! agent-shell)
+
 ;; TLA+ — tree-sitter editing + compile-mode error patterns for TLC/PlusCal/SANY
 ;; tla-tools needs polymode for its mixed TLA+/PlusCal buffer mode.
 (package! polymode)

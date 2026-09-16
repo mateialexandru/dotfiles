@@ -23,6 +23,8 @@ with optional `pi/` fragments from the existing ordered private-layer directory.
 - Credentials, sessions, and trust state remain unmanaged in `~/.pi/agent/`.
 
 The public installer has no knowledge of private repository names or model identifiers.
+It also installs the pinned `pi-acp` adapter. ADR-023 uses that adapter to expose the exact
+same composed Pi environment through Emacs without copying private model configuration.
 
 ## Consequences
 

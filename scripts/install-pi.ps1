@@ -6,6 +6,8 @@ $piHome = if ($env:PI_CODING_AGENT_DIR) { $env:PI_CODING_AGENT_DIR } else { Join
 $layersDir = Join-Path $userHome ".config\dotfiles\layers.d"
 $piPackage = "@earendil-works/pi-coding-agent"
 $piVersion = "0.85.1"
+$piAcpPackage = "pi-acp"
+$piAcpVersion = "0.0.33"
 
 $current = try { ((& pi --version 2>$null) -replace "[v\s]", "") } catch { "" }
 if ($current -eq $piVersion) {
@@ -13,6 +15,20 @@ if ($current -eq $piVersion) {
 } else {
     npm install --global --ignore-scripts "$piPackage@$piVersion"
     if ($LASTEXITCODE -ne 0) { throw "Pi installation failed." }
+}
+
+$piAcpCurrent = ""
+try {
+    $npmListing = (& npm list --global --depth=0 --json $piAcpPackage 2>$null | Out-String | ConvertFrom-Json)
+    $dependency = $npmListing.dependencies.PSObject.Properties[$piAcpPackage]
+    if ($dependency) { $piAcpCurrent = $dependency.Value.version }
+} catch {}
+
+if ($piAcpCurrent -eq $piAcpVersion) {
+    Write-Host "Pi ACP adapter $piAcpCurrent is already installed."
+} else {
+    npm install --global --ignore-scripts "$piAcpPackage@$piAcpVersion"
+    if ($LASTEXITCODE -ne 0) { throw "Pi ACP adapter installation failed." }
 }
 
 New-Item -ItemType Directory -Force -Path $piHome | Out-Null

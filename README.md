@@ -75,10 +75,15 @@ pi
 /model                 choose a model
 ```
 
-The installer composes `config/pi/` with optional `pi/` fragments from each activated
-private layer. A layer may add model providers, narrow the visible model list, append
-private agent context, or run a platform-specific setup hook. Runtime credentials,
-sessions, and trust decisions stay in `~/.pi/agent/` and are never stored here.
+The installer also pins the `pi-acp` adapter and composes `config/pi/` with
+optional `pi/` fragments from each activated private layer. A layer may add
+model providers, narrow the visible model list, append private agent context,
+or run a platform-specific setup hook. Runtime credentials, sessions, and trust
+decisions stay in `~/.pi/agent/` and are never stored here.
+
+Inside Emacs, `SPC o l p` (or `C-c l p`) opens the same Pi setup as a native
+agent-shell project session. The terminal and Emacs clients share models, login,
+context, skills, and history.
 
 Pi has no tool sandbox: an approved `bash` or PowerShell tool call runs with the user's
 permissions. Project-local configuration therefore uses the `ask` trust policy.
@@ -175,12 +180,18 @@ private because public guides never link back to private IDs.
 ## gptel in Emacs
 
 The everyday paths are visual `SPC r` for an auto-applied rewrite, `SPC o l e`
-for a quick explanation, and `SPC o l p` for a persistent project-agent chat.
+for a quick explanation, and `SPC o l p` for a full Pi project agent in
+agent-shell. The Pi session uses the same layered models, OAuth login, context,
+and history as the terminal client; no provider configuration is duplicated in
+Emacs.
 See [`docs/howto/howto-gptel.org`](docs/howto/howto-gptel.org) for a
-short hands-on guide to rewrites, follow-up chats, project context, agents, and
+short hands-on guide to rewrites, follow-up chats, context, and
 choosing between a layer-selected primary provider and local Ollama. The public
 configuration is provider-neutral; a private `doom/post.el` registers the
 subscription backend with `my/gptel-register-primary-backend`.
+
+See [`docs/howto/howto-pi-agent-shell.org`](docs/howto/howto-pi-agent-shell.org)
+for the project-agent flow. `C-c l p` is the non-leader equivalent.
 
 ## Capture into Emacs org (macOS)
 

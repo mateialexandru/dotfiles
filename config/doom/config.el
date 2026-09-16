@@ -836,7 +836,8 @@ Renames the .excalidraw and .excalidraw.svg files and rewrites the link."
 ;; Python: uv-owned venvs, ruff formatting/linting, pyright against the .venv
 (load! "config-python")
 
-;; LLM client: layer-selected primary provider + local Ollama, agent sessions
+;; LLM client: lightweight chat/rewrite plus Pi-backed full project agents
+(load! "config-agent-shell")
 (load! "config-gptel")
 
 ;; Load platform-specific configuration

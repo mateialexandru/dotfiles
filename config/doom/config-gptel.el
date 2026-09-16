@@ -19,10 +19,9 @@
 ;;   compatibility path; the Claude Code CLI is not required). Sub-agent calls
 ;;   are routed to the local box so delegated grunt work costs no quota.
 ;;
-;; - Persistence. `gptel-agent' builds a throwaway buffer; `my/gptel-project'
-;;   puts the same session in <project>/.gptel/chat.org so it survives restarts.
-;;   Those files are kept out of commits by the global gitignore that install.sh
-;;   links to ~/.config/git/ignore.
+;; Full project work belongs to Pi through agent-shell (ADR-023).  The existing
+;; `my/gptel-project' command remains available via M-x for old transcripts, but
+;; it is deliberately unbound.
 ;;
 ;; See ADR-014.
 
@@ -389,7 +388,7 @@ The replacement is one undo step; use `u' in Evil normal state to revert it."
                (:prefix "l"
                 :desc "Rewrite (auto-apply)"   "r" #'my/gptel-rewrite-auto
                 :desc "Rewrite (review)"       "R" #'my/gptel-rewrite-review
-                :desc "Project chat (agent)"  "p" #'my/gptel-project
+                :desc "Pi project agent"      "p" #'agent-shell-pi-start-agent
                 :desc "Agent session"         "A" #'gptel-agent
                 :desc "Add project files"     "F" #'my/gptel-add-project-files
                 :desc "Clear context"         "c" #'gptel-context-remove-all
@@ -399,7 +398,7 @@ The replacement is one undo step; use `u' in Evil normal state to revert it."
 ;; Same surface without the leader. Free here:
 ;; `doom-localleader-alt-key' is only bound to C-c l in non-evil setups.
 (defvar-keymap my/gptel-map
-  :doc "gptel commands, mirroring the `SPC o l' leader map."
+  :doc "LLM commands, mirroring the `SPC o l' leader map."
   "l" #'gptel
   "s" #'gptel-send
   "m" #'gptel-menu
@@ -408,7 +407,7 @@ The replacement is one undo step; use `u' in Evil normal state to revert it."
   "R" #'my/gptel-rewrite-review
   "a" #'gptel-add
   "f" #'gptel-add-file
-  "p" #'my/gptel-project
+  "p" #'agent-shell-pi-start-agent
   "A" #'gptel-agent
   "F" #'my/gptel-add-project-files
   "c" #'gptel-context-remove-all

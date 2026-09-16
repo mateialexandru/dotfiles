@@ -36,22 +36,17 @@ appears in a small popup:
 When Ollama is running, quick explanations use the local model. Otherwise they
 fall back to the current session backend.
 
-* Work on a project over time
+* Escalate to the project agent
 
-From any project buffer, press =SPC o l p=. This opens the persistent agent chat
-at =<project>/.gptel/chat.org=; the global Git ignore keeps that private
-transcript out of commits.
+From any project buffer, press =SPC o l p=. This starts Pi in agent-shell at the
+project root. Use it when the job needs repository exploration, edits, commands,
+or a long-lived agent session; see [[id:2aeef23e-c327-4ab2-b927-04aadb131d71][How-to: Pi in agent-shell]].
 
-1. Press =SPC o l F= and select the project files that matter.
-2. Write the task or question at the end of the chat.
-3. Press =SPC o l s= to send it.
-4. Continue writing and sending follow-ups in the same buffer.
-5. Press =SPC o l k= when a long agent conversation needs compacting.
-6. Press =SPC o l c= when the added context should be cleared.
-
-Use =SPC o l A= for a throwaway agent session when the transcript does not need
-to survive an Emacs restart. Use =SPC o l l= for a plain chat without the
-project-agent workflow.
+gptel remains the lighter surface. Use =SPC o l l= for an ordinary chat,
+=SPC o l A= for a gptel-agent buffer, and =SPC o l F= when you explicitly want
+to attach project files to the current gptel conversation. The older persistent
+gptel project helper remains available as =M-x my/gptel-project= for existing
+=.gptel/chat.org= transcripts, but has no keybinding.
 
 * Choose where the request runs
 

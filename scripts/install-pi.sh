@@ -8,12 +8,31 @@ PI_HOME="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
 LAYERS_DIR="$HOME/.config/dotfiles/layers.d"
 PI_PACKAGE="@earendil-works/pi-coding-agent"
 PI_VERSION="0.85.1"
+PI_ACP_PACKAGE="pi-acp"
+PI_ACP_VERSION="0.0.33"
 
 current="$(pi --version 2>/dev/null | tr -d 'v[:space:]' || true)"
 if [[ "$current" == "$PI_VERSION" ]]; then
     echo "Pi $current is already installed."
 else
     npm install --global --ignore-scripts "$PI_PACKAGE@$PI_VERSION"
+fi
+
+pi_acp_current="$(
+    npm list --global --depth=0 --json "$PI_ACP_PACKAGE" 2>/dev/null |
+        node -e '
+let input = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", chunk => input += chunk);
+process.stdin.on("end", () => {
+  try { process.stdout.write(JSON.parse(input).dependencies?.["pi-acp"]?.version ?? ""); }
+  catch {}
+});' || true
+)"
+if [[ "$pi_acp_current" == "$PI_ACP_VERSION" ]]; then
+    echo "Pi ACP adapter $pi_acp_current is already installed."
+else
+    npm install --global --ignore-scripts "$PI_ACP_PACKAGE@$PI_ACP_VERSION"
 fi
 
 mkdir -p "$PI_HOME"

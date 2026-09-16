@@ -81,9 +81,9 @@ else fail "doom doctor" "doom binary missing at $DOOM — run \`sys install\`"; 
 
 # 6. core tools on PATH
 missing=()
-for t in rg fd jq node dotnet nu sys emacsclient mmdc hack; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
+for t in rg fd jq node dotnet nu sys emacsclient mmdc hack pi pi-acp; do command -v "$t" >/dev/null 2>&1 || missing+=("$t"); done
 [[ -x "$HOME/.dotnet/tools/csharpier" ]] || missing+=(csharpier)
-if [[ ${#missing[@]} -eq 0 ]]; then pass "tools" "rg fd jq node dotnet nu sys csharpier mmdc hack"
+if [[ ${#missing[@]} -eq 0 ]]; then pass "tools" "rg fd jq node dotnet nu sys csharpier mmdc hack pi pi-acp"
 else fail "tools" "missing: ${missing[*]} — run \`sys install\`"; fi
 
 # Nushell remains optional as the login shell, but its managed autoload entry must work.
@@ -179,15 +179,15 @@ if $IS_MAC; then
   else info "ollama" "not installed (optional — \`sys install\` without --skip-llm)"; fi
 fi
 
-# 15. gptel LLM client (ADR-014) — packages built, and the global gitignore
+# 15. Emacs LLM clients (ADR-014, ADR-023) — packages built, and the global gitignore
 # actually in effect. The second half is the one that bites silently: project
 # transcripts live in <repo>/.gptel/, so a missing link makes them committable.
-gptel_missing=()
-for p in gptel gptel-agent; do
-  compgen -G "$HOME/.config/emacs/.local/straight/build-*/$p" >/dev/null || gptel_missing+=("$p")
+llm_missing=()
+for p in gptel gptel-agent shell-maker acp agent-shell; do
+  compgen -G "$HOME/.config/emacs/.local/straight/build-*/$p" >/dev/null || llm_missing+=("$p")
 done
-if [[ ${#gptel_missing[@]} -eq 0 ]]; then pass "gptel" "gptel + gptel-agent built"
-else fail "gptel" "not built: ${gptel_missing[*]} — run \`sys doom sync\`"; fi
+if [[ ${#llm_missing[@]} -eq 0 ]]; then pass "Emacs LLM clients" "gptel + agent-shell built"
+else fail "Emacs LLM clients" "not built: ${llm_missing[*]} — run \`sys doom sync\`"; fi
 
 if git -C "$REPO" check-ignore -q .gptel/chat.org 2>/dev/null; then
   # shellcheck disable=SC2088  # literal display text

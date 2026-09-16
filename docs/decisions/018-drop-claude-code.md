@@ -10,9 +10,10 @@ Claude Code had been installed as a separate CLI and exposed inside Emacs throug
 installer, package, keybindings, and Windows notification hook would leave a dead interface
 and imply that a second paid AI service is part of a clean-machine setup.
 
-ADR-014 has since established gptel as the integrated Emacs LLM surface, using the existing
-ChatGPT subscription and the local Ollama runtime. Worktree creation is independently handled
-by Hack and does not launch an AI client.
+ADR-014 established gptel as the integrated lightweight Emacs LLM surface, using the existing
+ChatGPT subscription and the local Ollama runtime. ADR-023 later added Pi through agent-shell
+for full-project work. Worktree creation is independently handled by Hack and does not launch
+an AI client.
 
 ## Decision
 

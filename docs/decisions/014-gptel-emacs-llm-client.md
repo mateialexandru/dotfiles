@@ -1,4 +1,4 @@
-# ADR-014: gptel in Emacs — layered providers and project agent sessions
+# ADR-014: gptel in Emacs — layered providers and editor-native workflows
 
 **Status:** Accepted
 **Date:** 2026-08-01
@@ -20,7 +20,7 @@ public configuration.
 ## Decision
 
 **Enable Doom's `:tools llm` module, expose a provider-neutral primary-backend slot, keep local
-Ollama as the portable fallback, and layer `gptel-agent` on top for project work.** The personal
+Ollama as the portable fallback, and layer `gptel-agent` on top for tool-enabled sessions.** The
 personal layer fills that slot with ChatGPT OAuth; another layer can register another provider.
 
 ### Build on `:tools llm`, don't bypass it
@@ -171,11 +171,12 @@ Two packaging constraints, both load-bearing:
   Without it the bundled `executor`/`researcher`/`introspector`/`gptel-plan` definitions are
   not installed.
 
-### Project sessions persist in-repo
+### Legacy project sessions persist in-repo
 
-`M-x gptel-agent` builds a throwaway buffer. `my/gptel-project` (`SPC o l p`) puts the same
-session in `<project-root>/.gptel/chat.org`: a real file, so it survives daemon restarts and is
-greppable next to the code it discusses.
+`M-x gptel-agent` builds a throwaway buffer. `my/gptel-project` can put the same session in
+`<project-root>/.gptel/chat.org`: a real file, so it survives daemon restarts and is greppable
+next to the code it discusses. ADR-023 moved `SPC o l p` to Pi through agent-shell; this helper
+is retained unbound so existing transcripts remain accessible.
 
 Applying the agent preset to a file-visiting buffer uses `gptel--apply-preset`, a private
 function — it is what `gptel-agent` itself calls, and the only preset entry point that isn't
@@ -204,12 +205,12 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 
 - The public repository contains no remote-provider or account choice. Personal ChatGPT OAuth
   lives in a private layer; work layers may register a different subscription backend.
-- gptel is the single Emacs LLM surface. Claude Code was subsequently removed by ADR-018 after
-  its separate subscription was discontinued.
+- gptel is the lightweight Emacs LLM surface for chat, inline explanation, and rewrites.
+  ADR-023 adds agent-shell as the separate full-project surface backed by Pi.
 - Doom's LLM ecosystem is now on: org-babel `gptel` blocks work in Org notes, magit offers
   generated commit messages, `SPC o l e` explains at point.
-- Every repo the user works in may grow a `.gptel/` directory. Invisible to git via the global
-  ignore, but it is real state on disk in other people's checkouts.
+- Repositories only grow a `.gptel/` directory when the unbound legacy project command is used.
+  It remains invisible to git via the global ignore.
 - gptel now tracks master. Faster access to things like OAuth support, at the cost of the
   occasional breaking change — `sys doom sync` is where that would surface.
 - One private-API dependency (`gptel--apply-preset`), documented above.

@@ -53,7 +53,8 @@ There is no test suite — the "tests" are: (a) install scripts must remain idem
 | `config/doom/config-eshell.el` | Shared eshell inline-image tooling (`cat`/`rinku`, TRAMP-aware; adapted from xenodium) |
 | `config/doom/config-tramp.el` | TRAMP performance tuning for remote editing (ControlMaster reuse, direct-async, skip vc) — see ADR-011 |
 | `config/doom/config-remote.el` | Tailnet host picker + persistent Ghostel→tmux terminals + tmux.conf provisioning (`SPC o x`) — see ADR-011 |
-| `config/doom/config-gptel.el` | Provider-neutral LLM client on top of `:tools llm` — layer-selected primary + Ollama, gptel-agent, project chats (`SPC o l`) — see ADR-014 |
+| `config/doom/config-gptel.el` | Lightweight provider-neutral LLM client — layer-selected primary + Ollama, inline rewrites, explanations, chat, and gptel-agent — see ADR-014 |
+| `config/doom/config-agent-shell.el` | Full-project Pi agent in native Emacs via agent-shell + ACP (`SPC o l p`) — see ADR-023 |
 | `config/doom/config-jsonviz.el` | Interactive jq filtering plus local PlantUML structure preview/export (`SPC m q` / `SPC m v` / `SPC m V`) |
 | `config/doom/config-python.el` | uv-owned venvs, ruff format/lint, pyright against the project `.venv`, projectile `python-uv` type, `SPC m u` bootstrap — see ADR-015 |
 | `config/doom/config-macos.el` | macOS-specific (Command=Meta, exec-path-from-shell, dired) |
@@ -73,6 +74,7 @@ Platform detection uses `(pcase system-type ...)` at the bottom of `config.el`, 
 - **`apheleia`** — format-on-save. C# uses `csharpier` via `dotnet csharpier --write-stdout`.
 - **`consult-org-roam`** — full-text roam search plus backlink/forward-link previews.
 - **`sqlite-mode-extras`** — editable navigation and ad-hoc queries in Emacs's built-in SQLite browser.
+- **`agent-shell`** — native full-project agent UI; `pi-acp` connects it to the existing Pi configuration and sessions.
 
 ### org-roam contexts
 
@@ -142,7 +144,7 @@ the buffers a lookup most wants a follow-up in. `M-<return>` is aliased too, so 
 spellings now work everywhere.
 
 ```
-SPC o l l   # chat buffer          SPC o l p   # project chat → <repo>/.gptel/chat.org
+SPC o l l   # gptel chat           SPC o l p   # Pi project agent → agent-shell
 SPC o l e   # explain at point     SPC o l A   # ephemeral agent session
 SPC o l s   # send                 SPC o l F   # add project files to context
 SPC o l r   # rewrite region       SPC o l c   # clear context
@@ -157,8 +159,9 @@ Two drop-in growth surfaces, live without a `doom sync` (they ride the `config/d
 - `config/doom/gptel/tools.el` — machine-specific tools only (`sys_check`, `ollama_models`).
   Add the name to `my/gptel-extra-tools` so the agent preset picks it up.
 
-Project transcripts live in `<repo>/.gptel/chat.org` and are kept out of commits by
-`config/git/ignore`, symlinked to `~/.config/git/ignore` by `install.sh`.
+The old `my/gptel-project` helper remains available unbound for existing
+`<repo>/.gptel/chat.org` transcripts, which are kept out of commits by
+`config/git/ignore`. New full-project sessions use Pi through agent-shell.
 
 ### Python (uv-first)
 
@@ -264,7 +267,11 @@ macOS-only for now. Set
 activated layers. Layers are read lexically from `~/.config/dotfiles/layers.d/` and may
 provide `pi/settings.json`, `pi/models.json`, `pi/AGENTS.md`, and a platform hook. JSON
 objects deep-merge; later arrays replace earlier arrays. Exact local models and machine
-details belong in private layers, not this repository. See ADR-021.
+details belong in private layers, not this repository.
+
+The same installer pins `pi-acp`, which lets `agent-shell` use Pi without a second model,
+credential, or session configuration. `SPC o l p` (also `C-c l p`) starts a Pi agent rooted
+in the current project; terminal Pi and Emacs share `~/.pi/agent`. See ADR-021 and ADR-023.
 
 ### Scripts
 
@@ -281,7 +288,7 @@ details belong in private layers, not this repository. See ADR-021.
 | `scripts/install-hack.sh` / `.ps1` | Build and install the Rust `hack` binary with Cargo |
 | `scripts/install-sys.sh` / `.ps1` | Build and install the Rust `sys` operations CLI with Cargo |
 | `scripts/install-nushell.sh` / `.ps1` | Link the public Nu autoload config, generate zoxide/fzf integration, and register private Nu layers without changing the default shell |
-| `scripts/install-pi.sh` / `.ps1` | Install Pi and compose public configuration with activated private Pi layers |
+| `scripts/install-pi.sh` / `.ps1` | Install Pi + `pi-acp` and compose public configuration with activated private Pi layers |
 | `scripts/merge-json.mjs` | Deep-merge public and layered JSON configuration; later arrays replace earlier arrays |
 | `scripts/install-roslyn-lsp.sh` / `.ps1` | Download Microsoft Roslyn LSP NuGet package to `~/.local/share/roslyn-lsp` (or `%LOCALAPPDATA%\roslyn-lsp\` on Windows) |
 | `scripts/install-plantuml.sh` | Download PlantUML's jar into Doom's profile data directory |
@@ -309,14 +316,15 @@ Significant design choices are documented in `docs/decisions/` as ADRs. Check th
 | `011-emacs-remote-tmux.md` | Effortless Emacs → remote workflow: tuned TRAMP (edit lane) + Ghostel→persistent-tmux over Tailscale (run lane); tailnet as host source of truth |
 | `012-sys-ops-cli.md` | Cross-platform compiled `sys` CLI + `sys check` confidence pass; command semantics, gate-on-symptom-not-remedy, ping-authoritative daemon check |
 | `013-llm-ollama-lmstudio.md` | Local LLM: Ollama managed GGUF endpoint (`:11434`) + LM Studio user-managed MLX GUI; why stores can't be shared (Ollama copies in; GGUF≠MLX); `sys llm` on-demand control + `mirror` symlink bridge; curated 64 GB set |
-| `014-gptel-emacs-llm-client.md` | gptel on Doom's `:tools llm`: private-layer primary provider, Ollama fallback, gptel-agent for project sessions/tools/sub-agents, in-repo transcripts + global gitignore |
+| `014-gptel-emacs-llm-client.md` | gptel on Doom's `:tools llm`: private-layer primary provider, Ollama fallback, inline/editor workflows, tools/sub-agents, legacy project transcripts |
 | `015-python-uv.md` | Python: `+uv` auto-activates the project `.venv`, ruff replaces black+isort+pyflakes, pyright pinned to `.venv`, `uv run pytest`, projectile `python-uv` type; only `pyright`+`ruff` stay global, only bootstrapping (`SPC m u`) is scripted |
 | `017-compiled-hack-worktrees.md` | Compiled, lazily indexed worktrees; every task starts from freshly fetched `origin/<base>` |
-| `018-drop-claude-code.md` | Claude Code removed after its subscription was discontinued; gptel remains the Emacs LLM surface |
+| `018-drop-claude-code.md` | Claude Code removed after its subscription was discontinued; gptel remains the lightweight Emacs LLM surface |
 | `019-repository-layout.md` | KISS layout: configuration, documentation, assets, scripts, and tools have distinct homes |
 | `020-nushell-parallel.md` | Install and configure Nu as a parallel interactive shell while retaining zsh/Bash and PowerShell compatibility |
 | `021-pi-private-model-layer.md` | Pi is public and cross-platform; machine-specific local model catalogs and runtime setup come from private layers |
 | `022-org-roam-public-howtos.md` | One roam graph indexes a private context root plus repository-owned how-tos from `docs/howto/` |
+| `023-agent-shell-pi.md` | agent-shell owns full-project Emacs work and reuses the existing layered Pi configuration through `pi-acp` |
 
 ## Related files
 

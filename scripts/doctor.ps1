@@ -40,6 +40,8 @@ $devTools = @(
     @{ Name = "rust-analyzer"; Fix = "rustup component add rust-analyzer" }
     @{ Name = "bash-language-server"; Fix = "npm install -g bash-language-server" }
     @{ Name = "typescript-language-server"; Fix = "npm install -g typescript-language-server" }
+    @{ Name = "pi"; Fix = "& `"$PSScriptRoot\install-pi.ps1`"" }
+    @{ Name = "pi-acp"; Fix = "& `"$PSScriptRoot\install-pi.ps1`"" }
     @{ Name = "hack"; Fix = "& `"$PSScriptRoot\install-hack.ps1`"" }
     @{ Name = "sys"; Fix = "& `"$PSScriptRoot\install-sys.ps1`"" }
     @{ Name = "fzf"; Fix = "winget install junegunn.fzf" }
@@ -147,6 +149,8 @@ function Get-ToolVersion($name) {
             "rust-analyzer" { & rust-analyzer --version 2>$null }
             "bash-language-server" { & bash-language-server --version 2>$null }
             "typescript-language-server" { & typescript-language-server --version 2>$null }
+            "pi" { & pi --version 2>$null }
+            "pi-acp" { "installed" }
             "sys" { & sys --version 2>$null }
             "nu" { & nu --version 2>$null }
             "fzf" { & fzf --version 2>$null }

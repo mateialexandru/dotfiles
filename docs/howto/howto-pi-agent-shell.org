@@ -1,0 +1,97 @@
+:PROPERTIES:
+:ID:       2aeef23e-c327-4ab2-b927-04aadb131d71
+:END:
+#+title: How-to: Pi in agent-shell
+#+filetags: :howto:dotfiles:emacs:pi:
+#+aliases: "Pi project agent" "agent-shell"
+
+agent-shell is the full-project interface for Pi inside Emacs. It starts in the
+current project and reuses Pi's normal =~/.pi/agent= configuration: the selected
+models, OAuth login, private layers, skills, =AGENTS.md=, and session history are
+the same ones available from the terminal.
+
+* Start a project agent
+
+From any project buffer, press =SPC o l p= (or =C-c l p=). The explicit command
+is =M-x agent-shell-pi-start-agent=.
+
+Write a task at the =Pi>= prompt and press =RET=. Pi can inspect the repository,
+edit files, and run commands using its normal tool and permission policy. Start
+from a buffer in the intended project because that project root becomes the
+agent's working directory.
+
+* Keep the two LLM surfaces distinct
+
+- Use gptel for inline rewrites, quick explanations, selected context, and plain
+  chat: =SPC r=, =SPC o l e=, and =SPC o l l=.
+- Use agent-shell for repository-scale work where the agent should navigate,
+  edit, run commands, and preserve a Pi session: =SPC o l p=.
+
+The model is chosen through Pi, not a second Emacs-specific model list. Changing
+the composed Pi layer therefore changes both the terminal and agent-shell.
+
+* Useful interaction
+
+- =C-c C-o= switches between the shell and agent-shell's focused viewport.
+- =M-p= and =M-n= move through prompt history.
+- =C-c C-v= changes the Pi model for this session.
+- =C-c C-t= changes reasoning effort: off, minimal, low, medium, high, or xhigh.
+- =C-c C-s= opens the broader ACP session-option picker.
+- Pi slash commands and skills exposed by the ACP adapter appear in the shell.
+- Run =M-x agent-shell= to select or reuse a known agent; Pi is the default.
+
+* Save and resume progress
+
+There is no manual save step. Pi writes the resumable session beneath
+=~/.pi/agent/sessions= as the conversation proceeds, while agent-shell appends a
+readable Markdown transcript beneath
+=<project>/.agent-shell/transcripts/=. The latter is locally excluded from Git.
+Killing the buffer or restarting Emacs does not discard the Pi session.
+
+Before leaving a useful session, give it a recognizable name at the prompt:
+
+#+begin_example
+/name dotfiles-agent-shell
+#+end_example
+
+Use =/session= to see its session details and backing Pi file. Later, press
+=SPC o l p= from the same project and select the named session from the session
+picker. =M-x agent-shell-reload= restarts the current shell against the same
+session ID when the UI or adapter needs refreshing.
+
+For the human-readable copy, run =M-x agent-shell-open-transcript=. Pi's
+=/export= command can additionally write an HTML export into the project, but
+that file is not automatically ignored; use it only when an intentional,
+shareable export is wanted.
+
+* Understand auto and plan modes
+
+Pi does not have Codex-style =Auto=, =Ask=, and =Plan= permission modes. A
+normal Pi session is already the execution-capable mode: its built-in file and
+shell tools run locally with the user's permissions. Agent-shell can display a
+permission request when an extension explicitly sends one, but Pi core does not
+turn every edit or command into such a request.
+
+=defaultProjectTrust: ask= is a different guard. It controls whether Pi loads a
+repository's local settings, packages, and extensions; it is not approval for
+individual tool calls. Because agent-shell starts Pi in RPC mode, an unresolved
+=ask= decision skips those project-local resources rather than opening an
+interactive trust prompt.
+
+Pi core also deliberately omits plan mode. Its example plan extension can make
+the toolset read-only, but =pi-acp= does not currently expose slash commands
+registered by extensions, so it cannot yet be toggled reliably from
+agent-shell. Merely asking the model to “plan only” is a convention, not an
+enforced read-only mode. Until the adapter exposes that control, use an explicit
+planning prompt for convenience and review it as advisory—not as a safety
+boundary.
+
+Pi stores its sessions beneath =~/.pi/agent/sessions=. The adapter keeps only a
+small session map beneath =~/.pi/pi-acp=. If agent-shell creates project-local
+=.agent-shell= UI artifacts, it adds that directory to the repository's local
+Git exclude file rather than committing it.
+
+* If startup fails
+
+Run =sys install= to converge both =pi= and =pi-acp=, then =sys doom sync= and
+restart Emacs. =sys check= verifies the executables and Emacs packages.
