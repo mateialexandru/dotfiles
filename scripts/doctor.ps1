@@ -6,6 +6,8 @@ param(
     [switch]$Fix     # Install missing tools
 )
 
+. "$PSScriptRoot\emacs-paths.ps1"
+
 # Tool definitions - easily expandable
 $coreTools = @(
     @{ Name = "emacs"; Fix = "winget install GNU.Emacs" }
@@ -33,12 +35,12 @@ $devTools = @(
     @{ Name = "yaml-language-server"; Fix = "npm install -g yaml-language-server" }
     @{ Name = "mmdc"; Fix = "npm install -g @mermaid-js/mermaid-cli" }
     @{ Name = "excalidraw-cli"; Fix = "npm install -g @swiftlysingh/excalidraw-cli" }
+    @{ Name = "csharpier"; Fix = "dotnet tool install --global csharpier" }
     @{ Name = "excalidraw-dir"; Fix = "New-Item -ItemType Directory -Force -Path (Join-Path `$env:USERPROFILE 'Documents\org\excalidraw') | Out-Null" }
     @{ Name = "uv"; Fix = "winget install astral-sh.uv" }
-    @{ Name = "pyright"; Fix = "uv tool install --force pyright" }
-    @{ Name = "ruff"; Fix = "uv tool install --force ruff" }
+    @{ Name = "pyright"; Manual = $true; Fix = "& `"$PSScriptRoot\install-python-tools.ps1`" -AllowUvDownloads -PyrightVersion <exact-version> -RuffVersion <exact-version>" }
+    @{ Name = "ruff"; Manual = $true; Fix = "& `"$PSScriptRoot\install-python-tools.ps1`" -AllowUvDownloads -PyrightVersion <exact-version> -RuffVersion <exact-version>" }
     @{ Name = "rust-analyzer"; Fix = "rustup component add rust-analyzer" }
-    @{ Name = "bash-language-server"; Fix = "npm install -g bash-language-server" }
     @{ Name = "typescript-language-server"; Fix = "npm install -g typescript-language-server" }
     @{ Name = "pi"; Fix = "& `"$PSScriptRoot\install-pi.ps1`"" }
     @{ Name = "pi-acp"; Fix = "& `"$PSScriptRoot\install-pi.ps1`"" }
@@ -51,6 +53,7 @@ $devTools = @(
 # Track results
 $script:passed = 0
 $script:failed = 0
+$script:advisories = 0
 $script:missingTools = @()
 
 # Find executable (may not be in PATH immediately after install)
@@ -143,11 +146,11 @@ function Get-ToolVersion($name) {
             "yaml-language-server" { & yaml-language-server --version 2>$null }
             "mmdc" { & mmdc --version 2>$null }
             "excalidraw-cli" { & excalidraw-cli --version 2>$null }
+            "csharpier" { & csharpier --version 2>$null }
             "uv" { & uv --version 2>$null }
             "pyright" { & pyright --version 2>$null }
             "ruff" { & ruff --version 2>$null }
             "rust-analyzer" { & rust-analyzer --version 2>$null }
-            "bash-language-server" { & bash-language-server --version 2>$null }
             "typescript-language-server" { & typescript-language-server --version 2>$null }
             "pi" { & pi --version 2>$null }
             "pi-acp" { "installed" }
@@ -228,6 +231,13 @@ function Install-MissingTools {
     Write-Host ""
 
     foreach ($tool in $script:missingTools) {
+        if ($tool.Manual) {
+            Write-Host "  Manual action required: " -NoNewline
+            Write-Host $tool.Fix -ForegroundColor Yellow
+            Write-Host "  Review and supply approved exact versions; doctor will not authorize downloads." -ForegroundColor DarkGray
+            Write-Host ""
+            continue
+        }
         Write-Host "  Running: " -NoNewline
         Write-Host $tool.Fix -ForegroundColor Yellow
         Invoke-Expression $tool.Fix
@@ -238,12 +248,8 @@ function Install-MissingTools {
 }
 
 function Test-DefenderExclusions {
-    # Paths that should be excluded from Windows Defender scanning for Emacs performance
-    $requiredExclusions = @(
-        (Join-Path $env:USERPROFILE ".config\emacs")
-        (Join-Path $env:USERPROFILE ".emacs.d")
-        "C:\Program Files\Emacs"
-    )
+    # Exclusions are optional mitigations, not evidence that Emacs is healthy.
+    $requiredExclusions = @(Get-DotfilesEmacsPaths | Select-Object -Unique)
 
     try {
         $currentExclusions = (Get-MpPreference -ErrorAction Stop).ExclusionPath
@@ -256,7 +262,8 @@ function Test-DefenderExclusions {
                 $found = $false
                 foreach ($exc in $currentExclusions) {
                     # Check if the required path is covered by an existing exclusion
-                    if ($path -like "$exc*" -or $path -eq $exc) {
+                    if ($path -eq $exc -or
+                        $path.StartsWith($exc.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
                         $found = $true
                         break
                     }
@@ -268,36 +275,21 @@ function Test-DefenderExclusions {
         }
 
         if ($missing.Count -eq 0) {
-            $script:passed++
             if (-not $Quiet) {
-                Write-Host "  " -NoNewline
-                Write-Host ([char]0x2713) -ForegroundColor Green -NoNewline
-                Write-Host " Windows Defender exclusions configured"
+                Write-Host "  [info] Existing Emacs paths are covered by Defender exclusions."
             }
         } else {
-            $script:failed++
-            Write-Host "  " -NoNewline
-            Write-Host ([char]0x2717) -ForegroundColor Red -NoNewline
-            Write-Host " Windows Defender exclusions " -NoNewline
-            Write-Host "(missing)" -ForegroundColor DarkGray
+            $script:advisories++
+            Write-Host "  [advisory] Defender exclusion coverage is not confirmed by this query." -ForegroundColor Yellow
             foreach ($path in $missing) {
-                Write-Host "    " -NoNewline
-                Write-Host ([char]0x2192) -ForegroundColor Yellow -NoNewline
-                Write-Host " Missing: $path" -ForegroundColor Cyan
+                Write-Host "    $path"
             }
-            Write-Host "    " -NoNewline
-            Write-Host ([char]0x2192) -ForegroundColor Yellow -NoNewline
-            Write-Host " Run as Admin: " -NoNewline
-            Write-Host ".\scripts\setup-doom.ps1 -AddDefenderExclusions" -ForegroundColor Cyan
+            Write-Host "    No exclusion is required to pass doctor. Keep organizational protection policy intact."
+            Write-Host "    Exclusions may be hidden in non-elevated sessions; an elevated check is authoritative."
         }
     } catch {
-        # Can't read Defender prefs (maybe not admin or Defender disabled)
-        $script:passed++
-        if (-not $Quiet) {
-            Write-Host "  " -NoNewline
-            Write-Host ([char]0x2713) -ForegroundColor DarkGray -NoNewline
-            Write-Host " Windows Defender exclusions (skipped - cannot query)"
-        }
+        $script:advisories++
+        Write-Warning "Defender exclusion status could not be queried: $($_.Exception.Message)"
     }
 }
 
@@ -378,8 +370,22 @@ function Test-Environment {
 }
 
 function Test-EmacsCapability($name, $expression, $remedy) {
-    & emacs --quick --batch --eval $expression 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    $oldPath = $env:PATH
+    $exitCode = 1
+    try {
+        $nativeRoot = $env:EMACS_NATIVE_COMP_ROOT
+        if (-not $nativeRoot) {
+            $nativeRoot = [Environment]::GetEnvironmentVariable('EMACS_NATIVE_COMP_ROOT', 'User')
+        }
+        if ($nativeRoot) { $env:PATH = "$(Join-Path $nativeRoot 'bin');$env:PATH" }
+        & emacs --quick --batch --eval $expression 2>$null
+        $exitCode = $LASTEXITCODE
+    } catch {
+        Write-Warning "Could not check ${name}: $($_.Exception.Message)"
+    } finally {
+        $env:PATH = $oldPath
+    }
+    if ($exitCode -eq 0) {
         $script:passed++
         if (-not $Quiet) {
             Write-Host "  " -NoNewline
@@ -424,6 +430,12 @@ Test-EmacsCapability "Emacs file notifications" `
 Test-EmacsCapability "Emacs SVG images" `
     '(unless (image-type-available-p (quote svg)) (kill-emacs 1))' `
     "Install a GNU Emacs build with SVG support"
+if ($env:EMACS_NATIVE_COMP_ROOT -or
+    [Environment]::GetEnvironmentVariable('EMACS_NATIVE_COMP_ROOT', 'User')) {
+    Test-EmacsCapability "Emacs native compilation" `
+        '(unless (native-comp-available-p) (kill-emacs 1))' `
+        "Repair the approved compiler runtime selected by EMACS_NATIVE_COMP_ROOT"
+}
 Write-Host ""
 
 Write-Host "Performance" -ForegroundColor White
@@ -438,6 +450,7 @@ if ($script:failed -eq 0) {
 } else {
     Write-Host "$($script:passed)/$total checks passed" -ForegroundColor Yellow
 }
+Write-Host "Advisories: $($script:advisories)"
 Write-Host ""
 
 # Install missing tools if -Fix flag specified

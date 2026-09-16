@@ -186,19 +186,25 @@ fn doom_command(args: &[OsString]) -> Result<u8> {
 }
 
 fn doom(action: &str, args: &[OsString]) -> Result<u8> {
-    let binary = home()?.join(".config/emacs/bin/doom");
+    let directory = home()?.join(".config/emacs");
     #[cfg(windows)]
     {
-        let script = binary.with_extension("ps1");
-        let mut command_args = vec![OsString::from(action)];
+        let root = repo()?;
+        let script = root.join("scripts/invoke-doom.ps1");
+        let mut command_args = vec![
+            OsString::from("-Command"),
+            OsString::from(action),
+            OsString::from("-DoomDirectory"),
+            directory.into_os_string(),
+        ];
         command_args.extend_from_slice(args);
-        ps_script(&script, &command_args, &repo()?)
+        ps_script(&script, &command_args, &root)
     }
     #[cfg(not(windows))]
     {
         let mut command_args = vec![OsString::from(action)];
         command_args.extend_from_slice(args);
-        execute(&binary, &command_args, Some(&repo()?))
+        execute(&directory.join("bin/doom"), &command_args, Some(&repo()?))
     }
 }
 

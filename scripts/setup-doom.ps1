@@ -5,39 +5,44 @@ param(
     [switch]$AddDefenderExclusions  # Add Windows Defender exclusions (requires admin)
 )
 
+$ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\emacs-paths.ps1"
+
 # Windows Defender Exclusions for Emacs Performance
 # Emacs compiles many .elc files which triggers constant AV scanning
 function Add-EmacsDefenderExclusions {
-    $paths = @(
-        (Join-Path $env:USERPROFILE ".config\emacs")
-        (Join-Path $env:USERPROFILE ".emacs.d")
-        "C:\Program Files\Emacs"
-    )
+    $env:PATH = [Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' +
+        [Environment]::GetEnvironmentVariable('PATH', 'User')
+    $paths = @(Get-DotfilesEmacsPaths | Select-Object -Unique)
+    if (-not $paths.Count) { throw 'No active Emacs paths found; no exclusions added.' }
 
     Write-Host "`nConfiguring Windows Defender exclusions..." -ForegroundColor Cyan
 
     # Check if running as admin
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-not $isAdmin) {
-        Write-Host "ERROR: Adding Defender exclusions requires Administrator privileges." -ForegroundColor Red
-        Write-Host "Re-run this script as Administrator with -AddDefenderExclusions" -ForegroundColor Yellow
-        return
+        throw 'Adding approved Defender exclusions requires Administrator privileges.'
     }
 
     foreach ($path in $paths) {
         if (Test-Path $path) {
             try {
-                Add-MpPreference -ExclusionPath $path -ErrorAction Stop
-                Write-Host "  Added exclusion: $path" -ForegroundColor Green
+                $existing = @((Get-MpPreference -ErrorAction Stop).ExclusionPath)
+                if ($path -notin $existing) {
+                    Add-MpPreference -ExclusionPath $path -ErrorAction Stop
+                }
+                $confirmed = @((Get-MpPreference -ErrorAction Stop).ExclusionPath)
+                if ($path -notin $confirmed) { throw "Defender did not retain exclusion: $path" }
+                Write-Host "  Verified exclusion: $path" -ForegroundColor Green
             } catch {
-                Write-Host "  Failed to add: $path - $($_.Exception.Message)" -ForegroundColor Red
+                throw "Could not configure exclusion for $path. Stop and consult IT; do not bypass policy. $($_.Exception.Message)"
             }
         } else {
             Write-Host "  Skipped (not found): $path" -ForegroundColor DarkGray
         }
     }
 
-    Write-Host "Done! Emacs should now be faster." -ForegroundColor Green
+    Write-Host 'Approved exclusions verified. Network protection is unchanged.' -ForegroundColor Green
 }
 
 # If -AddDefenderExclusions flag is set, just do that and exit
@@ -57,10 +62,15 @@ if ([System.Environment]::GetEnvironmentVariable("HOME", "User") -ne $homePath) 
 
 # Dependencies are installed by install-prerequisites.ps1 (run first via install.ps1)
 
-Write-Host "`nStarting new shell to clone and install Doom Emacs..."
+Write-Host "`nChecking and synchronizing Doom Emacs..."
+$doomSetupInvoker = Join-Path $PSScriptRoot 'invoke-doom.ps1'
 
-# Start new PowerShell instance with updated environment to clone and install Doom
+# Run in the caller so output and failures reach the top-level installer.
 $scriptBlock = @'
+$ErrorActionPreference = 'Stop'
+$env:HOME = $env:USERPROFILE
+$env:PATH = [Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' +
+    [Environment]::GetEnvironmentVariable('PATH', 'User')
 $doomDir = Join-Path $env:HOME '.config\emacs'
 $doomBin = Join-Path $doomDir 'bin'
 
@@ -68,6 +78,7 @@ $doomBin = Join-Path $doomDir 'bin'
 if (-not (Test-Path $doomDir)) {
     Write-Host 'Cloning Doom Emacs...' -ForegroundColor Cyan
     git clone --depth 1 https://github.com/doomemacs/doomemacs $doomDir
+    if ($LASTEXITCODE -ne 0) { throw 'Doom clone failed.' }
 } else {
     Write-Host 'Doom Emacs already cloned.' -ForegroundColor Green
 }
@@ -101,7 +112,11 @@ if ($emacsExe) {
         $env:PATH = "$emacsBin;$env:PATH"
     }
 } else {
-    Write-Host 'WARNING: emacs.exe not found — doom install may fail' -ForegroundColor Yellow
+    throw 'emacs.exe not found; cannot synchronize Doom.'
+}
+
+function Invoke-DoomSetupCommand([string]$Command) {
+    & $doomSetupInvoker -Command $Command -DoomDirectory $doomDir -EmacsExecutable $emacsExe -Force
 }
 
 # Install Doom if needed, then synchronize the declared configuration. Upgrades
@@ -109,10 +124,10 @@ if ($emacsExe) {
 $doomLocal = Join-Path $env:HOME '.config\emacs\.local'
 if (-not (Test-Path $doomLocal)) {
     Write-Host 'Running doom install...' -ForegroundColor Cyan
-    powershell -ExecutionPolicy Bypass -File "$doomBin\doom.ps1" install
+    Invoke-DoomSetupCommand 'install'
 }
 Write-Host 'Syncing Doom config...' -ForegroundColor Cyan
-powershell -ExecutionPolicy Bypass -File "$doomBin\doom.ps1" sync
+Invoke-DoomSetupCommand 'sync'
 
 # Doom's PlantUML module checks its profile data directory, while the shared
 # prerequisite installer keeps the downloaded jar under LOCALAPPDATA.
@@ -126,51 +141,17 @@ if (Test-Path $plantumlSource) {
 
 # Install CSharpier (C# formatter for apheleia)
 $csharpierInstalled = dotnet tool list --global 2>$null | Select-String 'csharpier'
+if ($LASTEXITCODE -ne 0) { throw 'Could not inspect global .NET tools.' }
 if ($csharpierInstalled) {
     Write-Host 'CSharpier already installed.' -ForegroundColor Green
 } else {
     Write-Host 'Installing CSharpier...' -ForegroundColor Cyan
     dotnet tool install --global csharpier
+    if ($LASTEXITCODE -ne 0) { throw 'CSharpier installation failed.' }
 }
 
 # Platform settings live in the repository's config-windows.el. Never append
 # machine setup to the symlinked public config, which would dirty the checkout.
-$configFile = Join-Path $env:HOME '.config\doom\config.el'
-
-# Configure fonts
-$fontConfig = @"
-
-;; Font configuration
-(setq doom-font (font-spec :family "JetBrainsMono NF" :size 14)
-      doom-variable-pitch-font (font-spec :family "Segoe UI" :size 15)
-      doom-symbol-font (font-spec :family "Symbols Nerd Font Mono"))
-"@
-if (Test-Path $configFile) {
-    $content = Get-Content $configFile -Raw
-    if ($content -notlike '*doom-font*') {
-        Write-Host 'Configuring fonts for Emacs...' -ForegroundColor Cyan
-        Add-Content $configFile $fontConfig
-    } else {
-        Write-Host 'Fonts already configured in config.el.' -ForegroundColor Green
-    }
-}
-
-# Configure Emacs server for emacsclient
-$serverConfig = @"
-
-;; Start Emacs server for emacsclient support (context menu integration)
-(unless (and (boundp 'server-process) server-process)
-  (server-start))
-"@
-if (Test-Path $configFile) {
-    $content = Get-Content $configFile -Raw
-    if ($content -notlike '*server-start*') {
-        Write-Host 'Enabling Emacs server...' -ForegroundColor Cyan
-        Add-Content $configFile $serverConfig
-    } else {
-        Write-Host 'Emacs server already configured.' -ForegroundColor Green
-    }
-}
 
 # Add Windows Explorer context menu entries using PowerShell registry commands
 Write-Host 'Setting up Windows Explorer context menu...' -ForegroundColor Cyan
@@ -216,13 +197,7 @@ Set-ContextMenu 'Software\Classes\Directory\Background\shell\OpenInEmacs' 'Open 
 Write-Host '  Added: Open in Emacs (folder background)' -ForegroundColor Green
 }
 
-Write-Host "`nSetup complete! Closing in 10 seconds (press any key to close now)..." -ForegroundColor Cyan
-$timeout = 10
-for ($i = $timeout; $i -gt 0; $i--) {
-    if ([Console]::KeyAvailable) { $null = [Console]::ReadKey($true); break }
-    Start-Sleep -Seconds 1
-}
+Write-Host "`nDoom setup complete." -ForegroundColor Cyan
 '@
 
-$encodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($scriptBlock))
-Start-Process powershell -ArgumentList "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encodedCommand -Wait
+& ([scriptblock]::Create($scriptBlock))

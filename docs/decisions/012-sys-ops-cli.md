@@ -40,6 +40,12 @@ Windows uses the built-in Windows PowerShell (`powershell.exe`) only for its boo
 and existing platform scripts. PowerShell 7 (`pwsh`) is not required; the old reason for
 carrying it cross-platform disappeared when `hack` became a Rust binary.
 
+Windows Doom operations use the repository's `scripts/invoke-doom.ps1` to check
+the real Emacs exit code. When `EMACS_NATIVE_COMP_ROOT` is configured, the wrapper
+adds that runtime to the child process PATH before Emacs can cache a failed DLL
+load, and limits native compilation to two workers. It neither changes the
+global PATH nor provisions compiler packages. The same wrapper is used by setup.
+
 The top-level vocabulary describes whole-system intent:
 
 - `install` converges the machine on the checkout: install missing dependencies and

@@ -29,9 +29,36 @@ The daemon is started by launchd, so it inherits a bare `/usr/bin:/bin:/usr/sbin
 
 Orchestrates: profile isolation, prerequisites (via `scripts/install-prerequisites.ps1`), Pi, parallel Nushell configuration, Doom Emacs, and compiled `hack` / `sys` tooling.
 
+Windows prerequisites use WinGet `--no-upgrade`, preserve existing npm commands,
+and stop on package-manager failures/cancellation. Gnuplot is opt-in with
+`-GnuplotVersion` and `-AllowGnuplotElevation`; its helper pins the requested
+WinGet version and makes machine scope explicit. Python tool verification reuses
+working Pyright/Ruff from any package manager; uv downloads require explicit
+consent and exact versions through `scripts/install-python-tools.ps1`.
+Do not interpret these switches or the public WinGet catalog as organizational
+approval, and never bypass a Defender block. The broader installer is not
+guaranteed to be offline or non-admin.
+
+Bash language server is not provisioned or required by the Windows scripts.
+Doom's plain `sh` module retains shell editing without Bash LSP.
+Existing LLVM installations get a user PATH repair rather than a reinstall.
+Doom setup runs synchronously, propagates Emacs failures, and never appends
+machine settings to public config. Doctor includes Pi and CSharpier and reports
+Defender exclusions as an advisory, not a health pass or failure.
+`emacs-paths.ps1` shares active-path discovery between doctor and the explicit
+`setup-doom.ps1 -AddDefenderExclusions` operation; the latter requires approval
+and elevation, verifies persisted additions, and never changes network protection.
+`invoke-doom.ps1` is shared by Windows setup and `sys doom sync|doctor`.
+It prepares an optional `EMACS_NATIVE_COMP_ROOT` before Emacs starts, bounds
+native-comp workers to two, and checks the actual Emacs exit instead of trusting
+the upstream wrapper. This runtime is explicitly provisioned, not auto-upgraded.
+
 ### Verifying
 
-There is no test suite — the "tests" are: (a) install scripts must remain idempotent, (b) on Windows, `scripts/doctor.ps1` validates the environment (Emacs, ripgrep, fd, fonts, symlinks, Roslyn LSP). When changing installers, re-run on a clean machine or worktree to confirm.
+`scripts/test-install-tool-policy.ps1` exercises Windows tool policy offline with
+mocked package managers. `scripts/doctor.ps1` validates the Windows environment
+(Emacs, ripgrep, fd, fonts, symlinks, Roslyn LSP). Validate reruns without
+unnecessarily reinstalling or upgrading the user's environment.
 
 ## After changing Doom config
 
@@ -171,10 +198,14 @@ wanted. `:lang python` runs `(python +lsp +pyright +uv +tree-sitter)`; the `+uv`
 auto-activates the nearest `.venv` on buffer switch (modeline shows `UV:<version>`), so
 nothing needs activating by hand.
 
-Only two Python tools are global (`uv tool`, → `~/.local/bin`): **`ruff`** (format, import
+Only two Python tools are global (normally `uv tool`, → `~/.local/bin`): **`ruff`** (format, import
 sort, lint — replaces black + isort + pyflakes) and **`pyright`**. Everything else is a
 project dependency run via `uv run`; `install.sh` actively uninstalls the retired tools so
 stale shims can't win on PATH.
+
+Windows also accepts existing working installations from other package managers;
+the installer does not force them into uv environments. See README's Windows
+download-consent and pinned-version policy.
 
 `config/doom/config-python.el` wires apheleia to `(ruff-isort ruff)`, disables the flake8/pylint
 flycheck checkers, sets `lsp-pyright-venv-directory` to `.venv` (without this pyright

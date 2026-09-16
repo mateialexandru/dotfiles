@@ -27,6 +27,13 @@ which is the correct outcome, not an obstacle.
 
 ## Decision
 
+Windows provisioning clarification: uv still owns project environments, but
+global Pyright/Ruff may come from an existing approved package-manager install.
+The Windows installer verifies and preserves those tools instead of forcing a
+reinstall through uv. Missing global tools fail explicitly unless the standalone
+helper is given download consent and exact versions. Organizational network
+blocks must not be bypassed.
+
 **uv is the only thing that installs Python or resolves dependencies. Global tools are
 limited to the two that must run outside a project. ruff is the single style/lint binary.**
 

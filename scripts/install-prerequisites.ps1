@@ -1,6 +1,16 @@
 # scripts/install-prerequisites.ps1
 # Installs development tool prerequisites (idempotent)
 
+param(
+    [string]$GnuplotVersion,
+    [switch]$AllowGnuplotElevation
+)
+
+$ErrorActionPreference = 'Stop'
+if ($GnuplotVersion -and -not $AllowGnuplotElevation) {
+    throw 'An explicit Gnuplot install requires -AllowGnuplotElevation; its package uses machine scope.'
+}
+
 Write-Host "Installing development prerequisites..." -ForegroundColor Cyan
 
 # Winget packages
@@ -29,15 +39,23 @@ $wingetPackages = @(
     # Docs / linting
     "JohnMacFarlane.Pandoc",
     "koalaman.shellcheck",
-    # Plotting (org-babel gnuplot)
-    "gnuplot.gnuplot",
     # Fonts
     "DEVCOM.JetBrainsMonoNerdFont"
 )
 
 foreach ($pkg in $wingetPackages) {
     Write-Host "  Installing $pkg..." -ForegroundColor Yellow
-    winget install --id $pkg -e --accept-source-agreements --accept-package-agreements
+    winget install --id $pkg -e --source winget --no-upgrade --accept-source-agreements --accept-package-agreements
+    # WinGet reports no applicable upgrade / already installed as nonzero exits.
+    if ($LASTEXITCODE -notin @(0, -1978335189, -1978335135)) {
+        throw "WinGet failed or was cancelled for $pkg (exit $LASTEXITCODE)."
+    }
+}
+
+if ($GnuplotVersion) {
+    & "$PSScriptRoot\install-gnuplot.ps1" -Version $GnuplotVersion -AllowElevation
+} else {
+    Write-Host 'Skipped: optional Gnuplot installation (no version/elevation approval supplied).'
 }
 
 # PlantUML (Java JAR - not on winget)
@@ -70,11 +88,24 @@ Write-Host "`nInstalling Roslyn LSP (C# language server)..." -ForegroundColor Cy
 
 # npm global packages
 Write-Host "`nInstalling npm global packages..." -ForegroundColor Cyan
-npm install -g yaml-language-server
-npm install -g @mermaid-js/mermaid-cli
-npm install -g @swiftlysingh/excalidraw-cli
-npm install -g @github/copilot
-npm install -g bash-language-server typescript-language-server vscode-langservers-extracted
+$npmTools = [ordered]@{
+    'yaml-language-server' = 'yaml-language-server'
+    'mmdc' = '@mermaid-js/mermaid-cli'
+    'excalidraw-cli' = '@swiftlysingh/excalidraw-cli'
+    'copilot' = '@github/copilot'
+    'typescript-language-server' = 'typescript-language-server'
+    'vscode-html-language-server' = 'vscode-langservers-extracted'
+}
+foreach ($tool in $npmTools.Keys) {
+    if (Get-Command $tool -ErrorAction SilentlyContinue) {
+        Write-Host "Already present: $tool (not upgrading)."
+        continue
+    }
+    npm install -g $npmTools[$tool]
+    if ($LASTEXITCODE -ne 0) {
+        throw "npm installation failed or was blocked for $tool (exit $LASTEXITCODE)."
+    }
+}
 
 # Shared Doom config stores editable drawings here on every platform.
 $excalidrawDir = Join-Path $env:USERPROFILE "Documents\org\excalidraw"
@@ -92,15 +123,25 @@ if (-not (Get-Module -ListAvailable BurntToast)) {
 }
 
 # Refresh PATH from registry (picks up changes from winget/MSI installers)
+# LLVM's machine installer does not always register its bin directory.
+$llvmBin = Join-Path $env:ProgramFiles 'LLVM\bin'
+if (Test-Path (Join-Path $llvmBin 'clang-format.exe')) {
+    $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+    if ($llvmBin -notin ($userPath -split ';')) {
+        [Environment]::SetEnvironmentVariable('PATH', "$userPath;$llvmBin", 'User')
+        Write-Host "Added existing LLVM tools to user PATH: $llvmBin"
+    }
+}
 $machinePath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
 $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 $env:PATH = "$machinePath;$userPath"
 
 # Python and Rust tools required by the enabled shared Doom modules.
-uv tool install --force pyright
-uv tool install --force ruff
+& "$PSScriptRoot\install-python-tools.ps1"
 rustup default stable
+if ($LASTEXITCODE -ne 0) { throw 'Could not select the stable Rust toolchain.' }
 rustup component add rust-analyzer
+if ($LASTEXITCODE -ne 0) { throw 'Could not install rust-analyzer.' }
 
 # Verification
 Write-Host "`nVerifying installations..." -ForegroundColor Cyan
@@ -131,13 +172,18 @@ $tools = @{
     "nu" = "nu --version"
     "fzf" = "fzf --version"
     "zoxide" = "zoxide --version"
-    "bash-language-server" = "bash-language-server --version"
     "typescript-language-server" = "typescript-language-server --version"
     "gnuplot" = "gnuplot --version"
     "copilot" = "copilot --version"
 }
 
+$missingTools = @()
 foreach ($tool in $tools.Keys) {
+    if ($tool -eq 'gnuplot' -and -not $GnuplotVersion -and
+        -not (Get-Command gnuplot -ErrorAction SilentlyContinue)) {
+        Write-Host '  SKIPPED: gnuplot (optional)' -ForegroundColor Gray
+        continue
+    }
     $found = Get-Command $tool -ErrorAction SilentlyContinue
     if (-not $found) {
         # Fall back to tool-specific check expression (e.g. roslyn-lsp is a DLL, not a command)
@@ -146,8 +192,12 @@ foreach ($tool in $tools.Keys) {
     if ($found) {
         Write-Host "  OK: $tool" -ForegroundColor Green
     } else {
+        $missingTools += $tool
         Write-Host "  MISSING: $tool (not found - may need shell restart)" -ForegroundColor Red
     }
 }
 
+if ($missingTools.Count) {
+    throw "Prerequisites remain missing: $($missingTools -join ', '). Installation is incomplete."
+}
 Write-Host "`nDone! Restart your shell if any tools were not found." -ForegroundColor Cyan

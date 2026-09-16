@@ -4,7 +4,8 @@ Cross-platform Doom Emacs configuration for macOS, Windows, and Linux (Bluefin/F
 
 ## Install
 
-All installers are idempotent — safe to re-run.
+Installers are intended to be rerunnable, but some steps can download packages,
+rebuild tools, or request elevation. Review the platform-specific behavior below.
 
 ### macOS / Linux
 
@@ -28,6 +29,51 @@ cd C:\avd\dotfiles
 ```
 
 Run `sys check` afterwards to verify the environment.
+
+Windows prerequisite installs preserve existing WinGet packages (`--no-upgrade`)
+and existing npm tools. Missing packages can still require machine-wide elevation;
+WinGet catalog membership is not a substitute for organizational approval.
+Other installer stages can still rebuild or provision tools; this is not an
+offline or universally non-admin operation.
+
+The Windows installer repairs PATH for an existing standard LLVM installation,
+and Doom setup runs synchronously with checked exit codes without appending to
+the public Emacs configuration. Bash language server is not required on Windows.
+When `EMACS_NATIVE_COMP_ROOT` selects an approved MinGW compiler runtime,
+Windows Doom setup and `sys doom sync|doctor` add its `bin` directory only to
+the Emacs process environment, limit native compilation to two workers, and
+surface nonzero Emacs exits. Doctor also checks native-comp availability.
+These commands do not download or update that runtime.
+
+Doctor treats missing Defender exclusions as an advisory, not a broken install.
+Only with organizational approval, run `scripts\setup-doom.ps1 -AddDefenderExclusions`
+from an elevated shell to exclude the active Emacs installation and Doom runtime
+(including its symlink target). Existing exclusions are preserved, and rejected
+changes stop with an error. This does not change network protection.
+
+Gnuplot plotting is opt-in, because its WinGet installer declares machine scope.
+After reviewing an exact version and approving elevation, install just that tool:
+
+```powershell
+.\scripts\install-gnuplot.ps1 -Version '6.0 patchlevel 4' -AllowElevation
+```
+
+The helper preserves an existing working Gnuplot, repairs its standard Windows
+installation's PATH entry if needed, and stops on cancellation. To include it in
+a full install, pass `-GnuplotVersion '6.0 patchlevel 4' -AllowGnuplotElevation`
+to `install.ps1`. These flags express local consent, not an IT-policy exemption.
+
+Working Pyright and Ruff installations are reused regardless of package manager.
+`scripts/install-python-tools.ps1` checks their versions without downloading or
+forcing uv ownership. If either is missing, the default is an actionable error.
+On machines where uv downloads are permitted, explicitly supply
+`-AllowUvDownloads -PyrightVersion <exact-version> -RuffVersion <exact-version>`
+to that helper. Never retry a Defender-blocked source or switch sources to evade
+policy; seek organizational guidance instead. uv continues to manage project
+environments independently of these global tool installations.
+
+Offline installer-policy checks:
+`pwsh -NoProfile -File scripts\test-install-tool-policy.ps1`.
 
 ## System operations
 

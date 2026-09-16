@@ -1,6 +1,16 @@
 # Dotfiles Install Script (Windows)
 # Run after cloning: .\install.ps1
 
+param(
+    [string]$GnuplotVersion,
+    [switch]$AllowGnuplotElevation
+)
+
+$ErrorActionPreference = 'Stop'
+if ($GnuplotVersion -and -not $AllowGnuplotElevation) {
+    throw 'An explicit Gnuplot install requires -AllowGnuplotElevation; its package uses machine scope.'
+}
+
 $dotfilesDir = $PSScriptRoot
 $scriptsDir = Join-Path $dotfilesDir "scripts"
 
@@ -12,7 +22,8 @@ Write-Host "`n--- PowerShell profile setup ---" -ForegroundColor Cyan
 
 # 2. Development prerequisites (ctags, node, dotnet, cmake, roslyn, etc.)
 Write-Host "`n--- Development prerequisites ---" -ForegroundColor Cyan
-& (Join-Path $scriptsDir "install-prerequisites.ps1")
+& (Join-Path $scriptsDir "install-prerequisites.ps1") `
+    -GnuplotVersion $GnuplotVersion -AllowGnuplotElevation:$AllowGnuplotElevation
 
 # 3. Nushell configuration (parallel; does not change the default shell)
 Write-Host "`n--- Nushell configuration ---" -ForegroundColor Cyan
