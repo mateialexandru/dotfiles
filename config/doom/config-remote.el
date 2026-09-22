@@ -92,6 +92,84 @@ Reads `tailscale status --json' and collects `Self' plus every online peer."
 ;;; --- Entry points ---------------------------------------------------------
 
 ;;;###autoload
+(defun my/pi-spawn (&optional directory session-name prompt)
+  "Open a fresh Pi session in a new Ghostel buffer.
+The session starts in DIRECTORY, defaulting to the current buffer's
+`default-directory'.  SESSION-NAME is passed to Pi as its display name;
+when omitted, it is derived from the directory name.  PROMPT, when non-empty,
+is submitted as Pi's initial prompt.
+
+Interactively, `C-c P' in a Ghostel buffer uses the current directory and
+starts an empty session immediately; `C-c C-P' prompts for an initial
+instruction.  With a prefix argument it also prompts when invoked through
+`M-x'.  This is deliberately a narrow launcher: it starts
+`pi' with the existing layered configuration, rather than accepting an
+arbitrary command.
+
+The child process is independent of the current Pi session; no conversation
+history is copied."
+  (interactive
+   (list default-directory nil
+         (when current-prefix-arg
+           (read-string "Initial Pi prompt (optional): "))))
+  (require 'ghostel)
+  (let* ((directory (file-name-as-directory
+                     (expand-file-name (or directory default-directory))))
+         (_ (unless (file-directory-p directory)
+              (user-error "Pi working directory does not exist: %s" directory)))
+         (project-name (file-name-nondirectory
+                        (directory-file-name directory)))
+         (session-name (or (and (stringp session-name)
+                                (unless (string-empty-p session-name)
+                                  session-name))
+                           (format "Pi · %s" project-name)))
+         (buffer-name (format "*pi %s*" project-name))
+         (args (append (list "--name" session-name)
+                       (when (and (stringp prompt)
+                                  (not (string-empty-p prompt)))
+                         (list "--" prompt))))
+         (buffer (generate-new-buffer buffer-name)))
+    ;; Ghostel buffers may be displayed in dedicated windows.  Use an explicit
+    ;; popup action rather than `pop-to-buffer': the latter can leave the new
+    ;; buffer displayed in both the source and target windows without creating
+    ;; a second process.
+    (with-current-buffer buffer
+      (setq default-directory directory))
+    (let ((window (display-buffer
+                   buffer
+                   '((display-buffer-pop-up-window)
+                     (inhibit-same-window . t)))))
+      (unless (window-live-p window)
+        (user-error "Could not display the new Pi Ghostel buffer"))
+      (select-window window)
+      (with-current-buffer buffer
+        (ghostel-exec
+         buffer "pi" args
+         `((kind . pi)
+           (directory . ,directory)
+           (session-name . ,session-name)
+           (command . ("pi" ,@args))))))
+    buffer))
+
+;;;###autoload
+(defun my/pi-spawn-with-prompt ()
+  "Open a fresh Pi session after prompting for its initial instruction.
+This is the prompted companion to `my/pi-spawn' for Ghostel's `C-c C-P'
+binding."
+  (interactive)
+  (my/pi-spawn default-directory nil
+               (read-string "Initial Pi prompt (optional): ")))
+
+;;;###autoload
+(defun my/ghostel-spawn ()
+  "Start a fresh Ghostel terminal in the current directory.
+Unlike `+ghostel/toggle', this always creates a new terminal buffer."
+  (interactive)
+  (require 'ghostel)
+  ;; A non-numeric argument is Ghostel's documented "new instance" form.
+  (ghostel t))
+
+;;;###autoload
 (defun my/remote--sessions (host)
   "Best-effort list of existing tmux session names on HOST."
   (ignore-errors
@@ -155,12 +233,26 @@ Offers to install the shared tmux.conf the first time HOST is seen."
 (after! dirvish
   (dirvish-override-dired-mode -1))
 
+;; `C-c' is Ghostel's Emacs escape prefix in semi-char and line modes.
+;; `C-c p' belongs to persp-mode, so keep Pi on uppercase `P'. These are
+;; inherited by Ghostel's normal input modes without stealing keys from
+;; full-screen char-mode TUIs.
+(after! ghostel
+  ;; Remove the earlier experimental binding as well when this file is
+  ;; re-evaluated in a live daemon; persp-mode owns `C-c p'.
+  (define-key ghostel-mode-map (kbd "C-c p") nil)
+  (define-key ghostel-mode-map (kbd "C-c P") #'my/pi-spawn)
+  (define-key ghostel-mode-map (kbd "C-c C-P") #'my/pi-spawn-with-prompt))
+
 (map! :leader
       (:prefix "o"
+       :desc "New Pi terminal"          "p" #'my/pi-spawn
+       :desc "New Pi terminal + prompt"  "P" #'my/pi-spawn-with-prompt
+       :desc "New Ghostel terminal"     "T" #'my/ghostel-spawn
        (:prefix ("x" . "remote")
-        :desc "tmux terminal"     "t" #'my/remote-tmux
-        :desc "Dired / files"     "f" #'my/remote-dired
-        :desc "Provision tmux.conf" "p" #'my/remote-provision-tmux)))
+        :desc "tmux terminal"        "t" #'my/remote-tmux
+        :desc "Dired / files"        "f" #'my/remote-dired
+        :desc "Provision tmux.conf"  "p" #'my/remote-provision-tmux)))
 
 (provide 'config-remote)
 ;;; config-remote.el ends here
