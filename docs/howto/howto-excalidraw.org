@@ -43,6 +43,12 @@ That opens the corresponding =.excalidraw= source in the PWA.  Each save causes
 Emacs's file watcher to run =excalidraw-cli= and replace the adjacent =.svg=
 preview.
 
+To link an existing drawing from the configured drawings directory, use
+=SPC m D i= (diagram → insert existing).  This selects a =.excalidraw= file,
+creates or refreshes its adjacent thumbnail, inserts the =excalidraw:= link,
+and opens the source.  The same mode is available as =C-u SPC m D n= when
+using the named create command.
+
 Use =C-c C-x C-v= to toggle or refresh all inline images after returning to
 Emacs.  Saving the Org file is only needed to keep its link; the drawing itself
 is saved by Excalidraw.
@@ -64,6 +70,8 @@ matter; the same command falls back to a UUID.
 | =<excali TAB=  | Prompt, create, insert, and open a drawing  |
 | =mouse-1=      | Open the preview for editing in Excalidraw  |
 | =SPC m D n=   | Diagram → new (blank name uses a UUID)      |
+| =C-u SPC m D n= | Diagram → select an existing source        |
+| =SPC m D i=   | Diagram → insert an existing source        |
 | =SPC m D o=   | Diagram → open at point in Excalidraw       |
 | =SPC m D r=   | Diagram → rename source, preview, and link  |
 | =C-c C-x C-v= | Toggle or refresh Org's inline image views  |

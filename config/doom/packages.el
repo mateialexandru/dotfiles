@@ -79,6 +79,9 @@
 
 (package! exec-path-from-shell)
 
+;; Offline DevDocs viewer; documents are downloaded into Doom's profile data.
+(package! devdocs)
+
 
 ;; Mermaid diagrams — syntax highlighting + org-babel rendering
 (package! mermaid-mode)
@@ -114,10 +117,6 @@
 ;; staying monospace via the `fixed-pitch' face. `(org +pretty)' brings
 ;; org-modern but not this — declare it explicitly.
 (package! mixed-pitch)
-
-;; Centered, measure-limited body text in the same prose buffers. mixed-pitch
-;; chooses the face; olivetti chooses the column width.
-(package! olivetti)
 
 ;; `:tools llm' pins gptel to a release commit; gptel-agent tracks gptel master.
 (unpin! gptel)

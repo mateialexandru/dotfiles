@@ -357,6 +357,7 @@ The first that exists is opened; the first in the list is what gets created.")
        :desc "Project TLDR" "?" #'my/project-tldr))
 
 ;; Feature modules
+(load! "config-devdocs")
 (load! "config-super-save")
 (load! "config-compile-on-close")
 (load! "config-notify")
@@ -772,15 +773,46 @@ LINK is the Org link element passed to `org-link-preview-file'."
     (my/org-excalidraw-open-file path)
     link))
 
-(defun my/org-excalidraw-create-named (name)
-  "Create a named Excalidraw drawing and insert its link at point."
-  (interactive "sDrawing name: ")
-  (insert (my/org-excalidraw-create-link name)))
+(defun my/org-excalidraw--read-existing ()
+  "Read an existing `.excalidraw' source from the drawings directory."
+  (let ((path (read-file-name
+               "Existing Excalidraw: "
+               (file-name-as-directory (expand-file-name org-excalidraw-directory))
+               nil t nil
+               (lambda (candidate)
+                 (or (file-directory-p candidate)
+                     (string-suffix-p ".excalidraw" candidate t))))))
+    (unless (string-suffix-p ".excalidraw" path t)
+      (user-error "Choose an .excalidraw file"))
+    (expand-file-name path)))
 
-(defun my/org-excalidraw-create-drawing ()
-  "Create an UUID-named drawing through the portable Excalidraw workflow."
+(defun my/org-excalidraw-insert-existing ()
+  "Insert a link to an existing Excalidraw and open it for editing."
   (interactive)
-  (insert (my/org-excalidraw-create-link "")))
+  (require 'org-excalidraw)
+  (let ((path (my/org-excalidraw--read-existing)))
+    ;; Generate the adjacent thumbnail immediately; the watcher will keep it
+    ;; current after subsequent PWA saves.
+    (my/org-excalidraw--export path)
+    (insert (format "[[excalidraw:%s.svg]]" path))
+    (my/org-excalidraw-open-file path)))
+
+(defun my/org-excalidraw-create-named (name &optional existing)
+  "Create a named drawing, or select EXISTING with a prefix argument.
+With `C-u', select an existing `.excalidraw' source instead of creating one."
+  (interactive (if current-prefix-arg
+                   (list nil t)
+                 (list (read-string "Drawing name: ") nil)))
+  (if existing
+      (my/org-excalidraw-insert-existing)
+    (insert (my/org-excalidraw-create-link name))))
+
+(defun my/org-excalidraw-create-drawing (&optional existing)
+  "Create a UUID-named drawing, or select EXISTING with a prefix argument."
+  (interactive "P")
+  (if existing
+      (my/org-excalidraw-insert-existing)
+    (insert (my/org-excalidraw-create-link ""))))
 
 (after! org-excalidraw
   ;; Keep the upstream command name useful while avoiding its xdg-open fallback
@@ -815,9 +847,10 @@ Renames the .excalidraw and .excalidraw.svg files and rewrites the link."
       :map org-mode-map
       :localleader
       (:prefix ("D" . "diagram")
-       :desc "New Excalidraw diagram"    "n" #'my/org-excalidraw-create-named
-       :desc "Open diagram at point"     "o" #'org-open-at-point
-       :desc "Rename diagram at point"   "r" #'my/org-excalidraw-rename))
+       :desc "New/select Excalidraw diagram" "n" #'my/org-excalidraw-create-named
+       :desc "Insert existing Excalidraw"   "i" #'my/org-excalidraw-insert-existing
+       :desc "Open diagram at point"         "o" #'org-open-at-point
+       :desc "Rename diagram at point"       "r" #'my/org-excalidraw-rename))
 
 ;; Eshell inline-image tooling (cat/rinku), shared across platforms
 (load! "config-eshell")
@@ -1070,20 +1103,6 @@ Calling repeatedly ping-pongs between the current and previous preset."
 ;; code blocks, tables, and inline code monospaced via the `fixed-pitch' face.
 (use-package! mixed-pitch
   :hook ((org-mode markdown-mode) . mixed-pitch-mode))
-
-;; Constrain those same prose buffers to a readable measure — mixed-pitch picks
-;; the face, olivetti picks the column width. Olivetti clamps the body to
-;; `(max minimum-body-width (min body-width window-width))', so a window narrower
-;; than `olivetti-body-width' gets no margins at all rather than being squeezed
-;; further; `olivetti-minimum-body-width' is deliberately left at its default 40
-;; for that reason. Toggle per buffer with `SPC t o'.
-(use-package! olivetti
-  :hook ((org-mode markdown-mode) . olivetti-mode)
-  :init (setq olivetti-body-width 92))
-
-(map! :leader
-      (:prefix "t"
-       :desc "Olivetti (centered prose)" "o" #'olivetti-mode))
 
 (use-package! spacious-padding
   :config
