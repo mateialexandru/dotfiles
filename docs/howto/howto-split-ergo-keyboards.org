@@ -1,0 +1,90 @@
+:PROPERTIES:
+:ID:       510d00dd-a05e-49cf-ae27-a907e36698ba
+:END:
+#+title: Split ergonomic keyboard — practical notes
+#+filetags: :ergonomics:keyboard:voyager:
+#+aliases: "Voyager" "Split keyboard"
+#+date: 2026-09-15
+#+startup: overview
+#+options: toc:nil
+
+A short record of the lessons that matter for the current setup. The layout
+itself is maintained in ZSA Oryx:
+
+- [[https://configure.zsa.io/voyager/layouts/BrAxD/PBeDPL/0][Latest Voyager layout]]
+
+* Key learnings
+
+** Keep the alphabet and geometry stable
+
+- Keep Colemak selected by the operating system; do not also install a Colemak
+  alphabet in the firmware. The Oryx diagram may therefore show QWERTY
+  keycodes while the host produces Colemak.
+- Keep the original Voyager letter-row positions. Raising the rows to create
+  different thumb positions was less comfortable.
+- Improve control access before changing the alphabet or adopting a complete
+  community layout.
+
+** Prefer direct modifiers over simulated shortcuts
+
+- Ctrl, Alt, and GUI/Command should each have a clear, independently usable
+  route. Firmware shortcut macros are not a replacement for real modifiers.
+- This matters especially in remote-desktop sessions, where injected shortcut
+  sequences or scan codes may not be forwarded reliably.
+- Preserve a one-handed Ctrl route for copy/paste and similar actions when the
+  other hand is using a mouse.
+- On macOS, Command is Emacs Meta in this Doom setup. Keep actual Ctrl
+  available for Emacs commands such as =C-c= and =C-x=; do not treat a
+  Command-labelled copy shortcut as an Emacs clipboard abstraction.
+
+** Treat timing as a design constraint
+
+- Thumb holds, tap/hold keys, home-row modifiers, and sticky modifiers all add
+  timing or state. They should be tested, not assumed to be faster.
+- Test both same-hand and opposite-hand modifier chords. Record missed holds,
+  accidental shortcuts, and whether key release is handled correctly.
+- Do not change several timing parameters at once; otherwise it is impossible
+  to tell which change helped.
+
+** Make layers continuous for real typing
+
+A symbol or navigation layer should keep the actions needed while it is held.
+For programming, test complete sequences rather than isolated symbols:
+
+- parentheses, brackets, quotes, backtick, angle brackets, and repeated closing
+  delimiters;
+- comma, period, colon, hyphen, and common operator pairs;
+- Space, Backspace, Enter, and selection/navigation actions;
+- Doom actions such as =C-c=, =C-v=, =C-x=, =M-x=, word movement, and selection.
+
+A visually tidy layer is not useful if frequent actions require repeatedly
+leaving it or relying on a fragile shortcut macro.
+
+** Validate the actual environments
+
+Test the same small matrix locally and through remote desktop on macOS and
+Windows where relevant:
+
+1. Ctrl plus a letter, including copy/paste.
+2. Alt/Option and GUI/Command plus a letter.
+3. Emacs =C-c=, =C-x=, and =M-x=.
+4. Selection, word movement, and tab switching.
+5. The programming punctuation above.
+
+Check which host applies Colemak, how the client forwards modifiers, and
+whether a key is being held or merely tapped. A successful local test does not
+prove that the remote session will receive the same events.
+
+* References worth borrowing from
+
+These projects are useful for ideas, not drop-in replacements:
+
+- [[https://github.com/manna-harbour/miryoku][Miryoku]] — systematic layers and mirrored modifier roles.
+- [[https://stevep99.github.io/seniply/][Seniply]] and [[https://colemakmods.github.io/ergonomic-mods/extend.html][Extend]] — four-thumb layouts, sticky modifiers, and navigation with modifiers.
+- [[https://github.com/sunaku/glove80-keymaps][Glorious Engrammer]] — programming symbols and Glove80-specific choices.
+- [[https://blog.zsa.io/chordal-hold/][ZSA Chordal Hold guidance]] — timing tradeoffs for home-row modifiers.
+- [[https://getreuer.info/posts/keyboards/symbol-layer/index.html][Getreuer's symbol-layer analysis]] — designing around actual sequences.
+
+The current Voyager layout remains the source of truth. Change it only after a
+physical trial identifies a specific problem and the proposed change has a
+clear test.
