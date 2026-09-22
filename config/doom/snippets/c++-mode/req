@@ -1,0 +1,7 @@
+# -*- mode: snippet -*-
+# name: require
+# key: req
+# condition: t
+# --
+REQUIRE($1);
+$0

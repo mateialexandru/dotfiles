@@ -1,0 +1,9 @@
+# -*- mode: snippet -*-
+# name: test_case
+# key: tc
+# condition: t
+# --
+
+TEST_CASE("${1:description}"){
+    $0
+}
