@@ -70,7 +70,7 @@ Commands:\n  \
   doom <action>     run Doom-specific operations (sync, doctor)\n  \
   restart [seconds] gracefully restart the macOS Emacs daemon\n  \
   vanilla           launch Emacs without configuration\n  \
-  llm <action>      manage the macOS Ollama runtime\n  \
+  llm <action>      manage macOS LM Studio/MLX (Ollama is a fallback)\n  \
   help              show this help"
     );
 }

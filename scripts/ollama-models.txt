@@ -3,9 +3,9 @@
 # `bash scripts/install-llm-mac.sh` (or `sys install`) to sync — `ollama pull` is a
 # no-op when the digest is current.
 #
-# Curated SOTA-for-64GB set: a fast reasoning/all-rounder for daily work, a dedicated
+# Curated GGUF fallback set: a fast reasoning/all-rounder for daily work, a dedicated
 # coding driver, and an embedder. MoE picks (few active params) → big quality, fast
-# decode on the M5. All co-reside with headroom for macOS + LM Studio.
+# decode on the M5. Do not keep a large Ollama model resident alongside MLX models.
 #
 # Heavier swaps (run solo, close other apps):
 #   qwen3-coder-next:80b   # ~38 GB, #1 agentic coder at release, 256K→1M ctx

@@ -10,8 +10,8 @@ removed by ADR-018). That was an external CLI agent — good at "go do this", us
 this region", "rewrite this paragraph", "write this commit message". There was no in-buffer
 client, no way to aim a model at a local endpoint, and no place to grow tools.
 
-At the same time ADR-013 stood up a managed OpenAI-compatible endpoint at `localhost:11434`
-that nothing in Emacs consumed, and Doom's `:tools llm` module sat commented out in `init.el`.
+At the same time ADR-013 stood up a local OpenAI-compatible endpoint that nothing in Emacs
+consumed, and Doom's `:tools llm` module sat commented out in `init.el`.
 
 The personal environment has a ChatGPT subscription, while a work environment may use a
 different provider. Provider choice therefore belongs to a private layer, not the portable
@@ -19,8 +19,9 @@ public configuration.
 
 ## Decision
 
-**Enable Doom's `:tools llm` module, expose a provider-neutral primary-backend slot, keep local
-Ollama as the portable fallback, and layer `gptel-agent` on top for tool-enabled sessions.** The
+**Enable Doom's `:tools llm` module, expose a provider-neutral primary-backend slot, use local
+LM Studio/MLX as the default backend, retain Ollama as a GGUF fallback, and layer `gptel-agent`
+on top for tool-enabled sessions.** The
 personal layer fills that slot with ChatGPT OAuth; another layer can register another provider.
 
 ### Build on `:tools llm`, don't bypass it
@@ -79,13 +80,13 @@ daemon; over SSH, `gptel-openai-oauth-login-method` must be set to `device`.
 ### Primary provider and local backend, one key apart
 
 The latest private layer to call `my/gptel-register-primary-backend` selects the primary provider
-and makes it active. With no private provider, public gptel remains useful through `Ollama`, which
-points at ADR-013's managed endpoint with the models from `scripts/ollama-models.txt`.
+and makes it active. With no private provider, public gptel uses LM Studio/MLX at
+`127.0.0.1:1234` and the `qwen3.6-35b-a3b` model. Ollama remains registered as an explicit
+GGUF fallback, using the models from `scripts/ollama-models.txt`.
 `my/gptel-toggle-backend` (`SPC o l b`, also in the `SPC t n` toggle menu) flips between the
-registered primary and Ollama and remembers the model last used with each — switching backend
-without switching model would send a model name the other end has never heard of.
+registered primary and LM Studio and remembers the model last used with each.
 
-That daemon is on-demand, so the toggle probes `/api/tags` first and points at
+The MLX server is on-demand, so the toggle probes `/v1/models` first and points at
 `sys llm start` instead of failing mid-request.
 
 ### Quick lookups run local
@@ -96,12 +97,12 @@ models, which emit their thinking ahead of the answer and fill the popup with it
 model is a reasoning model, so the default is the failing case; the endpoint also rejects the
 `max_output_tokens` gptel-quick uses to size the reply, warning once per request.
 
-So `gptel-quick-backend`/`gptel-quick-model` are bound around the command to Ollama's
-`qwen3-coder:30b` — an instruct model, and a twelve-word lookup off quota. When the on-demand
-daemon is down the command falls through to the session's backend rather than erroring, since a
-degraded lookup beats none.
+So `gptel-quick-backend`/`gptel-quick-model` are bound around the command to LM Studio's
+`qwen3.6-35b-a3b`, keeping twelve-word lookups local. When the on-demand server is down the
+command falls through to the session's backend rather than erroring, since a degraded lookup
+beats none.
 
-The `/api/tags` probe is cached for a minute. Unlike the backend toggle, which is a deliberate
+The `/v1/models` probe is cached for a minute. Unlike the backend toggle, which is a deliberate
 act, a lookup is meant to cost nothing to reach for, and a curl round-trip per invocation is
 exactly the friction the command exists to avoid.
 
@@ -128,7 +129,7 @@ there is no hook and no map to reach from outside — but it hands the finished 
 to revisit if the aliases ever stop appearing. `gptel-quick-timeout` goes from 10s to 20s: the
 map dies with the popup, and deciding to escalate takes longer than reading.
 
-The chat buffer runs on the session backend, since `my/gptel-quick--prefer-local` binds Ollama
+The chat buffer runs on the session backend, since `my/gptel-quick--prefer-local` binds LM Studio
 only around the `gptel-quick` call. That is the ladder working as intended — the local model
 answers the twelve-word question off quota, the layer-selected primary model picks up the
 conversation.
@@ -159,8 +160,8 @@ Its per-tool `:confirm` flags already encode the wanted policy — `Read`/`Grep`
 so the global `gptel-confirm-tool-calls` is left at its default rather than forced on, which
 would make even `Read` prompt.
 
-Sub-agent calls are routed to the local box (`gptel-agent-preset` → Ollama / `qwen3-coder:30b`)
-so delegated grunt work costs no subscription quota.
+Sub-agent calls are routed to the local box (`gptel-agent-preset` → LM Studio /
+`qwen3.6-35b-a3b`) so delegated grunt work costs no subscription quota.
 
 Two packaging constraints, both load-bearing:
 
@@ -196,7 +197,7 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 - `config/doom/gptel/agents/` — one md/org file per sub-agent; only `description` is mandatory.
   Seeded with `reviewer.md` as a worked example.
 - `config/doom/gptel/tools.el` — deliberately thin, for tools only the dotfiles can answer
-  (`sys_check`, `ollama_models`). General filesystem/shell/web tools come from gptel-agent.
+  (`sys_check`, `lmstudio_models`, `ollama_models`). General filesystem/shell/web tools come from gptel-agent.
   Names listed in `my/gptel-extra-tools` are appended to the agent preset by an `:after` advice
   on `gptel-agent-update`, since the preset's tool list is rebuilt from upstream's
   `agents/gptel-agent.md` on every update.
@@ -237,4 +238,4 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 
 - ADR-011 — the remote workflow gptel-agent's TRAMP support plugs into.
 - ADR-012 — `sys` + `sys check`; check 14 follows "gate on the symptom, not the remedy."
-- ADR-013 — the managed Ollama endpoint this uses as its second backend and sub-agent runtime.
+- ADR-013 — the LM Studio/MLX primary endpoint and optional Ollama fallback used here.

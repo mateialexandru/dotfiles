@@ -160,9 +160,19 @@ if $IS_MAC; then
   else fail "excalidraw" "missing: excalidraw-cli — run scripts/install-excalidraw-mac.sh"; fi
 fi
 
-# 14. Ollama local LLM (ADR-013) — optional and on-demand. A missing binary is
+# 14. LM Studio / MLX local LLM — primary and on-demand. A missing install is
 # informational because install.sh supports --skip-llm.
-# LM Studio is user-managed, so it's not gated here.
+if $IS_MAC; then
+  lms_bin="$(command -v lms 2>/dev/null || true)"
+  [[ -x "$HOME/.lmstudio/bin/lms" ]] && lms_bin="$HOME/.lmstudio/bin/lms"
+  if [[ -n "$lms_bin" && -x "$lms_bin" ]]; then
+    if curl -fsS http://127.0.0.1:1234/v1/models >/dev/null 2>&1; then
+      pass "LM Studio" "MLX endpoint up"
+    else info "LM Studio" "installed, down — \`sys llm start\` to serve"; fi
+  else info "LM Studio" "not installed (optional — \`sys install\` without --skip-llm)"; fi
+fi
+
+# 15. Ollama local LLM (ADR-013) — optional GGUF fallback and on-demand.
 if $IS_MAC; then
   if command -v ollama >/dev/null 2>&1; then
     if curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; then
@@ -173,13 +183,13 @@ if $IS_MAC; then
         m="${line%%#*}"; m="$(echo "$m" | xargs)"; [ -z "$m" ] && continue
         echo "$have" | grep -q "^${m%%:*}" || miss+=("$m")
       done < "$manifest"
-      if [[ ${#miss[@]} -eq 0 ]]; then pass "ollama" "up + models present"
-      else info "ollama" "up; models not pulled: ${miss[*]} (\`sys install\` to pull)"; fi
-    else info "ollama" "installed, down — \`sys llm start\` to serve"; fi
-  else info "ollama" "not installed (optional — \`sys install\` without --skip-llm)"; fi
+      if [[ ${#miss[@]} -eq 0 ]]; then pass "ollama fallback" "up + models present"
+      else info "ollama fallback" "up; models not pulled: ${miss[*]} (\`sys llm ollama start\` to serve)"; fi
+    else info "ollama fallback" "installed, down — \`sys llm ollama start\` to serve"; fi
+  else info "ollama fallback" "not installed (optional)"; fi
 fi
 
-# 15. Emacs LLM clients (ADR-014, ADR-023) — packages built, and the global gitignore
+# 16. Emacs LLM clients (ADR-014, ADR-023) — packages built, and the global gitignore
 # actually in effect. The second half is the one that bites silently: project
 # transcripts live in <repo>/.gptel/, so a missing link makes them committable.
 llm_missing=()
@@ -196,18 +206,18 @@ else
   fail "global gitignore" "'.gptel/' not ignored — run \`sys install\`"
 fi
 
-# 16. Universal Ctags options are connected through the XDG preload directory
+# 17. Universal Ctags options are connected through the XDG preload directory
 ctags_want="$REPO/config/ctags"; ctags_got="$(readlink "$HOME/.config/ctags" 2>/dev/null || true)"
 # shellcheck disable=SC2088  # literal display text
 if [[ "$ctags_got" == "$ctags_want" ]]; then pass "ctags config" "~/.config/ctags → $ctags_got"
 else fail "ctags config" "is '${ctags_got:-missing}', want '$ctags_want' — run \`sys install\`"; fi
 
-# 17. Compiled worktree tooling
+# 18. Compiled worktree tooling
 if command -v hack >/dev/null 2>&1 && hack --help >/dev/null 2>&1; then
   pass "hack tooling" "compiled binary available"
 else fail "hack tooling" "not installed — run scripts/install-hack.sh"; fi
 
-# 18. ssh ControlMaster block for tailnet
+# 19. ssh ControlMaster block for tailnet
 if grep -q 'Host \*.ts.net' "$HOME/.ssh/config" 2>/dev/null; then pass "ssh controlmaster" "Host *.ts.net present"
 else fail "ssh controlmaster" "block absent — run \`sys install\`"; fi
 

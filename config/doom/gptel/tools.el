@@ -32,9 +32,23 @@
              (my/gptel--sh "sys" "check"))
  :description "Run the dotfiles confidence pass (`sys check'): doom symlink, \
 Emacs daemon and its environment, native-comp queue, doom doctor, core tools, \
-LSP servers, formatters, org-protocol handler, excalidraw toolchain, Ollama and \
-ssh ControlMaster. Use this when asked why the Emacs or dotfiles setup is \
-misbehaving. Takes a while; it is read-only."
+LSP servers, formatters, org-protocol handler, excalidraw toolchain, LM Studio, \
+Ollama fallback, and ssh ControlMaster. Use this when asked why the Emacs or \
+dotfiles setup is misbehaving. Takes a while; it is read-only."
+ :args nil
+ :category "dotfiles")
+
+(gptel-make-tool
+ :name "lmstudio_models"
+ :function (lambda ()
+             (if (eq 0 (call-process "curl" nil nil nil "-fsS" "-m" "2"
+                                     "http://127.0.0.1:1234/v1/models"))
+                 (concat (my/gptel--sh "lms" "ps")
+                         "\nOn-disk models:\n"
+                         (my/gptel--sh "lms" "ls"))
+               "LM Studio is not running. Start it with `sys llm start'."))
+ :description "List the MLX models available to and loaded by LM Studio on this
+machine. LM Studio is the primary local runtime; start it with `sys llm start'."
  :args nil
  :category "dotfiles")
 
@@ -44,10 +58,9 @@ misbehaving. Takes a while; it is read-only."
              (if (eq 0 (call-process "curl" nil nil nil "-fsS" "-m" "2"
                                      "http://localhost:11434/api/tags"))
                  (my/gptel--sh "ollama" "list")
-               "Ollama is not running. Start it with `sys llm start'."))
- :description "List the local LLM models pulled into Ollama on this machine, or \
-report that the on-demand daemon is stopped. The manifest of models that \
-*should* be present is scripts/ollama-models.txt in the dotfiles repo."
+               "Ollama fallback is not running. Start it with `sys llm ollama start'."))
+ :description "List the optional GGUF models pulled into the Ollama fallback on this
+machine. LM Studio/MLX is the primary local runtime."
  :args nil
  :category "dotfiles")
 

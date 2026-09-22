@@ -9,9 +9,9 @@
 ;;   backend belongs to that context with `my/gptel-register-primary-backend'.
 ;;   The public repository contains no account or provider choice.
 ;;
-;; - A second backend on the managed Ollama endpoint from ADR-013. That daemon
-;;   is on-demand, so switching to it checks the endpoint and points at
-;;   `sys llm start' rather than failing mid-request.
+;; - A local LM Studio/MLX backend. `sys llm start' loads the preferred native
+;;   Apple-Silicon model and starts LM Studio's OpenAI-compatible endpoint.
+;;   Ollama remains registered as an explicit GGUF fallback.
 ;;
 ;; - gptel-agent, which turns a buffer into a project-scoped agent: ~32 tools
 ;;   (read/grep/glob free, bash/edit/write confirmed), sub-agents read from
@@ -27,17 +27,23 @@
 
 ;;; --- Backends --------------------------------------------------------------
 
-(defvar my/gptel-ollama-endpoint "http://localhost:11434"
-  "Base URL of the managed Ollama endpoint (ADR-013).")
+(defvar my/gptel-lmstudio-endpoint "http://127.0.0.1:1234"
+  "Base URL of the local LM Studio OpenAI-compatible endpoint.")
 
 (defvar my/gptel-backend-primary nil
   "Remote or subscription backend registered by a private layer.")
 
+(defvar my/gptel-backend-lmstudio nil
+  "The local LM Studio/MLX backend.")
+
 (defvar my/gptel-backend-ollama nil
-  "The local Ollama backend.")
+  "The second-class local Ollama fallback backend.")
 
 (defvar my/gptel-primary-model nil
   "Model last used with `my/gptel-backend-primary'.")
+
+(defvar my/gptel-lmstudio-model 'qwen3.6-35b-a3b
+  "Model last used with `my/gptel-backend-lmstudio'.")
 
 (defvar my/gptel-ollama-model 'gpt-oss:20b
   "Model last used with `my/gptel-backend-ollama'.")
@@ -65,17 +71,32 @@ generation parameters. The newly registered provider becomes active."
   (when (my/gptel--omit-generation-parameters-p backend)
     (setq gptel-temperature nil)))
 
-(defun my/gptel--ollama-up-p ()
-  "Return non-nil if the Ollama endpoint answers."
+(defun my/gptel--lmstudio-up-p ()
+  "Return non-nil if the LM Studio endpoint answers."
   (eq 0 (call-process "curl" nil nil nil "-fsS" "-m" "2"
-                      (concat my/gptel-ollama-endpoint "/api/tags"))))
+                      (concat my/gptel-lmstudio-endpoint "/v1/models"))))
+
+(defun my/gptel--ollama-up-p ()
+  "Return non-nil if the Ollama fallback endpoint answers."
+  (eq 0 (call-process "curl" nil nil nil "-fsS" "-m" "2"
+                      "http://localhost:11434/api/tags")))
 
 (after! gptel
   (setq gptel-expert-commands t
         gptel-use-tools t)
 
-  ;; Models mirror scripts/ollama-models.txt; `sys llm status' lists what is
-  ;; actually pulled.
+  ;; LM Studio exposes an OpenAI-compatible endpoint. `sys llm start' loads
+  ;; the preferred MLX model before requests are sent here.
+  (setq my/gptel-backend-lmstudio
+        (gptel-make-openai "LM Studio"
+          :host "127.0.0.1:1234"
+          :protocol "http"
+          :stream t
+          :header '(("Content-Type" . "application/json"))
+          :models '(qwen3.6-35b-a3b qwen3.8-27b)))
+
+  ;; Keep Ollama available for GGUF-only models, but do not make it the
+  ;; default or require its daemon for ordinary gptel use.
   (setq my/gptel-backend-ollama
         (gptel-make-ollama "Ollama"
           :host "localhost:11434"
@@ -84,8 +105,8 @@ generation parameters. The newly registered provider becomes active."
 
   ;; A private layer loaded later may replace this with its primary provider.
   (unless my/gptel-backend-primary
-    (setq gptel-backend my/gptel-backend-ollama
-          gptel-model   my/gptel-ollama-model))
+    (setq gptel-backend my/gptel-backend-lmstudio
+          gptel-model   my/gptel-lmstudio-model))
 
   ;; gptel writes these into a Local Variables block when a chat is saved;
   ;; marking them safe keeps reopening a transcript prompt-free.
@@ -101,21 +122,21 @@ generation parameters. The newly registered provider becomes active."
 
 ;;;###autoload
 (defun my/gptel-toggle-backend ()
-  "Toggle `gptel-backend' between the layer's primary provider and Ollama.
+  "Toggle `gptel-backend' between the layer's primary provider and LM Studio.
 Remembers the model last used with each side."
   (interactive)
   (require 'gptel)
   (unless my/gptel-backend-primary
     (user-error "No primary gptel backend registered by a private layer"))
-  (let ((to-ollama (not (eq gptel-backend my/gptel-backend-ollama))))
-    (when (and to-ollama (not (my/gptel--ollama-up-p)))
-      (user-error "Ollama is not answering at %s — run `sys llm start'"
-                  my/gptel-ollama-endpoint))
-    (if to-ollama
+  (let ((to-lmstudio (not (eq gptel-backend my/gptel-backend-lmstudio))))
+    (when (and to-lmstudio (not (my/gptel--lmstudio-up-p)))
+      (user-error "LM Studio is not answering at %s — run `sys llm start'"
+                  my/gptel-lmstudio-endpoint))
+    (if to-lmstudio
         (setq my/gptel-primary-model gptel-model)
-      (setq my/gptel-ollama-model gptel-model))
-    (setq gptel-backend (if to-ollama my/gptel-backend-ollama my/gptel-backend-primary)
-          gptel-model   (if to-ollama my/gptel-ollama-model my/gptel-primary-model))
+      (setq my/gptel-lmstudio-model gptel-model))
+    (setq gptel-backend (if to-lmstudio my/gptel-backend-lmstudio my/gptel-backend-primary)
+          gptel-model   (if to-lmstudio my/gptel-lmstudio-model my/gptel-primary-model))
     ;; Some endpoints reject a buffer-local token limit; drop or restore it as
     ;; the selected backend requires.
     (when (local-variable-p 'gptel-max-tokens)
@@ -126,41 +147,31 @@ Remembers the model last used with each side."
 ;;; --- Quick lookups --------------------------------------------------------
 
 ;; `gptel-quick' (SPC o l e) is the zero-ceremony surface: sexp or region at
-;; point, a sentence back in a posframe, `+' for more. Doom's `:tools llm'
-;; installs and binds it but leaves the model unset, and that choice is the
-;; difference between the command working and not.
-;;
-;; Upstream is explicit that reasoning models break it — they emit their
-;; thinking ahead of the answer and the popup fills with that. A local instruct
-;; model answers a twelve-word lookup without consuming a remote subscription.
-;; The daemon is on-demand, so when it is down we fall through to the session's
-;; own backend.
-;;
-;; The probe shells out to curl. Running it per invocation would put a
-;; round-trip in front of a command whose appeal is that it costs nothing to
-;; reach for, so one answer a minute stands in for all of them.
+;; point, a sentence back in a posframe, `+' for more. Prefer the local MLX
+;; model so explanations stay on the machine and do not consume a subscription.
+;; If LM Studio is down, fall through to the session's own backend.
 
-(defvar my/gptel-quick-model 'qwen3-coder:30b
-  "Non-reasoning Ollama model to answer `gptel-quick' lookups with.")
+(defvar my/gptel-quick-model 'qwen3.6-35b-a3b
+  "Local LM Studio model to answer `gptel-quick' lookups with.")
 
-(defvar my/gptel--ollama-probe nil
-  "Cons of (TIME . RESULT) from the last `my/gptel--ollama-up-p' call.")
+(defvar my/gptel--lmstudio-probe nil
+  "Cons of (TIME . RESULT) from the last LM Studio probe.")
 
-(defun my/gptel--ollama-up-cached-p (&optional ttl)
-  "Return non-nil if Ollama answers, reusing a probe younger than TTL seconds."
+(defun my/gptel--lmstudio-up-cached-p (&optional ttl)
+  "Return non-nil if LM Studio answers, reusing a probe younger than TTL seconds."
   (let ((ttl (or ttl 60)))
-    (unless (and my/gptel--ollama-probe
-                 (time-less-p (time-since (car my/gptel--ollama-probe)) ttl))
-      (setq my/gptel--ollama-probe
-            (cons (current-time) (my/gptel--ollama-up-p))))
-    (cdr my/gptel--ollama-probe)))
+    (unless (and my/gptel--lmstudio-probe
+                 (time-less-p (time-since (car my/gptel--lmstudio-probe)) ttl))
+      (setq my/gptel--lmstudio-probe
+            (cons (current-time) (my/gptel--lmstudio-up-p))))
+    (cdr my/gptel--lmstudio-probe)))
 
 (defun my/gptel-quick--prefer-local (fn &rest args)
-  "Run FN (`gptel-quick') against local Ollama when the daemon is up.
+  "Run FN (`gptel-quick') against local LM Studio when it is up.
 `gptel-quick' reads both variables synchronously when it builds the
 request, so binding them around the call is enough."
-  (if (my/gptel--ollama-up-cached-p)
-      (let ((gptel-quick-backend my/gptel-backend-ollama)
+  (if (my/gptel--lmstudio-up-cached-p)
+      (let ((gptel-quick-backend my/gptel-backend-lmstudio)
             (gptel-quick-model   my/gptel-quick-model))
         (apply fn args))
     (apply fn args)))
@@ -214,8 +225,8 @@ FN is `gptel-quick--callback-posframe', called with RESPONSE and INFO."
 
 ;;; --- Agent ----------------------------------------------------------------
 
-(defvar my/gptel-extra-tools '("sys_check" "ollama_models")
-  "Names of tools from gptel/tools.el to hand the agent alongside its own.")
+(defvar my/gptel-extra-tools '("sys_check" "lmstudio_models" "ollama_models")
+  "Names of local-runtime tools from gptel/tools.el to hand the agent.")
 
 (defun my/gptel--extend-agent-preset (&rest _)
   "Append `my/gptel-extra-tools' to the gptel-agent preset's tool list.
@@ -244,8 +255,9 @@ inherits the global nil instead of a value the active endpoint refuses."
   :config
   ;; Our own sub-agents sit alongside the bundled executor/researcher/introspector.
   (add-to-list 'gptel-agent-dirs (expand-file-name "gptel/agents/" doom-user-dir))
-  ;; Delegated sub-agent work runs locally instead of spending subscription quota.
-  (setq gptel-agent-preset '(:backend "Ollama" :model qwen3-coder:30b))
+  ;; Delegated sub-agent work runs locally on MLX instead of spending
+  ;; subscription quota. Ollama remains available for GGUF-only fallback work.
+  (setq gptel-agent-preset '(:backend "LM Studio" :model qwen3.6-35b-a3b))
   (load! "gptel/tools")
   (advice-add 'gptel-agent-update :after #'my/gptel--extend-agent-preset)
   (advice-add 'gptel-agent :around #'my/gptel--agent-without-unsupported-limits)

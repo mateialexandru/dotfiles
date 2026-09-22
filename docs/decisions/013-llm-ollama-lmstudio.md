@@ -1,111 +1,86 @@
-# ADR-013: Local LLM inference — Ollama managed + LM Studio user-managed
+# ADR-013: Local LLM inference — LM Studio/MLX primary, Ollama fallback
 
 **Status:** Accepted
 **Date:** 2026-07-26
 
 ## Context
 
-The rig had no local-LLM layer managed as desired state — only the `lm-studio` cask,
-installed inline in `install.sh`. On an M5 Pro / 64 GB Mac local inference is genuinely
-useful for daily/agentic/editor work, and it should be provisioned and verified like
-everything else here: idempotent installer, `sys` control, `sys check`, ADR.
+The machine is an Apple-Silicon Mac with enough memory for useful local inference. Two
+local runtimes are available, but they serve different formats:
 
-The design explored whether one runtime could serve everything and whether the two tools
-could share a model store. Two hard facts settled it:
+- **MLX** is Apple-Silicon-native and is the preferred runtime for MLX model artifacts.
+- **Ollama** loads GGUF and provides a mature, scriptable, OpenAI-compatible service.
+- **GGUF ≠ MLX.** Ollama cannot consume LM Studio's MLX files, and Ollama's
+  content-addressed store copies models into its own directory.
 
-- **GGUF ≠ MLX.** Ollama loads **GGUF**; LM Studio loads both GGUF and **MLX**
-  (Apple-Silicon-native, faster + lower memory on the M5). No single file is both.
-- **Ollama's store is content-addressed and self-contained — it always *copies* a model
-  in.** You cannot point Ollama at an external file another app also uses. So true
-  zero-duplication sharing between the two is architecturally impossible, in any format.
-
-Given that, "share one store" is a dead end. The useful split is to let each tool do what
-it's best at and bridge one direction only.
+The original version of this decision made Ollama managed and LM Studio user-managed.
+That made the default local path use the less suitable runtime for the models actually
+used on this Mac, and caused `sys llm start` and Emacs to warm Ollama unnecessarily.
 
 ## Decision
 
-**Ollama is the managed runtime; LM Studio is kept but user-managed; a best-effort symlink
-mirror makes Ollama's models also visible in LM Studio.**
+**LM Studio is the primary local runtime. Ollama remains an optional second-class GGUF
+fallback.**
 
-- **Ollama (Homebrew formula)** — the desired-state runtime. GGUF, scriptable, reproducible
-  from `scripts/ollama-models.txt`, OpenAI-compatible endpoint `localhost:11434`. This is
-  the SOTA-for-64 GB daily/reasoning/coding set the installer owns.
-- **LM Studio (cask)** — kept as the GUI + MLX playground, but **not scripted**: the user
-  downloads whatever MLX models they want in the app themselves. The installer only ensures
-  it's present (and `lms bootstrap`s the CLI onto PATH for convenience).
-- **`sys llm mirror`** — symlinks each Ollama GGUF model blob into
-  `~/.lmstudio/models/ollama/<name>-<tag>/<name>-<tag>.gguf` so the managed Ollama models
-  also appear in LM Studio, labelled `ollama`. It walks Ollama's on-disk manifests (no
-  daemon needed), and **prunes any link that no longer resolves** — self-healing against
-  Ollama's content-addressed GC/re-pull. Run automatically at the end of the installer.
+### LM Studio / MLX
 
-This is an explicitly-accepted convenience crutch (symlinks into LM Studio), scoped to the
-one direction that works: LM Studio *can* read GGUF, so it can use Ollama's files; the
-reverse (Ollama reading LM Studio's MLX) cannot work.
+- LM Studio is installed as the macOS local-LLM GUI.
+- The `lms` CLI is bootstrapped onto PATH.
+- MLX models are selected and downloaded by the user in LM Studio.
+- The local server uses the OpenAI-compatible endpoint `http://127.0.0.1:1234`.
+- `sys llm start [model]` starts the server and loads
+  `qwen3.6-35b-a3b` by default. `qwen3.8-27b` is the larger alternative.
+- `sys llm stop` unloads LM Studio models and stops its server.
+- `sys llm status` reports the primary server and loaded models.
 
-Rejected: native mlx-lm (a Python env to maintain — fragile on the box's Python 3.14 — for
-fine-tune/day-one-weights wins not yet needed); making LM Studio the managed runtime (the
-user prefers to manage its models by hand); forcing a single shared GGUF store (impossible
-with Ollama's copy-in design, and it would cost LM Studio its MLX edge).
+The default MLX model is intentionally a model key, not a desired-state download:
+LM Studio remains the place where model files are chosen and managed.
 
-### One script owns the layer
+### Ollama fallback
 
-`scripts/install-llm-mac.sh` (the old inline LM Studio block left `install.sh`):
-`brew install --cask lm-studio` + `brew install ollama`, bring the daemon up transiently
-to `ollama pull` the manifest, then run `sys llm mirror`.
+Ollama remains installed by the macOS local-LLM installer when the optional local layer
+is enabled. Its manifest and GGUF store are retained for models or integrations that
+need Ollama:
 
-### On-demand daemon, not a login service
+```text
+sys llm ollama start [model]
+sys llm ollama stop
+sys llm ollama status
+```
 
-The user wants Ollama up only when working. `sys llm <action> [model]`:
+Ollama is not started by `sys llm start`, is not the default gptel backend, and is not
+required for Pi's MLX models. `scripts/ollama-models.txt` remains a reproducible fallback
+manifest.
 
-- `sys llm start [model]` — `brew services run ollama` (**run**, not `start`: starts now
-  *without* registering for login/boot), waits for `:11434`, then warms a model resident
-  (empty-prompt `/api/generate` with `keep_alive: -1` → stays until `stop`). Default model
-  the all-rounder `gpt-oss:20b`; override e.g. `sys llm start qwen3-coder:30b`.
-- `sys llm stop` — `brew services stop ollama`.
-- `sys llm status` — endpoint reachable? then `ollama list` + `ollama ps`.
-- `sys llm mirror` — (re)sync the LM Studio symlinks (above).
+### Optional mirror
 
-### `sys check` (ADR-012 rule 1: gate on the symptom, not the remedy)
-
-Check 13 in `scripts/sys-health.sh`. Only a missing `ollama` binary is a `[X]` fail
-(`sys install`); the daemon is on-demand so down is advisory `[..]`. Manifest models are
-compared against `ollama list` when up. LM Studio is user-managed, so it is deliberately
-**not** gated here.
-
-### Model set — curated GGUF for 64 GB
-
-MoE picks (few active params → big quality, fast decode) co-reside with headroom:
-
-- `gpt-oss:20b` — all-rounder / reasoning / daily driver (~13 GB MoE, fast).
-- `qwen3-coder:30b` — coding (30B MoE, 3.3B active, ~19 GB Q4, 256K ctx).
-- `nomic-embed-text` — embeddings (~274 MB; RAG / future org-roam).
-
-Documented heavier swap in the manifest: `qwen3-coder-next:80b` (~38 GB, run solo).
+`sys llm mirror` symlinks Ollama's GGUF blobs into LM Studio's model tree. LM Studio can
+read those GGUF files, so this is a convenience for viewing them in one UI; it does not
+make MLX models available to Ollama and does not eliminate format-specific stores.
 
 ## Consequences
 
-- One managed endpoint (`:11434`) any agent/editor targets; a committed text manifest.
-- LM Studio stays a first-class MLX GUI the user drives; Ollama's models show up there too
-  via the mirror, no manual linking.
-- The daemon costs nothing when idle (on-demand; no login RAM/battery).
-- `sys check` tracks the managed surface (Ollama); LM Studio is intentionally untracked.
-- Some models may exist twice (GGUF in Ollama, MLX in LM Studio) — unavoidable and fine;
-  each copy is the format its runtime is fastest on.
-- Fine-tuning / day-one HF weights aren't available until/unless mlx-lm is added later.
+- Pi and gptel use LM Studio/MLX by default on this Mac.
+- Native MLX models are not needlessly duplicated as Ollama GGUF files.
+- `sys llm` has one obvious daily path, while GGUF compatibility remains available.
+- The LM Studio server and model are still on-demand, so large models do not consume RAM
+  when not working.
+- The installer still provisions the optional Ollama fallback for compatibility; users
+  who do not need GGUF can omit the local LLM layer or uninstall Ollama afterward.
+- Only one large local model should normally be resident at a time on a 64 GB machine.
 
 ## Alternatives considered
 
-- **Single shared store** — impossible: Ollama always copies in, and GGUF≠MLX would nerf
-  LM Studio's MLX.
-- **LM Studio as the managed runtime (MLX, `lms get`)** — rejected: the user prefers to
-  manage LM Studio's models by hand; Ollama is the reproducible, scriptable endpoint.
-- **mlx-lm native** — deferred: a Python env (fragile on 3.14) for wins not yet needed.
-- **Login-persistent daemon (like Emacs, ADR-009)** — rejected: local inference is bursty;
-  `sys llm start` on demand beats always-on RAM.
+- **Ollama as the primary runtime** — rejected for this Mac's MLX-first workflow; retained
+  as a useful GGUF fallback.
+- **LM Studio as a fully desired-state model manager** — rejected because model choice and
+  downloads are intentionally user-managed.
+- **A single shared store** — impossible across GGUF and MLX, and Ollama copies files into
+  its own content-addressed store.
+- **Native `mlx-lm` as another runtime** — deferred; LM Studio already provides the needed
+  MLX server and GUI without another Python environment to maintain.
 
 ## References
 
-- ADR-009 — the emacs-plus daemon/login-service pattern this deliberately diverges from.
-- ADR-012 — compiled `sys` CLI + `sys check`; the `llm` command and check 13 extend it,
-  following "gate on the symptom, not the remedy."
+- ADR-012 — compiled `sys` CLI and health-check semantics.
+- ADR-014 — gptel's LM Studio local backend and Ollama fallback.
