@@ -161,7 +161,7 @@ else
 	export PATH="$OPENJDK_PREFIX/bin:$PATH"
 fi
 
-# Fonts (cross-platform: brew casks on macOS, dnf + Nerd Font downloader on Linux)
+# Fonts (Homebrew casks on macOS, user-local downloads on Linux)
 echo "Installing fonts..."
 if [[ "$OSTYPE" == "darwin"* ]]; then
 	brew install --cask \
@@ -173,7 +173,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 		font-fira-sans \
 		font-caskaydia-cove-nerd-font \
 		font-victor-mono-nerd-font \
-		font-monaspace-nf \
+		font-monaspice-nerd-font \
 		font-maple-mono-nf \
 		font-ibm-plex-mono \
 		font-ibm-plex-sans \

@@ -10,7 +10,7 @@
     "openai-codex/gpt-5.6-*"
   ],
   "packages": [
-    "npm:@ollama/pi-web-search"
+    "npm:pi-web-search"
   ],
   "compaction": {
     "enabled": true,

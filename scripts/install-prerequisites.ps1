@@ -83,6 +83,9 @@ if (Test-Path $plantumlJar) {
 Write-Host "`nInstalling Inter font..." -ForegroundColor Cyan
 & "$PSScriptRoot\install-inter-font.ps1"
 
+Write-Host "`nInstalling optional Doom font presets..." -ForegroundColor Cyan
+& "$PSScriptRoot\install-fonts-windows.ps1"
+
 Write-Host "`nInstalling Roslyn LSP (C# language server)..." -ForegroundColor Cyan
 & "$PSScriptRoot\install-roslyn-lsp.ps1"
 

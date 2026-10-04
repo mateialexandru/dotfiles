@@ -898,6 +898,18 @@ Renames the .excalidraw and .excalidraw.svg files and rewrites the link."
 
 (use-package! fontaine
   :config
+  ;; Fontaine d4ad8dc emits face specs with bare keyword/value pairs after
+  ;; the display selector.  Emacs expects those attributes in a plist; the
+  ;; malformed spec otherwise fails with "Wrong type argument: plistp, :family"
+  ;; when the first GUI frame is created.  Leave newer, valid specs alone.
+  (defun my/fontaine-normalize-face-spec (spec)
+    (if-let* ((entry (car (cadr spec)))
+              ((keywordp (cadr entry))))
+        (list (car spec) (list (list (car entry) (cdr entry))))
+      spec))
+  (advice-add 'fontaine--get-face-spec :filter-return
+              #'my/fontaine-normalize-face-spec)
+
   (setq fontaine-latest-state-file
         (locate-user-emacs-file "fontaine-latest-state.eld"))
 

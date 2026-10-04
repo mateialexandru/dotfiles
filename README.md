@@ -35,6 +35,10 @@ and existing npm tools. Missing packages can still require machine-wide elevatio
 WinGet catalog membership is not a substitute for organizational approval.
 Other installer stages can still rebuild or provision tools; this is not an
 offline or universally non-admin operation.
+The Doom font presets are installed for the current user from their upstream
+font archives; fonts already available on the machine are reused. macOS uses
+Homebrew font casks, and Linux installs the same preset families under
+`~/.local/share/fonts`.
 
 The Windows installer repairs PATH for an existing standard LLVM installation,
 and Doom setup runs synchronously with checked exit codes without appending to
@@ -121,11 +125,13 @@ pi
 /model                 choose a model
 ```
 
-The installer also pins the `pi-acp` adapter and composes `config/pi/` with
-optional `pi/` fragments from each activated private layer. A layer may add
-model providers, narrow the visible model list, append private agent context,
-or run a platform-specific setup hook. Runtime credentials, sessions, and trust
-decisions stay in `~/.pi/agent/` and are never stored here.
+The installer also pins the `pi-acp` adapter, installs provider-native web search,
+and composes `config/pi/` with optional `pi/` fragments from each activated private
+layer. Web search reuses the selected supported model provider, so it needs no
+separate Ollama service or search credential. A layer may add model providers,
+narrow the visible model list, append private agent context, or run a
+platform-specific setup hook. Runtime credentials, sessions, and trust decisions
+stay in `~/.pi/agent/` and are never stored here.
 
 Inside Emacs, `SPC o l p` (or `C-c l p`) opens the same Pi setup as a native
 agent-shell project session. The terminal and Emacs clients share models, login,
