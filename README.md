@@ -99,12 +99,12 @@ completion and types.
 
 In a Python buffer, the first `SPC e` starts the project REPL and sends the
 whole current buffer, including unsaved edits, while skipping `__main__`
-blocks. Later presses evaluate the current line or visual selection;
-`SPC m e` is an alias, and `C-c e` does the same in insert mode. Select several
-lines with `V` and a Vim motion, then press `SPC e`. Move to another line and
-press `SPC e` again to evaluate there; `.` remains available for repeating edits.
-`SPC m E` evaluates the function or class at point, `SPC m b` evaluates the
-buffer, and `SPC m r` opens the project REPL. These commands use the
+blocks. Later presses evaluate the visual selection, the enclosing function or
+class, a top-level block, or the current statement. Use `SPC u SPC e` to force
+just the current line, or `SPC E` to evaluate the whole buffer. `SPC m e` is an
+alias, and `C-c e` works in insert mode. `SPC m E` explicitly evaluates the
+function or class at point, `SPC m b` evaluates the buffer, and `SPC m r` opens
+the project REPL. These commands leave `.` available for repeating edits and use the
 same interactive REPL, so definitions and variables remain available there;
 short output appears inline, with longer output in a popup. For long-running
 code, use `SPC c s` to send it to the REPL without waiting for inline output.

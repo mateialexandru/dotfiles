@@ -291,7 +291,7 @@ manage — the light alternative to `+python/uv-adopt-file' for one-offs."
     (with-timeout (2 nil)
       (python-shell-accept-process-output (get-buffer-process (current-buffer)) 0.2)))
   (+eval-display-results
-   "Started Python REPL and sent buffer. Press SPC e again for this line."
+   "Started Python REPL and sent buffer. Press SPC e again to eval at point."
    (current-buffer)))
 
 ;; `python-shell-send-string-no-output' captures stdout for an inline result;
@@ -306,12 +306,81 @@ manage — the light alternative to `+python/uv-adopt-file' for one-offs."
       (+eval-display-results (if (string-empty-p output) "Sent to REPL" output)
                              (current-buffer)))))
 
-(defun +python/eval-line-or-region ()
-  "Evaluate the selected Python region, or the current line, in the REPL."
-  (interactive)
-  (if (doom-region-active-p)
-      (+python/eval-in-repl (region-beginning) (region-end))
-    (+python/eval-in-repl (line-beginning-position) (line-end-position))))
+(defun +python--eval-defun-bounds ()
+  "Return the enclosing definition, including its decorators."
+  (when-let* ((bounds (bounds-of-thing-at-point 'defun)))
+    (cons (save-excursion
+            (goto-char (car bounds))
+            (while (and (not (bobp))
+                        (save-excursion
+                          (forward-line -1)
+                          (python-nav-beginning-of-statement)
+                          (looking-at-p "[[:space:]]*@")))
+              (forward-line -1)
+              (python-nav-beginning-of-statement))
+            (point))
+          (cdr bounds))))
+
+(defun +python--eval-block-bounds ()
+  "Return the complete enclosing top-level compound statement."
+  (save-excursion
+    (when (python-nav-beginning-of-block)
+      ;; Walk out of nested blocks until the REPL can parse the block alone.
+      (while (> (current-indentation) 0)
+        (forward-line -1)
+        (unless (python-nav-beginning-of-block)
+          (user-error "Cannot find the enclosing Python block")))
+      ;; An elif/else/except/finally belongs with the preceding block.
+      (while (and (looking-at-p "\\(?:elif\\|else\\|except\\|finally\\)\\b")
+                  (not (bobp)))
+        (forward-line -1)
+        (while (and (not (bobp))
+                    (or (> (current-indentation) 0)
+                        (python-info-current-line-empty-p)
+                        (python-info-current-line-comment-p)))
+          (forward-line -1))
+        (python-nav-beginning-of-block))
+      (let ((beg (point))
+            end)
+        (python-nav-end-of-block)
+        (setq end (point))
+        (while (progn
+                 (goto-char end)
+                 (forward-line 1)
+                 (while (and (not (eobp))
+                             (or (python-info-current-line-empty-p)
+                                 (python-info-current-line-comment-p)))
+                   (forward-line 1))
+                 (and (not (eobp))
+                      (= (current-indentation) 0)
+                      (looking-at-p "\\(?:elif\\|else\\|except\\|finally\\)\\b")
+                      (progn (python-nav-end-of-block)
+                             (setq end (point))))))
+        (cons beg end)))))
+
+(defun +python--eval-bounds ()
+  "Return bounds of the Python unit at point.
+Prefer an enclosing function or class, then a top-level block, then
+the current statement.  The statement case includes multiline calls."
+  (or (+python--eval-defun-bounds)
+      (+python--eval-block-bounds)
+      (save-excursion
+        (python-nav-beginning-of-statement)
+        (let ((beg (point)))
+          (python-nav-end-of-statement)
+          (cons beg (point))))))
+
+(defun +python/eval-dwim (&optional line-only)
+  "Evaluate the Python unit at point, or the selection, in the REPL.
+With prefix argument LINE-ONLY, evaluate just the current line."
+  (interactive "P")
+  (pcase-let ((`(,beg . ,end)
+               (cond ((doom-region-active-p)
+                      (cons (region-beginning) (region-end)))
+                     (line-only
+                      (cons (line-beginning-position) (line-end-position)))
+                     (t (+python--eval-bounds)))))
+    (+python/eval-in-repl beg end)))
 
 (defun +python/eval-defun ()
   "Evaluate the Python function or class at point in the REPL."
@@ -327,29 +396,23 @@ manage — the light alternative to `+python/uv-adopt-file' for one-offs."
     (widen)
     (+python/eval-in-repl (point-min) (point-max))))
 
-(evil-define-operator +python/eval-line-or-selection (beg end)
-  "Evaluate the current line or visual selection in the Python REPL."
-  :motion evil-line
-  :move-point nil
-  :repeat nil
-  (+python/eval-in-repl beg end))
-
 (map! :after python
       :map python-base-mode-map
       :localleader
-      :desc "Eval line or region in REPL" "e" #'+python/eval-line-or-selection
+      :desc "Eval at point or selection in REPL" "e" #'+python/eval-dwim
       :desc "Eval function or class in REPL" "E" #'+python/eval-defun
       :desc "Eval buffer in REPL" "b" #'+python/eval-buffer
       :desc "Open REPL" "r" #'+eval/open-repl-other-window)
 
 (map! :after python
       :map python-base-mode-map
-      :n "SPC e" #'+python/eval-line-or-selection
-      :v "SPC e" #'+python/eval-line-or-selection)
+      :n "SPC e" #'+python/eval-dwim
+      :v "SPC e" #'+python/eval-dwim
+      :n "SPC E" #'+python/eval-buffer)
 
 (map! :after python
       :map python-base-mode-map
-      :i "C-c e" #'+python/eval-line-or-region)
+      :i "C-c e" #'+python/eval-dwim)
 
 (map! :leader
       (:prefix "p"
