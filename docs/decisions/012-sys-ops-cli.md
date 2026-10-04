@@ -71,40 +71,24 @@ The name moved from `atelier` to `keeper`, then to the deliberately plain `sys`:
 easy to type, and accurate for a tool operating the configured system. `hack` remains a
 separate tool because repository/worktree management is a distinct concern.
 
-`restart` invokes `scripts/restart-emacs-mac.sh`, which **drives the close from inside Emacs**, because
-only elisp can (a) warn the user, (b) save without prompting, and (c) suppress the
-interactive prompts a raw SIGTERM triggers. The recipe (`restart [secs=10]`) calls
-`my/graceful-restart` (defined in `config.el`) over `emacsclient`:
+`restart` invokes `scripts/restart-emacs-mac.sh` and converges on one daemon
+with a client frame:
 
-1. **Notify + countdown.** `my/os-notify` posts a native OS banner (macOS `osascript
-   display notification`; Linux `notify-send`; else `alert`/echo) — "daemon restarting in
-   Ns" — then a `run-with-timer` waits `secs` so you can save. The emacsclient call
-   returns immediately (it only schedules the timer).
-2. **Save everything.** On fire: `save-some-buffers t` (all modified file buffers, no
-   prompt) + `recentf`/`savehist`/`desktop` flushes.
-3. **Clean, non-interactive kill.** `kill-emacs` under `confirm-kill-processes nil`,
-   `confirm-kill-emacs nil`, `kill-emacs-query-functions nil`, **`persp-auto-save-opt 0`**.
-   The last is essential: Doom sets `persp-auto-save-opt (if noninteractive 0 1)`, so an
-   interactive daemon auto-saves perspectives on kill and *prompts* when no workspace
-   exists (dashboard-only) — the exact hang seen before. `kill-emacs` still runs
-   `kill-emacs-hook`, so persistence survives; only the persp prompt is bound away.
-4. **Respawn.** launchd `KeepAlive=true` restarts the daemon automatically on exit; the
-   recipe waits for the fresh one to answer `emacsclient -e t`, nudging with `brew
-   services start` only if it doesn't come back.
+1. **Warn and save.** Notify, wait the requested countdown (10 seconds by
+   default), and save the daemon's modified file buffers. Standalone windows
+   close after the countdown, so save their edits before it ends.
+2. **Stop every old process.** Stop the launchd service to suspend KeepAlive,
+   terminate every Emacs process, and force-close any that do not exit. The
+   script will not start the service until none remain.
+3. **Start and verify.** Start the service once, wait for the new daemon to
+   answer through the default TCP server file, then call `emacsclient -c -n`
+   against that exact file. Verify no second Emacs process appeared.
 
-The script tracks the **old** PIDs specifically (KeepAlive respawns a new daemon mid-wait
-that must not be reaped) and **force-reaps only an old PID that ignored the clean kill**,
-or a wholly unresponsive daemon holding the socket (post-`doom upgrade`: a pre-upgrade
-daemon on old loaddefs spamming `Cannot open load file …/+commands` + `clangd killed: 9`
-while the service sits in `error`). Every emacsclient call is wrapped in a perl-`alarm`
-timeout (`to()`) — stock macOS lacks coreutils `timeout` — so a dead TRAMP buffer or
-wedged daemon can't hang the restart.
-
-Rejected: driving the close from the shell via `brew services stop` (its SIGTERM hits the
-"Modified buffers exist" / persp prompts with no tty → wedges, orphaning GUI frames — the
-original bug); a blanket `-9` (skips `kill-emacs-hook`, can kill mid-save); and a separate
-"force" command (makes the *user* diagnose the wedge — the one thing they can't see; the
-tool detects a lingering PID instead, keeping rule 1: gate on the symptom).
+Installation replaces the bundled Emacs Client.app AppleScript, which calls
+`open -a Emacs` even after `emacsclient` succeeds. The patched app connects
+only to the verified TCP server and never falls back to a second Emacs.
+Calls that might hang use a perl-`alarm` timeout because stock macOS lacks
+coreutils `timeout`.
 
 ### `sys check` (`scripts/sys-health.sh`)
 

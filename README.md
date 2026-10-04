@@ -79,6 +79,37 @@ environments independently of these global tool installations.
 Offline installer-policy checks:
 `pwsh -NoProfile -File scripts\test-install-tool-policy.ps1`.
 
+## Python projects in Emacs
+
+Press `SPC p n` from any buffer. Choose **Python app** (the default, with a
+straightforward `main.py`), **Python CLI package** (an installable command), or
+**Python library**, then enter a project directory. The directory prompt starts
+beside the current project. Emacs runs `uv init`, adds pytest and Ruff as project
+development dependencies, and creates `.venv` and `uv.lock`. When setup finishes,
+it switches to the new project workspace and opens `main.py` for an app or the
+generated package source for a CLI package or library.
+
+Afterward, use `SPC m t a` for project tests. From a terminal in the project,
+use `uv run main.py` for a simple app, `uv run <project-name>` for a CLI package,
+`uv add <package>` for runtime dependencies, and `uv run ruff check .` for
+linting. `SPC c c` runs the current Python file, which is most useful for
+standalone scripts and simple apps. Doom activates
+the project's environment when a Python file opens and uses Pyright for
+completion and types.
+
+In a Python buffer, the first `SPC e` starts the project REPL and sends the
+whole current buffer, including unsaved edits, while skipping `__main__`
+blocks. Later presses evaluate the current line or visual selection;
+`SPC m e` is an alias, and `C-c e` does the same in insert mode. Select several
+lines with `V` and a Vim motion, then press `SPC e`. Move to another line and
+press `SPC e` again to evaluate there; `.` remains available for repeating edits.
+`SPC m E` evaluates the function or class at point, `SPC m b` evaluates the
+buffer, and `SPC m r` opens the project REPL. These commands use the
+same interactive REPL, so definitions and variables remain available there;
+short output appears inline, with longer output in a popup. For long-running
+code, use `SPC c s` to send it to the REPL without waiting for inline output.
+The infrequent uv adoption commands remain available through `M-x`.
+
 ## System operations
 
 The installers build one native command for routine operations on every platform:
@@ -96,7 +127,10 @@ tool ecosystems already under management, and `check` validates the complete set
 Doom's narrower operations live under `sys doom`. `sys update` deliberately does not
 pull this repository; choosing and integrating Git changes remains explicit.
 
-`sys restart` and `sys llm` currently expose macOS-specific services explicitly; other
+`sys restart` closes every Emacs process, starts one fresh launchd daemon, and
+opens Emacs Client.app connected to it. The restart countdown lets you save
+work in standalone windows before they close. `sys llm` also
+exposes a macOS-specific service; other
 platforms receive an unsupported-operation error. Set `SYS_DOTFILES_DIR` only when the
 checkout does not live at the conventional `~/Source/dotfiles` location.
 

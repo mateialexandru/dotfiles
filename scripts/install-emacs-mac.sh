@@ -47,6 +47,13 @@ if [ ! -e "/Applications/Emacs Client.app" ]; then
     echo "Copying Emacs Client.app to /Applications..."
     cp -R "$EMACS_KEG/Emacs Client.app" "/Applications/"
 fi
+# Replace Homebrew's launcher: it invokes `open -a Emacs' even after a
+# successful emacsclient call, creating an independent full Emacs process.
+CLIENT_APP="/Applications/Emacs Client.app"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+osacompile -o "$CLIENT_APP/Contents/Resources/Scripts/main.scpt" \
+    "$SCRIPT_DIR/emacs-client-mac.applescript"
+codesign --force --deep --sign - "$CLIENT_APP" >/dev/null
 # Force LaunchServices to re-register so the app appears in Cmd+Tab / `open -a`.
 LS_REGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 if [ -x "$LS_REGISTER" ]; then

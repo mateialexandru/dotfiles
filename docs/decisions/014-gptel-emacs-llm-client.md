@@ -106,6 +106,13 @@ The `/v1/models` probe is cached for a minute. Unlike the backend toggle, which 
 act, a lookup is meant to cost nothing to reach for, and a curl round-trip per invocation is
 exactly the friction the command exists to avoid.
 
+The OAuth fallback needs one compatibility step: `gptel-quick` normally makes a nonstreaming
+request, but the Codex endpoint rejects that with HTTP 400. On this fallback only, the public
+config sends a streaming request, collects its text chunks, and hands the completed answer to
+the normal `gptel-quick` popup. It also omits the unsupported `max_output_tokens` parameter,
+avoiding a warning on every quick lookup. The local LM Studio path still calls upstream
+`gptel-quick` directly.
+
 `?` in `embark-general-map` runs the same command on a completion candidate, an identifier or a
 region — upstream's own suggestion, and the key is free in both embark's map and Doom's.
 

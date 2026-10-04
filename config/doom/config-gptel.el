@@ -166,6 +166,28 @@ Remembers the model last used with each side."
             (cons (current-time) (my/gptel--lmstudio-up-p))))
     (cdr my/gptel--lmstudio-probe)))
 
+(defun my/gptel-quick--oauth-stream (query-text &optional count)
+  "Explain QUERY-TEXT with the OAuth backend using a streaming request.
+The Codex endpoint requires streaming, while `gptel-quick' requests a
+single response.  Collect stream chunks before handing the result to
+the normal quick popup."
+  (let* ((count (or count gptel-quick-word-count))
+         (gptel-use-context (and gptel-quick-use-context 'system))
+         (parts nil)
+         (gptel-max-tokens nil))
+    (gptel-request query-text
+      :system (funcall gptel-quick-system-message count)
+      :context (list query-text count
+                     (posn-at-point (and (use-region-p) (region-beginning))))
+      :stream t
+      :callback (lambda (response info)
+                  (cond
+                   ((stringp response) (push response parts))
+                   ((eq response t)
+                    (gptel-quick--callback-posframe
+                     (apply #'concat (nreverse parts)) info))
+                   (t (gptel-quick--callback-posframe response info)))))))
+
 (defun my/gptel-quick--prefer-local (fn &rest args)
   "Run FN (`gptel-quick') against local LM Studio when it is up.
 `gptel-quick' reads both variables synchronously when it builds the
@@ -174,7 +196,10 @@ request, so binding them around the call is enough."
       (let ((gptel-quick-backend my/gptel-backend-lmstudio)
             (gptel-quick-model   my/gptel-quick-model))
         (apply fn args))
-    (apply fn args)))
+    (if (and (fboundp 'gptel-openai-oauth-p)
+             (gptel-openai-oauth-p (or gptel-quick-backend gptel-backend)))
+        (apply #'my/gptel-quick--oauth-stream args)
+      (apply fn args))))
 
 ;; The popup already has the escalation ladder: `+' for a longer answer, `M-w'
 ;; to copy, `M-RET' to carry the query and the answer into a gptel chat buffer

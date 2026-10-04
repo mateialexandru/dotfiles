@@ -114,15 +114,30 @@ Two gaps are real, and both are small:
 ### Bootstrapping: the only bespoke commands
 
 uv cannot infer which distribution an `import` refers to, so that one step is scripted.
-Three commands under `SPC m u`, and nothing else — `uv add`, `uv sync` and friends stay
-shell commands rather than becoming editor wrappers:
+New-project creation is available at `SPC p n`; the infrequent adoption commands
+remain available through `M-x`. `uv add`, `uv sync` and friends stay shell
+commands rather than becoming editor wrappers:
 
 | Key | Command | Effect |
 |-----|---------|--------|
-| `SPC m u n` | `+python/uv-new-project` | `uv init` + `uv sync`, opens `main.py` |
-| `SPC m u p` | `+python/uv-adopt-file` | moves this file into a new isolated project with its dependencies |
-| `SPC m u s` | `+python/uv-adopt-script` | gives this file a PEP 723 header instead — no project, `uv run` anywhere |
-| `SPC m u v` | `uv-mode-set` | re-activate the venv by hand |
+| `SPC p n` | `+python/uv-new-project` | Choose a simple app (`main.py`), installable CLI package, or library; create beside the current project by default, then switch to its workspace and open the entry file |
+| `M-x +python/uv-adopt-file` | `+python/uv-adopt-file` | moves this file into a new isolated project with its dependencies |
+| `M-x +python/uv-adopt-script` | `+python/uv-adopt-script` | gives this file a PEP 723 header instead — no project, `uv run` anywhere |
+
+Python buffers use `SPC e` (or `SPC m e`) for short REPL evaluation of a line
+or visual selection. The binding is an Evil operator that does not enter the
+`.` repeat history, leaving `.` for edits.
+When no Python process exists, the first eval starts Doom's REPL and sends the
+whole current (including unsaved) buffer once, leaving `if __name__ == "__main__"`
+blocks unrun. Press `SPC e` again to evaluate the focused line or selection;
+this avoids executing that line twice during startup.
+`SPC m E` evaluates a function or class and `SPC m b` the buffer. `C-c e`
+does the same in insert mode. It captures
+output from the same live
+Python process, showing short results inline and longer ones in a popup. This
+supports exploration without taking the `SPC m t` pytest bindings. Synchronous
+capture can block Emacs while code runs, so long-running work uses Doom's
+existing `SPC c s` send-to-REPL command.
 
 Import→distribution mapping is pipreqs run through `uvx` (nothing to install; it maps `PIL`
 to `Pillow`, `bs4` to `beautifulsoup4`, and skips stdlib and sibling modules). Two details
@@ -154,8 +169,13 @@ project dependencies. Scanning is single-file only.
   same two.
 - Anything project-specific (pytest, mypy, nox, ...) is a project dependency invoked through
   `uv run`, which is where version pinning belongs.
-- New project setup is `uv init && uv add <deps> && uv sync`; opening a file is then enough
-  to get LSP, format-on-save, lint, and tests. Nothing to activate.
+- New project setup uses `uv init` and `uv add --dev pytest ruff`; opening a file is
+  then enough to get LSP, format-on-save, lint, and a project-local test runner.
+  Runtime dependencies are added with `uv add <package>`. Nothing to activate.
+- The Emacs new-project command uses `uv init --app --no-package` for a simple
+  app, opening its generated `main.py`. Packaged CLI apps and libraries remain
+  separate choices with `src/` layouts. It adds pytest and Ruff to the dev group,
+  registers the project, and enters its workspace.
 - A project without a `.venv` gets no venv activation and pyright falls back to the
   interpreter on PATH. This is the correct failure mode — `uv sync` fixes it.
 - `+lsp`, `+pyright`, `+uv`, and `+tree-sitter` are module flags, so they need

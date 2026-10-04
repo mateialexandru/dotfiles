@@ -30,6 +30,11 @@ Switch macOS Emacs to **`emacs-plus@30`** from the `d12frosted/emacs-plus` tap, 
 | App in `/Applications` | Only `Emacs Client.app`, **copied** (not symlinked) | macOS LaunchServices indexes copied .apps for Spotlight & Cmd+Tab. Symlinked .apps are often skipped. `Emacs.app` is not installed because the daemon is the only fresh-Emacs entry point we need. |
 | App registration | `lsregister -f` + `mdimport` | Forces LaunchServices and Spotlight to pick up the newly-placed Client.app immediately, without waiting for the next reindex. |
 
+The bundled Emacs Client.app AppleScript also calls `open -a Emacs`, which
+creates a separate standalone process. Installation replaces that launcher
+with one that connects only to the default TCP server. `sys restart` opens the
+patched app after replacing every old Emacs process with one daemon.
+
 ### Native compilation linker fix (Apple Silicon specific)
 
 `emacs-plus@30` ships libgccjit but does **not** bake the full target-tuple library path into its linker invocation. On Apple Silicon, Homebrew's gcc places `libemutls_w.a` (emulated TLS, required for native-compiled code) at:

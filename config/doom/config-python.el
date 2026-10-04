@@ -7,7 +7,7 @@
 ;;
 ;; This file only closes the gaps the module leaves: point the rest of the
 ;; toolchain at that venv, teach projectile what a uv project is, and add the
-;; two bootstrap commands uv itself can't infer. See docs/decisions/015-python-uv.md.
+;; bootstrap commands uv itself can't infer. See docs/decisions/015-python-uv.md.
 
 ;; ruff formats and sorts imports in one binary, so it replaces black + isort.
 ;; Doom's `:editor format' defaults python to black; override both major modes
@@ -164,14 +164,50 @@ is what decides whether `SPC p t' runs `uv run pytest'."
         (+python-uv-mode-set-auto-h)
         (+python-uv-set-compile-command-h)))))
 
-(defun +python/uv-new-project (dir)
-  "Scaffold a new uv project in DIR and open its entry point."
-  (interactive (list (read-directory-name "New uv project: ")))
+(defun +python/uv-new-project (dir kind)
+  "Scaffold a uv app, CLI package, or library in DIR and open its source file.
+The project gets a local environment and pytest and Ruff as development
+dependencies.  Apps open `main.py'; CLI packages have an installable entry point."
+  (interactive
+   (let* ((kind (completing-read "New project: "
+                                 '("Python app" "Python CLI package" "Python library")
+                                 nil t nil nil "Python app"))
+          (parent (or (when-let* ((root (ignore-errors (projectile-project-root))))
+                        (file-name-directory (directory-file-name root)))
+                      default-directory)))
+     (list (read-directory-name "Project directory: " parent)
+           (pcase kind
+             ("Python CLI package" 'cli)
+             ("Python library" 'library)
+             (_ 'app)))))
   (let ((dir (expand-file-name dir)))
+    (when (and (file-exists-p dir) (not (file-directory-p dir)))
+      (user-error "%s is not a directory" dir))
+    (when (and (file-directory-p dir)
+               (seq-remove (lambda (name) (member name '("." "..")))
+                           (directory-files dir)))
+      (user-error "Choose a new or empty directory: %s" dir))
     (+python--uv (file-name-directory (directory-file-name dir))
-                 (format "uv init %s && uv sync --directory %s"
-                         (shell-quote-argument dir) (shell-quote-argument dir))
-                 (lambda () (find-file (expand-file-name "main.py" dir))))))
+                 (format "uv init %s --no-workspace %s && uv add --dev --directory %s pytest ruff"
+                         (pcase kind
+                           ('library "--lib")
+                           ('cli "--app --package")
+                           (_ "--app --no-package"))
+                         (shell-quote-argument dir)
+                         (shell-quote-argument dir))
+                 (lambda ()
+                   (let* ((src (expand-file-name "src" dir))
+                          (entry (if (eq kind 'app)
+                                     (expand-file-name "main.py" dir)
+                                   (and (file-directory-p src)
+                                        (car (directory-files-recursively
+                                              src "__init__\\.py\\'"))))))
+                     (projectile-add-known-project dir)
+                     (when (fboundp '+workspaces-switch-to-project-h)
+                       (let ((current-prefix-arg t))
+                         (+workspaces-switch-to-project-h dir)))
+                     (find-file (or entry (expand-file-name "pyproject.toml" dir)))
+                     (+python--uv-reactivate dir))))))
 
 (defun +python/uv-adopt-file (dir)
   "Move this file into a new isolated uv project at DIR, with its imports.
@@ -227,11 +263,94 @@ manage — the light alternative to `+python/uv-adopt-file' for one-offs."
       (+python--uv (file-name-directory file) (string-join steps " && ")
                    (lambda () (revert-buffer t t t))))))
 
+;; Evaluate short snippets in the same Python process used by Doom's REPL.
+;; On the first eval, start the process and seed it from the unsaved buffer.
+;; `python-shell-send-buffer' skips __main__ blocks unless explicitly asked to
+;; run them. The focused line is not sent twice on that first press.
+(defun +python--start-repl-and-load-buffer ()
+  "Start this buffer's Python REPL and send the whole buffer to it."
+  (let ((handler (assq major-mode +eval-repl-handler-alist)))
+    (unless handler
+      (user-error "No Python REPL handler for %s" major-mode))
+    (save-current-buffer
+      (save-selected-window
+        (+eval/open-repl-other-window handler))))
+  (let ((process (or (python-shell-get-process)
+                     (user-error "Python REPL did not start"))))
+    ;; python.el installs its eval helpers only after the first prompt.
+    (with-current-buffer (process-buffer process)
+      (with-timeout (10 (user-error "Python REPL did not become ready"))
+        (while (not python-shell--first-prompt-received)
+          (accept-process-output process 0.1)))))
+  (save-restriction
+    (widen)
+    (python-shell-send-buffer nil t))
+  ;; Let the initial buffer finish before the next focused evaluation captures
+  ;; output, so its result cannot be mistaken for a later line's result.
+  (with-current-buffer (process-buffer (python-shell-get-process))
+    (with-timeout (2 nil)
+      (python-shell-accept-process-output (get-buffer-process (current-buffer)) 0.2)))
+  (+eval-display-results
+   "Started Python REPL and sent buffer. Press SPC e again for this line."
+   (current-buffer)))
+
+;; `python-shell-send-string-no-output' captures stdout for an inline result;
+;; the process keeps definitions and variables for later interactive use.
+(defun +python/eval-in-repl (beg end)
+  "Evaluate Python between BEG and END in the project REPL and show its output."
+  (if (not (python-shell-get-process))
+      (+python--start-repl-and-load-buffer)
+    (let* ((process (python-shell-get-process-or-error t))
+           (source (python-shell-buffer-substring beg end))
+           (output (string-trim (python-shell-send-string-no-output source process))))
+      (+eval-display-results (if (string-empty-p output) "Sent to REPL" output)
+                             (current-buffer)))))
+
+(defun +python/eval-line-or-region ()
+  "Evaluate the selected Python region, or the current line, in the REPL."
+  (interactive)
+  (if (doom-region-active-p)
+      (+python/eval-in-repl (region-beginning) (region-end))
+    (+python/eval-in-repl (line-beginning-position) (line-end-position))))
+
+(defun +python/eval-defun ()
+  "Evaluate the Python function or class at point in the REPL."
+  (interactive)
+  (if-let* ((bounds (bounds-of-thing-at-point 'defun)))
+      (+python/eval-in-repl (car bounds) (cdr bounds))
+    (user-error "No Python function or class at point")))
+
+(defun +python/eval-buffer ()
+  "Evaluate the whole Python buffer in the REPL."
+  (interactive)
+  (save-restriction
+    (widen)
+    (+python/eval-in-repl (point-min) (point-max))))
+
+(evil-define-operator +python/eval-line-or-selection (beg end)
+  "Evaluate the current line or visual selection in the Python REPL."
+  :motion evil-line
+  :move-point nil
+  :repeat nil
+  (+python/eval-in-repl beg end))
+
 (map! :after python
       :map python-base-mode-map
       :localleader
-      :prefix ("u" . "uv")
-      :desc "New project"          "n" #'+python/uv-new-project
-      :desc "Adopt file → project" "p" #'+python/uv-adopt-file
-      :desc "Adopt file → script"  "s" #'+python/uv-adopt-script
-      :desc "Re-activate venv"     "v" #'uv-mode-set)
+      :desc "Eval line or region in REPL" "e" #'+python/eval-line-or-selection
+      :desc "Eval function or class in REPL" "E" #'+python/eval-defun
+      :desc "Eval buffer in REPL" "b" #'+python/eval-buffer
+      :desc "Open REPL" "r" #'+eval/open-repl-other-window)
+
+(map! :after python
+      :map python-base-mode-map
+      :n "SPC e" #'+python/eval-line-or-selection
+      :v "SPC e" #'+python/eval-line-or-selection)
+
+(map! :after python
+      :map python-base-mode-map
+      :i "C-c e" #'+python/eval-line-or-region)
+
+(map! :leader
+      (:prefix "p"
+       :desc "New Python project" "n" #'+python/uv-new-project))
