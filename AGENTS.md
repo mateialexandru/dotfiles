@@ -75,4 +75,4 @@ Use the ADR index in `docs/decisions/`; especially:
 - `015-python-uv.md` — uv, Ruff, and Pyright policy
 - `017-compiled-hack-worktrees.md` — worktree behavior
 - `020-nushell-parallel.md` — Nushell integration
-- `021-pi-private-model-layer.md` / `023-agent-shell-pi.md` — Pi layering and Emacs integration
+- `021-pi-private-model-layer.md` — Pi layering (`023-agent-shell-pi.md` records the retired Emacs integration)

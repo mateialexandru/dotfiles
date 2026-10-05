@@ -97,14 +97,13 @@ standalone scripts and simple apps. Doom activates
 the project's environment when a Python file opens and uses Pyright for
 completion and types.
 
-In a Python buffer, the first `SPC e` starts the project REPL and sends the
-whole current buffer, including unsaved edits, while skipping `__main__`
-blocks. Later presses evaluate the visual selection, the enclosing function or
-class, a top-level block, or the current statement. Use `SPC u SPC e` to force
-just the current line, or `SPC E` to evaluate the whole buffer. `SPC m e` is an
-alias, and `C-c e` works in insert mode. `SPC m E` explicitly evaluates the
-function or class at point, `SPC m b` evaluates the buffer, and `SPC m r` opens
-the project REPL. These commands leave `.` available for repeating edits and use the
+In a Python buffer, `SPC e` sends the current line to the project REPL, or
+the selected region when one is active. `SPC E` evaluates the enclosing
+function or class, including its decorators. The first evaluation starts the
+project REPL and immediately sends the requested code. Visual `SPC e`,
+`SPC m e`, and insert-mode `C-c e` use the same line-or-region behavior;
+`SPC m b` evaluates the whole buffer, and `SPC m r` opens the project REPL.
+These commands leave `.` available for repeating edits and use the
 same interactive REPL, so definitions and variables remain available there;
 short output appears inline, with longer output in a popup. For long-running
 code, use `SPC c s` to send it to the REPL without waiting for inline output.
@@ -159,17 +158,13 @@ pi
 /model                 choose a model
 ```
 
-The installer also pins the `pi-acp` adapter, installs provider-native web search,
-and composes `config/pi/` with optional `pi/` fragments from each activated private
-layer. Web search reuses the selected supported model provider, so it needs no
+The installer also installs provider-native web search and composes `config/pi/`
+with optional `pi/` fragments from each activated private layer. Web search
+reuses the selected supported model provider, so it needs no
 separate Ollama service or search credential. A layer may add model providers,
 narrow the visible model list, append private agent context, or run a
 platform-specific setup hook. Runtime credentials, sessions, and trust decisions
 stay in `~/.pi/agent/` and are never stored here.
-
-Inside Emacs, `SPC o l p` (or `C-c l p`) opens the same Pi setup as a native
-agent-shell project session. The terminal and Emacs clients share models, login,
-context, skills, and history.
 
 Pi has no tool sandbox: an approved `bash` or PowerShell tool call runs with the user's
 permissions. Project-local configuration therefore uses the `ask` trust policy.
@@ -265,20 +260,14 @@ private because public guides never link back to private IDs.
 
 ## gptel in Emacs
 
-The everyday paths are visual `SPC r` for an auto-applied rewrite, `SPC o l e`
-for a quick explanation, and `SPC o l p` for a full Pi project agent in
-agent-shell. The Pi session uses the same layered models, OAuth login, context,
-and history as the terminal client; no provider configuration is duplicated in
-Emacs.
+The everyday paths are visual `SPC r` for an auto-applied rewrite and `SPC o l e`
+for a quick explanation. Use Pi in a terminal for full-project agent work.
 See [`docs/howto/howto-gptel.org`](docs/howto/howto-gptel.org) for a
 short hands-on guide to rewrites, follow-up chats, context, and
 choosing between a layer-selected primary provider and local LM Studio/MLX. The
 public configuration is provider-neutral; a private `doom/post.el` registers the
 subscription backend with `my/gptel-register-primary-backend`. Ollama remains an
 optional GGUF fallback.
-
-See [`docs/howto/howto-pi-agent-shell.org`](docs/howto/howto-pi-agent-shell.org)
-for the project-agent flow. `C-c l p` is the non-leader equivalent.
 
 ## Capture into Emacs org (macOS)
 

@@ -36,13 +36,12 @@ appears in a small popup:
 When LM Studio is running, quick explanations use the local MLX model. Otherwise
 they fall back to the current session backend.
 
-* Escalate to the project agent
+* Use a project agent
 
-From any project buffer, press =SPC o l p=. This starts Pi in agent-shell at the
-project root. Use it when the job needs repository exploration, edits, commands,
-or a long-lived agent session; see [[id:2aeef23e-c327-4ab2-b927-04aadb131d71][How-to: Pi in agent-shell]].
+Run =pi= in a terminal from the project root when the job needs repository
+exploration, edits, commands, or a long-lived agent session.
 
-gptel remains the lighter surface. Use =SPC o l l= for an ordinary chat,
+In Emacs, use =SPC o l l= for an ordinary gptel chat,
 =SPC o l A= for a gptel-agent buffer, and =SPC o l F= when you explicitly want
 to attach project files to the current gptel conversation. The older persistent
 gptel project helper remains available as =M-x my/gptel-project= for existing

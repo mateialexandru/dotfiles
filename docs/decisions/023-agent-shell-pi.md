@@ -1,5 +1,11 @@
 # ADR-023: Pi owns full-project agents in Emacs
 
+**Status:** Retired (2026-10-03)
+
+The Pi ACP integration was removed because it was not used. Terminal Pi remains
+installed, and gptel remains the Emacs LLM client. The decision below records
+the former integration; it no longer describes the current setup.
+
 ## Context
 
 gptel is excellent for inline rewrites, explanations, ordinary chat, and explicit

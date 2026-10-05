@@ -264,11 +264,9 @@ manage — the light alternative to `+python/uv-adopt-file' for one-offs."
                    (lambda () (revert-buffer t t t))))))
 
 ;; Evaluate short snippets in the same Python process used by Doom's REPL.
-;; On the first eval, start the process and seed it from the unsaved buffer.
-;; `python-shell-send-buffer' skips __main__ blocks unless explicitly asked to
-;; run them. The focused line is not sent twice on that first press.
-(defun +python--start-repl-and-load-buffer ()
-  "Start this buffer's Python REPL and send the whole buffer to it."
+;; On the first eval, start the process before sending the requested code.
+(defun +python--start-repl ()
+  "Start this buffer's Python REPL."
   (let ((handler (assq major-mode +eval-repl-handler-alist)))
     (unless handler
       (user-error "No Python REPL handler for %s" major-mode))
@@ -282,29 +280,52 @@ manage — the light alternative to `+python/uv-adopt-file' for one-offs."
       (with-timeout (10 (user-error "Python REPL did not become ready"))
         (while (not python-shell--first-prompt-received)
           (accept-process-output process 0.1)))))
-  (save-restriction
-    (widen)
-    (python-shell-send-buffer nil t))
-  ;; Let the initial buffer finish before the next focused evaluation captures
-  ;; output, so its result cannot be mistaken for a later line's result.
-  (with-current-buffer (process-buffer (python-shell-get-process))
-    (with-timeout (2 nil)
-      (python-shell-accept-process-output (get-buffer-process (current-buffer)) 0.2)))
-  (+eval-display-results
-   "Started Python REPL and sent buffer. Press SPC e again to eval at point."
-   (current-buffer)))
+  (python-shell-get-process-or-error t))
 
 ;; `python-shell-send-string-no-output' captures stdout for an inline result;
 ;; the process keeps definitions and variables for later interactive use.
 (defun +python/eval-in-repl (beg end)
   "Evaluate Python between BEG and END in the project REPL and show its output."
-  (if (not (python-shell-get-process))
-      (+python--start-repl-and-load-buffer)
-    (let* ((process (python-shell-get-process-or-error t))
-           (source (python-shell-buffer-substring beg end))
-           (output (string-trim (python-shell-send-string-no-output source process))))
-      (+eval-display-results (if (string-empty-p output) "Sent to REPL" output)
-                             (current-buffer)))))
+  (unless (python-shell-get-process)
+    (+python--start-repl))
+  (let* ((process (python-shell-get-process-or-error t))
+         (source (python-shell-buffer-substring beg end))
+         (output (string-trim (python-shell-send-string-no-output source process))))
+    (+eval-display-results (if (string-empty-p output) "Sent to REPL" output)
+                           (current-buffer))))
+
+(defun +python--eval-at-point-bounds ()
+  "Return the Python expression to evaluate at point.
+An assignment target selects its statement, a callee selects its call,
+and another name selects just that name.  Else select the statement."
+  (let ((name (bounds-of-thing-at-point 'symbol)))
+    (save-excursion
+      (python-nav-beginning-of-statement)
+      (let ((statement-beg (point)))
+        (python-nav-end-of-statement)
+        (let ((statement-end (point)))
+          (cond
+           ((not name) (cons statement-beg statement-end))
+           ((and (= (car name) statement-beg)
+                 (save-excursion
+                   (goto-char (cdr name))
+                   (skip-chars-forward " \t")
+                   (and (eq (char-after) ?=)
+                        (not (eq (char-after (1+ (point))) ?=)))))
+            (cons statement-beg statement-end))
+           ((save-excursion
+              (goto-char (cdr name))
+              (skip-chars-forward " \t\n")
+              (when (eq (char-after) ?\()
+                (when-let* ((end (ignore-errors (scan-sexps (point) 1))))
+                  (cons (car name) end)))))
+           (t name)))))))
+
+(defun +python/eval-at-point ()
+  "Evaluate the Python assignment, call, or name at point in the REPL."
+  (interactive)
+  (pcase-let ((`(,beg . ,end) (+python--eval-at-point-bounds)))
+    (+python/eval-in-repl beg end)))
 
 (defun +python--eval-defun-bounds ()
   "Return the enclosing definition, including its decorators."
@@ -382,10 +403,19 @@ With prefix argument LINE-ONLY, evaluate just the current line."
                      (t (+python--eval-bounds)))))
     (+python/eval-in-repl beg end)))
 
+(defun +python/eval-line-or-region ()
+  "Evaluate the active region, or the current line, in the Python REPL."
+  (interactive)
+  (pcase-let ((`(,beg . ,end)
+               (if (doom-region-active-p)
+                   (cons (region-beginning) (region-end))
+                 (cons (line-beginning-position) (line-end-position)))))
+    (+python/eval-in-repl beg end)))
+
 (defun +python/eval-defun ()
   "Evaluate the Python function or class at point in the REPL."
   (interactive)
-  (if-let* ((bounds (bounds-of-thing-at-point 'defun)))
+  (if-let* ((bounds (+python--eval-defun-bounds)))
       (+python/eval-in-repl (car bounds) (cdr bounds))
     (user-error "No Python function or class at point")))
 
@@ -399,20 +429,20 @@ With prefix argument LINE-ONLY, evaluate just the current line."
 (map! :after python
       :map python-base-mode-map
       :localleader
-      :desc "Eval at point or selection in REPL" "e" #'+python/eval-dwim
+      :desc "Eval line or selection in REPL" "e" #'+python/eval-line-or-region
       :desc "Eval function or class in REPL" "E" #'+python/eval-defun
       :desc "Eval buffer in REPL" "b" #'+python/eval-buffer
       :desc "Open REPL" "r" #'+eval/open-repl-other-window)
 
 (map! :after python
       :map python-base-mode-map
-      :n "SPC e" #'+python/eval-dwim
-      :v "SPC e" #'+python/eval-dwim
-      :n "SPC E" #'+python/eval-buffer)
+      :n "SPC e" #'+python/eval-line-or-region
+      :v "SPC e" #'+python/eval-line-or-region
+      :n "SPC E" #'+python/eval-defun)
 
 (map! :after python
       :map python-base-mode-map
-      :i "C-c e" #'+python/eval-dwim)
+      :i "C-c e" #'+python/eval-line-or-region)
 
 (map! :leader
       (:prefix "p"

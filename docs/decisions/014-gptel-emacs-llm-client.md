@@ -183,8 +183,8 @@ Two packaging constraints, both load-bearing:
 
 `M-x gptel-agent` builds a throwaway buffer. `my/gptel-project` can put the same session in
 `<project-root>/.gptel/chat.org`: a real file, so it survives daemon restarts and is greppable
-next to the code it discusses. ADR-023 moved `SPC o l p` to Pi through agent-shell; this helper
-is retained unbound so existing transcripts remain accessible.
+next to the code it discusses. This helper is retained unbound so existing
+transcripts remain accessible.
 
 Applying the agent preset to a file-visiting buffer uses `gptel--apply-preset`, a private
 function — it is what `gptel-agent` itself calls, and the only preset entry point that isn't
@@ -213,8 +213,8 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 
 - The public repository contains no remote-provider or account choice. Personal ChatGPT OAuth
   lives in a private layer; work layers may register a different subscription backend.
-- gptel is the lightweight Emacs LLM surface for chat, inline explanation, and rewrites.
-  ADR-023 adds agent-shell as the separate full-project surface backed by Pi.
+- gptel is the Emacs LLM surface for chat, inline explanation, and rewrites.
+  Pi handles full-project work in a terminal; the ADR-023 Emacs adapter was retired.
 - Doom's LLM ecosystem is now on: org-babel `gptel` blocks work in Org notes, magit offers
   generated commit messages, `SPC o l e` explains at point.
 - Repositories only grow a `.gptel/` directory when the unbound legacy project command is used.

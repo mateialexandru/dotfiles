@@ -124,16 +124,13 @@ commands rather than becoming editor wrappers:
 | `M-x +python/uv-adopt-file` | `+python/uv-adopt-file` | moves this file into a new isolated project with its dependencies |
 | `M-x +python/uv-adopt-script` | `+python/uv-adopt-script` | gives this file a PEP 723 header instead — no project, `uv run` anywhere |
 
-Python buffers use `SPC e` (or `SPC m e`) for contextual REPL evaluation: a
-visual selection, the enclosing function or class, a top-level block, or the
-current statement. `SPC u SPC e` forces the current line, and `SPC E` evaluates
-the buffer. The commands do not enter the `.` repeat history, leaving `.` for edits.
-When no Python process exists, the first eval starts Doom's REPL and sends the
-whole current (including unsaved) buffer once, leaving `if __name__ == "__main__"`
-blocks unrun. Press `SPC e` again to evaluate the focused unit; the first press
-does not evaluate it twice.
-`SPC m E` explicitly evaluates a function or class and `SPC m b` the buffer.
-`C-c e` uses the contextual command in insert mode. It captures
+Python buffers use `SPC e` to evaluate the current line, or the selected region
+when one is active. `SPC E` evaluates the enclosing function or class,
+including decorators. Visual `SPC e`, `SPC m e`, and insert-mode `C-c e` use
+the same line-or-region behavior. The commands do not enter
+the `.` repeat history, leaving `.` for edits. When no Python process exists,
+the first eval starts Doom's REPL and immediately sends the requested code.
+`SPC m b` evaluates the buffer. Evaluation captures
 output from the same live
 Python process, showing short results inline and longer ones in a popup. This
 supports exploration without taking the `SPC m t` pytest bindings. Synchronous

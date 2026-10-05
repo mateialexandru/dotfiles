@@ -19,9 +19,8 @@
 ;;   compatibility path; the Claude Code CLI is not required). Sub-agent calls
 ;;   are routed to the local box so delegated grunt work costs no quota.
 ;;
-;; Full project work belongs to Pi through agent-shell (ADR-023).  The existing
-;; `my/gptel-project' command remains available via M-x for old transcripts, but
-;; it is deliberately unbound.
+;; Terminal Pi handles full-project work. The existing `my/gptel-project'
+;; command remains available via M-x for old transcripts, but is unbound.
 ;;
 ;; See ADR-014.
 
@@ -425,7 +424,6 @@ The replacement is one undo step; use `u' in Evil normal state to revert it."
                (:prefix "l"
                 :desc "Rewrite (auto-apply)"   "r" #'my/gptel-rewrite-auto
                 :desc "Rewrite (review)"       "R" #'my/gptel-rewrite-review
-                :desc "Pi project agent"      "p" #'agent-shell-pi-start-agent
                 :desc "Agent session"         "A" #'gptel-agent
                 :desc "Add project files"     "F" #'my/gptel-add-project-files
                 :desc "Clear context"         "c" #'gptel-context-remove-all
@@ -444,7 +442,6 @@ The replacement is one undo step; use `u' in Evil normal state to revert it."
   "R" #'my/gptel-rewrite-review
   "a" #'gptel-add
   "f" #'gptel-add-file
-  "p" #'agent-shell-pi-start-agent
   "A" #'gptel-agent
   "F" #'my/gptel-add-project-files
   "c" #'gptel-context-remove-all
