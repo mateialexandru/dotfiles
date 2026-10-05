@@ -13,7 +13,7 @@ usage() {
 	cat <<'EOF'
 Usage: install.sh [--skip-llm]
 
-  --skip-llm  Install LM Studio/Ollama later; skip the local model pull.
+  --skip-llm  Install LM Studio later; skip local inference setup.
 EOF
 }
 
@@ -208,14 +208,14 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 	bash "$DOTFILES_DIR/scripts/install-excalidraw-mac.sh"
 fi
 
-# Local LLM layer (LM Studio/MLX primary + optional Ollama GGUF fallback)
-step "Local LLM (LM Studio/MLX + optional Ollama)"
+# Local LLM layer (LM Studio/MLX)
+step "Local LLM (LM Studio/MLX)"
 if ! $INSTALL_LLM; then
 	echo "Skipping local LLM installation (--skip-llm)."
 elif [[ "$OSTYPE" == "darwin"* ]]; then
 	bash "$DOTFILES_DIR/scripts/install-llm-mac.sh"
 else
-	echo "Local LLM: install Ollama from https://ollama.com and LM Studio from https://lmstudio.ai (no linuxbrew formulae)."
+    echo "Local LLM: install LM Studio from https://lmstudio.ai (no linuxbrew formula)."
 fi
 
 # Global NPM Packages (AI & Language Servers)

@@ -172,24 +172,7 @@ if $IS_MAC; then
   else info "LM Studio" "not installed (optional — \`sys install\` without --skip-llm)"; fi
 fi
 
-# 15. Ollama local LLM (ADR-013) — optional GGUF fallback and on-demand.
-if $IS_MAC; then
-  if command -v ollama >/dev/null 2>&1; then
-    if curl -fsS http://localhost:11434/api/tags >/dev/null 2>&1; then
-      manifest="$REPO/scripts/ollama-models.txt"
-      have="$(ollama list 2>/dev/null | awk 'NR>1{print $1}')"
-      miss=()
-      while IFS= read -r line; do
-        m="${line%%#*}"; m="$(echo "$m" | xargs)"; [ -z "$m" ] && continue
-        echo "$have" | grep -q "^${m%%:*}" || miss+=("$m")
-      done < "$manifest"
-      if [[ ${#miss[@]} -eq 0 ]]; then pass "ollama fallback" "up + models present"
-      else info "ollama fallback" "up; models not pulled: ${miss[*]} (\`sys llm ollama start\` to serve)"; fi
-    else info "ollama fallback" "installed, down — \`sys llm ollama start\` to serve"; fi
-  else info "ollama fallback" "not installed (optional)"; fi
-fi
-
-# 16. Emacs LLM clients (ADR-014) — packages built, and the global gitignore
+# 15. Emacs LLM clients (ADR-014) — packages built, and the global gitignore
 # actually in effect. The second half is the one that bites silently: project
 # transcripts live in <repo>/.gptel/, so a missing link makes them committable.
 llm_missing=()

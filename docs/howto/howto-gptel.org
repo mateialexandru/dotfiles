@@ -33,7 +33,8 @@ appears in a small popup:
 - =w= copies the answer.
 - =r= carries the question and answer into a chat buffer for follow-up.
 
-When LM Studio is running, quick explanations use the local MLX model. Otherwise
+When LM Studio is running, quick explanations use the local Qwen3.6 MLX model
+also offered to Pi. Otherwise
 they fall back to the current session backend.
 
 * Use a project agent
@@ -52,8 +53,7 @@ gptel project helper remains available as =M-x my/gptel-project= for existing
 =SPC o l b= toggles between the private layer's primary provider and local
 LM Studio/MLX, keeping the appropriate model for each backend. =SPC o l m= opens
 gptel's menu for choosing a model, preset, tools, context, or response
-destination. Ollama remains available from the full gptel menu as an optional GGUF
-fallback.
+destination.
 
 Treat context as part of the request: selected regions and files are sent to
 the active backend. For private or work material, use only a backend permitted

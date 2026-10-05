@@ -13,7 +13,7 @@ rebuild tools, or request elevation. Review the platform-specific behavior below
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/main/install.sh)"
 ```
 
-To install the editor/tooling baseline without LM Studio, Ollama, or the
+To install the editor/tooling baseline without LM Studio or the
 optional local model set, append `-- --skip-llm`.
 
 Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. Doom's official Ghostel module provides modern terminal emulation through `libghostty-vt`; macOS installation also provisions its pinned native module automatically. On macOS, the installer sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool and the cross-platform `sys` operations CLI, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `config/git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
@@ -161,7 +161,7 @@ pi
 The installer also installs provider-native web search and composes `config/pi/`
 with optional `pi/` fragments from each activated private layer. Web search
 reuses the selected supported model provider, so it needs no
-separate Ollama service or search credential. A layer may add model providers,
+separate search credential. A layer may add model providers,
 narrow the visible model list, append private agent context, or run a
 platform-specific setup hook. Runtime credentials, sessions, and trust decisions
 stay in `~/.pi/agent/` and are never stored here.
@@ -266,8 +266,11 @@ See [`docs/howto/howto-gptel.org`](docs/howto/howto-gptel.org) for a
 short hands-on guide to rewrites, follow-up chats, context, and
 choosing between a layer-selected primary provider and local LM Studio/MLX. The
 public configuration is provider-neutral; a private `doom/post.el` registers the
-subscription backend with `my/gptel-register-primary-backend`. Ollama remains an
-optional GGUF fallback.
+subscription backend with `my/gptel-register-primary-backend`.
+On the Apple Silicon local path, `sys llm start` loads the configured Qwen3.6
+MLX model for gptel quick help and Pi, with one inference slot and a one-hour
+idle unload timer. Pi advertises a 128K context for local requests; LM Studio
+currently auto-sizes the MLX runtime context when loading it.
 
 ## Capture into Emacs org (macOS)
 

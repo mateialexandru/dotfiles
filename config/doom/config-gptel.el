@@ -11,7 +11,6 @@
 ;;
 ;; - A local LM Studio/MLX backend. `sys llm start' loads the preferred native
 ;;   Apple-Silicon model and starts LM Studio's OpenAI-compatible endpoint.
-;;   Ollama remains registered as an explicit GGUF fallback.
 ;;
 ;; - gptel-agent, which turns a buffer into a project-scoped agent: ~32 tools
 ;;   (read/grep/glob free, bash/edit/write confirmed), sub-agents read from
@@ -35,17 +34,11 @@
 (defvar my/gptel-backend-lmstudio nil
   "The local LM Studio/MLX backend.")
 
-(defvar my/gptel-backend-ollama nil
-  "The second-class local Ollama fallback backend.")
-
 (defvar my/gptel-primary-model nil
   "Model last used with `my/gptel-backend-primary'.")
 
 (defvar my/gptel-lmstudio-model 'qwen3.6-35b-a3b
   "Model last used with `my/gptel-backend-lmstudio'.")
-
-(defvar my/gptel-ollama-model 'gpt-oss:20b
-  "Model last used with `my/gptel-backend-ollama'.")
 
 (defvar my/gptel-omit-generation-parameters-predicate nil
   "Predicate identifying a backend that rejects generation parameters.
@@ -75,14 +68,16 @@ generation parameters. The newly registered provider becomes active."
   (eq 0 (call-process "curl" nil nil nil "-fsS" "-m" "2"
                       (concat my/gptel-lmstudio-endpoint "/v1/models"))))
 
-(defun my/gptel--ollama-up-p ()
-  "Return non-nil if the Ollama fallback endpoint answers."
-  (eq 0 (call-process "curl" nil nil nil "-fsS" "-m" "2"
-                      "http://localhost:11434/api/tags")))
-
 (after! gptel
   (setq gptel-expert-commands t
         gptel-use-tools t)
+
+  ;; Remove the retired backend when this file is reloaded in a live daemon.
+  (setq gptel--known-backends
+        (assoc-delete-all "Ollama" gptel--known-backends))
+  (when (boundp 'gptel--known-tools)
+    (when-let* ((dotfiles (assoc "dotfiles" gptel--known-tools)))
+      (setcdr dotfiles (assoc-delete-all "ollama_models" (cdr dotfiles)))))
 
   ;; LM Studio exposes an OpenAI-compatible endpoint. `sys llm start' loads
   ;; the preferred MLX model before requests are sent here.
@@ -92,15 +87,7 @@ generation parameters. The newly registered provider becomes active."
           :protocol "http"
           :stream t
           :header '(("Content-Type" . "application/json"))
-          :models '(qwen3.6-35b-a3b qwen3.8-27b)))
-
-  ;; Keep Ollama available for GGUF-only models, but do not make it the
-  ;; default or require its daemon for ordinary gptel use.
-  (setq my/gptel-backend-ollama
-        (gptel-make-ollama "Ollama"
-          :host "localhost:11434"
-          :stream t
-          :models '(gpt-oss:20b qwen3-coder:30b qwen3.6:latest)))
+          :models '(qwen3.6-35b-a3b)))
 
   ;; A private layer loaded later may replace this with its primary provider.
   (unless my/gptel-backend-primary
@@ -249,8 +236,9 @@ FN is `gptel-quick--callback-posframe', called with RESPONSE and INFO."
 
 ;;; --- Agent ----------------------------------------------------------------
 
-(defvar my/gptel-extra-tools '("sys_check" "lmstudio_models" "ollama_models")
+(defvar my/gptel-extra-tools nil
   "Names of local-runtime tools from gptel/tools.el to hand the agent.")
+(setq my/gptel-extra-tools '("sys_check" "lmstudio_models"))
 
 (defun my/gptel--extend-agent-preset (&rest _)
   "Append `my/gptel-extra-tools' to the gptel-agent preset's tool list.
@@ -280,7 +268,7 @@ inherits the global nil instead of a value the active endpoint refuses."
   ;; Our own sub-agents sit alongside the bundled executor/researcher/introspector.
   (add-to-list 'gptel-agent-dirs (expand-file-name "gptel/agents/" doom-user-dir))
   ;; Delegated sub-agent work runs locally on MLX instead of spending
-  ;; subscription quota. Ollama remains available for GGUF-only fallback work.
+  ;; subscription quota.
   (setq gptel-agent-preset '(:backend "LM Studio" :model qwen3.6-35b-a3b))
   (load! "gptel/tools")
   (advice-add 'gptel-agent-update :after #'my/gptel--extend-agent-preset)

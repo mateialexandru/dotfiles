@@ -1,6 +1,6 @@
 # ADR-014: gptel in Emacs — layered providers and editor-native workflows
 
-**Status:** Accepted
+**Status:** Accepted (local backend list revised October 2026)
 **Date:** 2026-08-01
 
 ## Context
@@ -20,7 +20,7 @@ public configuration.
 ## Decision
 
 **Enable Doom's `:tools llm` module, expose a provider-neutral primary-backend slot, use local
-LM Studio/MLX as the default backend, retain Ollama as a GGUF fallback, and layer `gptel-agent`
+LM Studio/MLX as the default backend, and layer `gptel-agent`
 on top for tool-enabled sessions.** The
 personal layer fills that slot with ChatGPT OAuth; another layer can register another provider.
 
@@ -69,8 +69,8 @@ Two consequences worth knowing:
   (sensible for backends whose default is low), which made the ChatGPT backend warn
   constantly. `my/gptel--omit-generation-parameters-p` gates it using the predicate supplied
   by the private layer — our own project command skips the raise, and an `:around` advice on
-  `gptel-agent` binds the variable non-nil for the call so upstream's `unless` no-ops. Ollama
-  buffers still get 8192. `my/gptel-toggle-backend` clears/restores the buffer-local value when
+  `gptel-agent` binds the variable non-nil for the call so upstream's `unless` no-ops.
+  `my/gptel-toggle-backend` clears/restores the buffer-local value when
   an agent buffer moves between the two endpoints.
 
 Login is `M-x gptel-openai-oauth-login`, or automatic on first request. The default
@@ -81,8 +81,7 @@ daemon; over SSH, `gptel-openai-oauth-login-method` must be set to `device`.
 
 The latest private layer to call `my/gptel-register-primary-backend` selects the primary provider
 and makes it active. With no private provider, public gptel uses LM Studio/MLX at
-`127.0.0.1:1234` and the `qwen3.6-35b-a3b` model. Ollama remains registered as an explicit
-GGUF fallback, using the models from `scripts/ollama-models.txt`.
+`127.0.0.1:1234` and the `qwen3.6-35b-a3b` model.
 `my/gptel-toggle-backend` (`SPC o l b`, also in the `SPC t n` toggle menu) flips between the
 registered primary and LM Studio and remembers the model last used with each.
 
@@ -204,7 +203,7 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 - `config/doom/gptel/agents/` — one md/org file per sub-agent; only `description` is mandatory.
   Seeded with `reviewer.md` as a worked example.
 - `config/doom/gptel/tools.el` — deliberately thin, for tools only the dotfiles can answer
-  (`sys_check`, `lmstudio_models`, `ollama_models`). General filesystem/shell/web tools come from gptel-agent.
+  (`sys_check`, `lmstudio_models`). General filesystem/shell/web tools come from gptel-agent.
   Names listed in `my/gptel-extra-tools` are appended to the agent preset by an `:after` advice
   on `gptel-agent-update`, since the preset's tool list is rebuilt from upstream's
   `agents/gptel-agent.md` on every update.
@@ -245,4 +244,4 @@ and are live without a sync (the `config/doom/remote/tmux.conf` trick):
 
 - ADR-011 — the remote workflow gptel-agent's TRAMP support plugs into.
 - ADR-012 — `sys` + `sys check`; check 14 follows "gate on the symptom, not the remedy."
-- ADR-013 — the LM Studio/MLX primary endpoint and optional Ollama fallback used here.
+- ADR-013 — the LM Studio/MLX endpoint used here.

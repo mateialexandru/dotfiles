@@ -33,7 +33,7 @@
  :description "Run the dotfiles confidence pass (`sys check'): doom symlink, \
 Emacs daemon and its environment, native-comp queue, doom doctor, core tools, \
 LSP servers, formatters, org-protocol handler, excalidraw toolchain, LM Studio, \
-Ollama fallback, and ssh ControlMaster. Use this when asked why the Emacs or \
+and ssh ControlMaster. Use this when asked why the Emacs or \
 dotfiles setup is misbehaving. Takes a while; it is read-only."
  :args nil
  :category "dotfiles")
@@ -49,18 +49,6 @@ dotfiles setup is misbehaving. Takes a while; it is read-only."
                "LM Studio is not running. Start it with `sys llm start'."))
  :description "List the MLX models available to and loaded by LM Studio on this
 machine. LM Studio is the primary local runtime; start it with `sys llm start'."
- :args nil
- :category "dotfiles")
-
-(gptel-make-tool
- :name "ollama_models"
- :function (lambda ()
-             (if (eq 0 (call-process "curl" nil nil nil "-fsS" "-m" "2"
-                                     "http://localhost:11434/api/tags"))
-                 (my/gptel--sh "ollama" "list")
-               "Ollama fallback is not running. Start it with `sys llm ollama start'."))
- :description "List the optional GGUF models pulled into the Ollama fallback on this
-machine. LM Studio/MLX is the primary local runtime."
  :args nil
  :category "dotfiles")
 
