@@ -55,6 +55,20 @@ Wiring lives in `config/doom/packages.el` (`package!`) + `config/doom/config.el`
 The shared config owns the `file-notify-add-watch` registration. It is guarded on
 the exporter and directory, handles both atomic `renamed` saves and Windows-style
 `changed` saves, and reports watcher failure without aborting Doom boot.
+The watcher keeps an opaque SVG for the inline Org preview, where a white
+background preserves contrast in dark themes. The custom `excalidraw:` HTML
+exporter generates a transparent SVG when needed and copies it beside the output
+HTML file in a `-assets` directory, so the published page has a relative image
+reference.
+Markdown export also copies the opaque SVG into the output file's `-assets`
+directory and writes a relative Markdown image link. That keeps a published
+README independent of the private drawing path and keeps black strokes visible
+on both light and dark renderers. When the source is saved, the watcher updates
+existing exported asset copies for open Org documents; reopening and exporting
+a closed document refreshes its copies.
+After either SVG conversion, the config adds a `viewBox` to pasted-image
+`<symbol>` elements. The CLI emits percentage-sized images in symbols without a
+viewport; librsvg then scales and clips them incorrectly in Emacs.
 
 ### Exporter: dropped `excalidraw_export`, adopted `@swiftlysingh/excalidraw-cli`
 

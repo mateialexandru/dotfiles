@@ -216,13 +216,34 @@ See `docs/decisions/016-mermaid-previews.md` for the design and safety rationale
 The hands-on Org workflow is available as
 [`docs/howto/howto-mermaid.org`](docs/howto/howto-mermaid.org).
 
+## YouTube links in Org
+
+Use `[[yt:VIDEO-ID][title]]` for a clickable title and put a bare
+`[[yt:VIDEO-ID]]` link on the next line for an inline thumbnail. Both `RET` on
+the link and a click on the thumbnail open the video in a browser. For a watch
+list, put the titled link inside a `TODO` heading; it stays visible above the
+thumbnail and can be marked `DONE` after watching. Thumbnails are downloaded
+once into Doom's preview cache. HTML and Markdown export the title as a video
+link and the thumbnail as a linked image, copying the cached image into the
+adjacent `-assets` directory when available. This uses Org's native link
+preview support and needs no additional package or `doom sync`.
+
 ## Excalidraw diagrams in Org
 
 At the beginning of a line in Org, type `<excali` then `TAB` to name a new
 Excalidraw drawing, insert its link, and open the editable `.excalidraw` file in
 the PWA. Type `<merm` then `TAB` to name and insert a basic Mermaid flowchart
-block. Saving in Excalidraw automatically regenerates the SVG shown inline in
-Org. Left-click the preview image to reopen it for editing. The `SPC m D`
+block. Saving in Excalidraw regenerates one opaque SVG for the inline Org
+preview, including pasted images at their intended size. HTML export generates
+a transparent SVG when needed, copies it into an adjacent `-assets` directory,
+and fits it to the page width. Markdown export (`org-md-export-to-markdown`)
+copies an opaque SVG into the same document-specific `-assets` directory and
+inserts a relative image link, so an exported `readme.md` contains the drawing
+preview without referring to the private `.excalidraw` source. While its Org
+document is open, saving the drawing updates both its inline preview and any
+existing HTML/Markdown asset copies. Re-export after reopening a closed
+document to bring its assets up to date. Left-click the Org preview to reopen
+it for editing. The `SPC m D`
 (diagram) menu provides new, open-at-point, and rename actions. See
 [`docs/howto/howto-excalidraw.org`](docs/howto/howto-excalidraw.org)
 for a worksheet where you can bootstrap a diagram on the spot and follow the

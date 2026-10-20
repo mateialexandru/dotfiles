@@ -623,6 +623,9 @@ is cropped in split windows.  The cached PNG remains full resolution."
 ;; Refresh a changed image with `C-c C-x C-v' / `org-redisplay-inline-images'.
 (setq org-startup-with-inline-images t)
 
+;; Native Org link previews for [[yt:VIDEO-ID][title]] links.
+(load! "config-org-yt")
+
 ;; Emacs 30's image-mode prefers ImageMagick for every format it advertises.
 ;; Its SVG path can collapse percentage-sized Mermaid exports to a blank 30x30
 ;; image even though the native librsvg renderer handles them correctly.
@@ -668,14 +671,92 @@ is cropped in split windows.  The cached PNG remains full resolution."
                    (search-forward svg-path nil t)))
         (org-redisplay-inline-images)))))
 
+(defun my/org-excalidraw--asset-target (source output transparent)
+  "Return the generated SVG target for SOURCE beside OUTPUT.
+TRANSPARENT selects the web variant; the default has a canvas background."
+  (let* ((output (expand-file-name output))
+         (asset-dir (expand-file-name
+                     (concat (downcase (file-name-base output)) "-assets")
+                     (file-name-directory output)))
+         (svg (concat source (if transparent ".transparent.svg" ".svg")))
+         (asset-name (format "%s-%s.svg"
+                             (file-name-sans-extension
+                              (file-name-nondirectory svg))
+                             (substring (secure-hash 'sha1 source) 0 8))))
+    (expand-file-name asset-name asset-dir)))
+
+(defun my/org-excalidraw--copy-asset (svg target)
+  "Copy SVG to TARGET, creating the asset directory if needed."
+  (make-directory (file-name-directory target) t)
+  (copy-file svg target t))
+
+(defun my/org-excalidraw--sync-open-document-assets (source)
+  "Refresh existing exported assets for open Org files linking to SOURCE."
+  (let ((opaque (concat source ".svg")))
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (when (and (derived-mode-p 'org-mode) buffer-file-name
+                   (save-excursion
+                     (goto-char (point-min))
+                     (search-forward opaque nil t)))
+          (let* ((output (expand-file-name
+                          (concat (file-name-sans-extension buffer-file-name)
+                                  ".md")))
+                 (md-target (my/org-excalidraw--asset-target
+                             source output nil))
+                 (html-target (my/org-excalidraw--asset-target
+                               source output t)))
+            (when (file-exists-p md-target)
+              (my/org-excalidraw--copy-asset opaque md-target))
+            (when (file-exists-p html-target)
+              (my/org-excalidraw--copy-asset
+               (my/org-excalidraw--ensure-transparent-svg source)
+               html-target))))))))
+
+(defun my/org-excalidraw--fix-image-symbols (svg)
+  "Give pasted-image symbols in SVG a viewport for Emacs's SVG renderer.
+The Excalidraw exporter sizes each embedded image to 100% inside a symbol
+without a viewBox.  Librsvg resolves that percentage against the whole
+drawing, clipping and enlarging the image at its use site."
+  (with-temp-buffer
+    (insert-file-contents svg)
+    (goto-char (point-min))
+    (let ((changed nil))
+      (while (re-search-forward "<symbol\\( id=\"image-[^\"]+\"\\)>" nil t)
+        (replace-match
+         "<symbol\\1 viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\">"
+         nil nil)
+        (setq changed t))
+      (when changed
+        (write-region (point-min) (point-max) svg nil 'silent)))))
+
 (defun my/org-excalidraw--export (path)
-  "Export Excalidraw PATH to its adjacent SVG and refresh Org previews."
+  "Export Excalidraw PATH to its opaque Org preview SVG."
   (remhash path my/org-excalidraw--export-timers)
   (when (and (file-readable-p path) (executable-find "excalidraw-cli"))
     (let ((status (shell-command (org-excalidraw--shell-cmd-to-svg path))))
       (if (zerop status)
-          (my/org-excalidraw--refresh-previews (concat path ".svg"))
-        (message "Excalidraw export failed for %s (exit %s)" path status)))))
+          (let ((svg (concat path ".svg")))
+            (my/org-excalidraw--fix-image-symbols svg)
+            (my/org-excalidraw--refresh-previews svg)
+            (my/org-excalidraw--sync-open-document-assets path))
+        (message "Excalidraw SVG export failed for %s (exit %s)" path status)))))
+
+(defun my/org-excalidraw--ensure-transparent-svg (path &optional force)
+  "Ensure transparent SVG for Excalidraw source PATH exists.
+With FORCE, regenerate it even when the source is older than the SVG."
+  (let ((svg (concat path ".transparent.svg")))
+    (when (or force (not (file-exists-p svg))
+              (file-newer-than-file-p path svg))
+      (unless (executable-find "excalidraw-cli")
+        (error "excalidraw-cli is required to export %s" path))
+      (let ((status (call-process "excalidraw-cli" nil nil nil
+                                  "convert" path "--format" "svg"
+                                  "--no-export-background" "--output" svg)))
+        (unless (equal status 0)
+          (error "excalidraw-cli exited %s for %s" status path))
+        (my/org-excalidraw--fix-image-symbols svg)))
+    svg))
 
 (defun my/org-excalidraw--handle-file-change (event)
   "Schedule an SVG export for a relevant file notification EVENT."
@@ -725,6 +806,43 @@ LINK is the Org link element passed to `org-link-preview-file'."
       (overlay-put ov 'help-echo "mouse-1: edit in Excalidraw"))
     t))
 
+(defun my/org-excalidraw-export (svg-path desc backend info)
+  "Export SVG-PATH as a local image for HTML or Markdown BACKEND.
+HTML uses a transparent SVG; Markdown uses an opaque one for theme contrast.
+DESC becomes the Markdown alt text.  INFO supplies the output path."
+  (let ((source (string-remove-suffix ".svg" svg-path))
+        (output (plist-get info :output-file)))
+    (cond
+     ((org-export-derived-backend-p backend 'md)
+      (unless output
+        (user-error "Export to a Markdown file to place Excalidraw assets"))
+      (let* ((svg (concat source ".svg"))
+             (target (my/org-excalidraw--asset-target source output nil)))
+        (when (or (not (file-exists-p svg))
+                  (file-newer-than-file-p source svg))
+          (my/org-excalidraw--export source))
+        (unless (file-exists-p svg)
+          (error "Excalidraw SVG export failed for %s" source))
+        (my/org-excalidraw--copy-asset svg target)
+        (format "![%s](%s)"
+                (or desc (file-name-base source))
+                (url-encode-url
+                 (file-relative-name
+                  target (file-name-directory (expand-file-name output)))))))
+     ((org-export-derived-backend-p backend 'html)
+      (require 'ox-html)
+      (let* ((svg (my/org-excalidraw--ensure-transparent-svg source))
+             (src (if output
+                      (let ((target (my/org-excalidraw--asset-target
+                                     source output t)))
+                        (my/org-excalidraw--copy-asset svg target)
+                        (url-encode-url
+                         (file-relative-name
+                          target (file-name-directory (expand-file-name output)))))
+                    (org-export-file-uri svg))))
+        (org-html--format-image src '(:style "max-width: 100%; height: auto;")
+                                info))))))
+
 (use-package! org-excalidraw
   :after org
   :commands (org-excalidraw-create-drawing)
@@ -745,7 +863,8 @@ LINK is the Org link element passed to `org-link-preview-file'."
   (org-link-set-parameters
    "excalidraw"
    :follow #'my/org-excalidraw-follow
-   :preview (and (fboundp 'org-link-preview-file) #'my/org-excalidraw-preview)))
+   :preview (and (fboundp 'org-link-preview-file) #'my/org-excalidraw-preview)
+   :export #'my/org-excalidraw-export))
 
 ;; The upstream `org-excalidraw-create-drawing' names files by UUID. These wrap
 ;; it to name a drawing up front (or rename one later), so the drawings dir stays
@@ -824,7 +943,7 @@ With `C-u', select an existing `.excalidraw' source instead of creating one."
 
 (defun my/org-excalidraw-rename (new-name)
   "Rename the excalidraw drawing linked at point to NEW-NAME.
-Renames the .excalidraw and .excalidraw.svg files and rewrites the link."
+Renames the .excalidraw source and both SVG exports."
   (interactive "sNew name: ")
   (require 'org-excalidraw)
   (let ((ctx (org-element-context)))
@@ -833,9 +952,13 @@ Renames the .excalidraw and .excalidraw.svg files and rewrites the link."
     (let* ((old-svg (org-element-property :path ctx))
            (old-excal (string-remove-suffix ".svg" old-svg))
            (new-excal (my/org-excalidraw--unique (my/org-diagram--slug new-name)))
-           (new-svg (concat new-excal ".svg")))
+           (new-svg (concat new-excal ".svg"))
+           (old-transparent (concat old-excal ".transparent.svg"))
+           (new-transparent (concat new-excal ".transparent.svg")))
       (when (file-exists-p old-excal) (rename-file old-excal new-excal))
       (when (file-exists-p old-svg) (rename-file old-svg new-svg))
+      (when (file-exists-p old-transparent)
+        (rename-file old-transparent new-transparent))
       (save-excursion
         (goto-char (point-min))
         (while (search-forward old-svg nil t)

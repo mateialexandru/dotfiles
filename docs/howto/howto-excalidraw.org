@@ -40,8 +40,12 @@ Left-click the preview image.  From the keyboard, put point on the
 =excalidraw:= link and press =SPC m D o= (diagram → open), or use Org's
 standard =C-c C-o=.
 That opens the corresponding =.excalidraw= source in the PWA.  Each save causes
-Emacs's file watcher to run =excalidraw-cli= and replace the adjacent =.svg=
-preview.
+Emacs's file watcher to run =excalidraw-cli= and replace the adjacent opaque
+=.svg= preview. An Org HTML file export generates a =.transparent.svg= when
+needed, copies it into an adjacent =-assets= directory, and embeds it in the page.
+Markdown export copies the opaque SVG into the same =-assets= directory and
+inserts a relative image link. Keep either exported file and its asset directory
+together when publishing.
 
 To link an existing drawing from the configured drawings directory, use
 =SPC m D i= (diagram → insert existing).  This selects a =.excalidraw= file,
@@ -57,7 +61,7 @@ is saved by Excalidraw.
 
 Put point on the link and press =SPC m D r= (diagram → rename).  Enter the new
 name.  The command
-renames both the editable =.excalidraw= file and its exported =.svg=, then
+renames the editable =.excalidraw= file and both SVG exports, then
 rewrites every matching link in this Org buffer.
 
 Leave the name blank when creating a diagram if a descriptive filename does not
