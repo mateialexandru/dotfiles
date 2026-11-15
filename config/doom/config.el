@@ -983,7 +983,10 @@ Renames the .excalidraw source and both SVG exports."
 ;; safely while a daemon has the old module mapped, and use upstream binaries
 ;; rather than requiring an exact Zig toolchain on every machine.
 (setq ghostel-module-directory (expand-file-name "ghostel/" doom-data-dir)
-      ghostel-module-auto-install 'download)
+      ghostel-module-auto-install 'ask)
+
+;; Disable the stock HTML compiler too, rather than falling back from Grip.
+(setq +markdown-compile-functions nil)
 
 ;; Remote editing: TRAMP tuning + tailnet host picker / persistent tmux terminals
 (load! "config-tramp")

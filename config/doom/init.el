@@ -153,7 +153,7 @@
        ;;lean              ; for folks with too much to prove
        ;;ledger            ; be audit you can be
        ;;lua               ; one-based indices? one-based indices
-       (markdown +grip)  ; writing docs for people to ignore
+       markdown          ; browser preview disabled pending an upstream-safe backend
        ;;nim               ; python + lisp at the speed of c
        ;;nix               ; I hereby declare "nix geht mehr!"
        ;;ocaml             ; an objective camel

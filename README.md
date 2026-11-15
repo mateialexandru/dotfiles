@@ -83,6 +83,12 @@ Offline build/launcher regressions: `.\scripts\test-build-emacs-windows.ps1`.
 Windows also provisions Graphviz and shfmt through WinGet. Existing working tools
 and Emacs are preserved rather than replaced. Docker formatting is not a Windows
 installation requirement; enabling the Docker module does not install a formatter.
+Markdown browser preview is disabled: Doom's `+grip` flag is off and
+`+markdown-compile-functions` is empty, so it cannot silently fall back to
+another HTML renderer. The same compiler setting disables the built-in HTML
+export pipeline. Ordinary Markdown editing is unchanged. Doctor reports the
+missing enabled compiler as a warning; this is intentional until a maintained
+safe preview backend is selected. There is no dotfiles-owned renderer or HTTP server.
 
 On Windows, local builds use standard Emacs compilation because the pinned
 Ghostel compilation backend requires `/bin/sh` and Unix PTYs. The workaround
@@ -142,6 +148,12 @@ The helper reuses existing working Ruff versions, repairs PATH without duplicate
 entries, and does not change PowerShell execution policy. Missing versions or
 failed/cancelled WinGet operations stop explicitly; there is no alternate
 download source, installer execution, or local checksum manifest.
+
+Ghostel uses Doom's package pin and the upstream module installer. A missing
+module asks before downloading or building; dotfiles does not intercept native
+module loading. Pi's web-search extension is pinned in the shared settings.
+Flymake and TRAMP use upstream code without local security backports; the pinned
+Windows source build verifies the reviewed fixes are present upstream.
 
 For missing Pyright, the Python helper retains its separate approved uv opt-in:
 `-AllowUvDownloads -PyrightVersion <exact-version>`. That flag does not authorize
