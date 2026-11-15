@@ -27,5 +27,9 @@
 ;; Dired: macOS 'ls' doesn't support --dired
 (setq dired-use-ls-dired nil)
 
+;; Git indexing is quick locally; avoid stale project file lists after external edits.
+(after! projectile
+  (setq projectile-enable-caching nil))
+
 ;; Homebrew installs Symbols Nerd Font as "SymbolsNerdFontMono-Regular"
 (setq doom-symbol-font (font-spec :family "SymbolsNerdFontMono-Regular"))

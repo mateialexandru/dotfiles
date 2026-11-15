@@ -1,0 +1,10 @@
+# -*- mode: snippet -*-
+# name: Doxygen class comment
+# key: docclass
+# --
+/**
+ * @brief ${1:What this class represents.}
+ *
+ * ${2:Additional details.}
+ */
+$0

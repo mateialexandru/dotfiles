@@ -202,6 +202,35 @@ environments independently of these global tool installations.
 Offline installer-policy checks:
 `pwsh -NoProfile -File scripts\test-install-tool-policy.ps1`.
 
+## C++ header comments in Emacs
+
+In a C++ header (`.h` or `.hpp`), type `docclass` or `docmethod` above a
+declaration and press `TAB` to expand a Doxygen-style comment. Press `TAB` to
+move through the fields.
+When a Corfu completion menu is open, `TAB` moves through its candidates and
+`RET` accepts one. Use `SPC i s` to insert a snippet explicitly; once a snippet
+is active, `TAB` moves through its fields even if Corfu opens.
+For methods with no parameters or no return value, remove the unused `@param`
+or `@return` line. These use Doom's existing snippet support; no `doom sync` is
+needed. Restart Emacs or reload snippets to see newly added templates.
+With clangd running, Eldoc shows declaration comments in the echo area while
+you move over C++ symbols. Press `SPC c k` to open the full documentation on
+demand. lsp-ui documentation popups are disabled in all languages.
+
+## CMake projects in Emacs
+
+New `CMakeLists.txt` files opened in Doom start with a minimal CMake project
+template. Edit the project name and language with `TAB`, then add targets below.
+Use `SPC p g` to configure into `build/`, then `SPC p c` to build. The template
+only applies to new, empty files; existing CMake files are left alone.
+Use `SPC p t` to run registered tests. Failed CTest tests show their captured
+output in the compilation buffer. Build after source changes before running tests;
+CTest's `test` target does not normally rebuild test executables.
+Keep `build/` in the project's `.gitignore` so generated files stay out of Doom's
+`SPC SPC` project-file picker. On macOS and Linux, the picker refreshes from the
+project instead of reusing a persistent file list; on other platforms, use
+`M-x projectile-invalidate-cache` after creating files outside Emacs if needed.
+
 ## Python projects in Emacs
 
 Press `SPC p n` from any buffer. Choose **Python app** (the default, with a

@@ -314,6 +314,9 @@
   (setf (alist-get 'csharp-mode apheleia-mode-alist) 'csharpier)
   (setf (alist-get 'csharp-ts-mode apheleia-mode-alist) 'csharpier))
 
+;; Show CTest's captured assertion output when a test fails.
+(setenv "CTEST_OUTPUT_ON_FAILURE" "1")
+
 ;; SPC p t → run project tests
 (map! :leader
       (:prefix "p"
@@ -387,6 +390,25 @@ The first that exists is opened; the first in the list is what gets created.")
 (after! lsp-mode
   (setq lsp-signature-function #'my/lsp-signature-display
         lsp-signature-render-documentation nil))
+
+;; clangd includes declaration comments in its hover response, but lsp-mode's
+;; default Eldoc rendering keeps only the signature.  Show the full response
+;; for C/C++ without expanding Eldoc output in unrelated languages.
+(defun my/cc-show-hover-documentation ()
+  "Show C/C++ documentation comments in Eldoc."
+  (setq-local lsp-eldoc-render-all t
+              eldoc-echo-area-use-multiline-p 8))
+
+(dolist (hook '(c-mode-hook c++-mode-hook c-ts-mode-hook c++-ts-mode-hook))
+  (add-hook hook #'my/cc-show-hover-documentation))
+
+;; Keep lsp-ui's other features, but disable its documentation popups in every
+;; language. Eldoc and explicit lookup remain available.
+(after! lsp-ui
+  (setq lsp-ui-doc-enable nil))
+
+;; Start new CMakeLists.txt files with a minimal project scaffold.
+(set-file-template! "/CMakeLists\\.txt$" :mode 'cmake-mode)
 
 ;;; winpulse — flash focused window
 (use-package! winpulse
