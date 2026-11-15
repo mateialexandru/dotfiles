@@ -263,6 +263,47 @@ The infrequent uv adoption commands remain available through `M-x`.
 
 ## System operations
 
+For creation, `SPC m n` in a Python buffer opens the **new** menu:
+`f` opens a Python file (adding `.py` and creating parent folders), `c` inserts
+a class with an initializer, `t` opens a test file (defaulting to
+`tests/test_<current-file>.py`), and `T` inserts a test at point. New empty test
+files receive a test skeleton; existing files are left intact. Templates use
+editable snippet fields and enter insert mode automatically: type the name,
+then press `TAB` to move into the body. Save normally when ready.
+When completion is open, `TAB` invokes Corfu's native completion command:
+accept the selected candidate, then press `TAB` again to advance the snippet
+field after the menu closes. Use `C-n`/`C-p` to select a different candidate.
+With no completion menu, snippet `TAB`/`Shift-TAB` move forward/backward.
+Run the test at point with `SPC m t t`, its file with `SPC m t f`, or all tests
+with `SPC m t a`. A skeleton's `pass` is a placeholder: add assertions before
+treating a passing test as evidence.
+The Python test commands use standard Emacs compilation buffers, with pytest's
+native named results, short tracebacks, and count. No custom headers or output
+filters are used. Results appear in a top Doom popup (one quarter of the frame)
+without taking focus. They remain visible until dismissed; test buffers opt out
+of compilation auto-close and automatic error jumps. Normal-mode `q` dismisses;
+`SPC ~` or Ctrl + backtick hides/restores popups, and `C-~` raises a popup into a
+regular window. `SPC w w` cycles windows. Use `SPC m t r` to repeat from code;
+`M-x recompile` also repeats in the results buffer. Dismissing preserves the
+report and does not stop a running test process.
+`SPC m t o` explicitly reopens and focuses the current project's retained
+test report, including after its window has closed.
+
+Use `SPC m t s` to switch between an implementation and its test. If the test
+is missing, a path prompt suggests `tests/test_<module>.py`; accept or edit it
+to open a new test skeleton. Save the buffer normally.
+The path prompt edits the suggested path literally, with the cursor at the
+end; Enter accepts that exact text. Empty paths and bare `.py` names are rejected.
+Package subdirectories are mirrored under `tests/`, with a leading `src/` removed. Paths are derived
+fresh on every toggle; no file-pair cache is used. Keep the suggested naming
+for automatic navigation in both directions. Existing test content is preserved.
+New test skeletons prefill the source module in `from <module> import Name`;
+edit the imported name, then press `TAB` to name the test and again for its
+body. Package paths become dotted imports, with a leading `src/` removed.
+Projectile's standard `projectile-toggle-between-implementation-and-test`
+command uses this same workflow in Python buffers, including when invoked
+through `M-x` or Projectile's menu. Other languages keep Projectile's behavior.
+
 The installers build one native command for routine operations on every platform:
 
 ```text
