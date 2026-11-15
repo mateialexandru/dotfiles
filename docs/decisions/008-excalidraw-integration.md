@@ -69,6 +69,10 @@ a closed document refreshes its copies.
 After either SVG conversion, the config adds a `viewBox` to pasted-image
 `<symbol>` elements. The CLI emits percentage-sized images in symbols without a
 viewport; librsvg then scales and clips them incorrectly in Emacs.
+Before conversion, the config passes a temporary scene containing only active
+elements to the CLI. The CLI otherwise includes deleted elements when computing
+SVG bounds, which can leave large blank margins after a drawing is rearranged.
+The editable `.excalidraw` file is not changed by this export step.
 
 ### Exporter: dropped `excalidraw_export`, adopted `@swiftlysingh/excalidraw-cli`
 

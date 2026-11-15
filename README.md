@@ -248,6 +248,8 @@ linting. `SPC c c` runs the current Python file, which is most useful for
 standalone scripts and simple apps. Doom activates
 the project's environment when a Python file opens and uses Pyright for
 completion and types.
+Function signatures appear in a small popup while typing calls; press
+`C-S-SPC` inside a call to request one again after moving the cursor.
 
 In a Python buffer, `SPC e` sends the current line to the project REPL, or
 the selected region when one is active. `SPC E` evaluates the enclosing
@@ -260,8 +262,6 @@ same interactive REPL, so definitions and variables remain available there;
 short output appears inline, with longer output in a popup. For long-running
 code, use `SPC c s` to send it to the REPL without waiting for inline output.
 The infrequent uv adoption commands remain available through `M-x`.
-
-## System operations
 
 For creation, `SPC m n` in a Python buffer opens the **new** menu:
 `f` opens a Python file (adding `.py` and creating parent folders), `c` inserts
@@ -304,6 +304,8 @@ Projectile's standard `projectile-toggle-between-implementation-and-test`
 command uses this same workflow in Python buffers, including when invoked
 through `M-x` or Projectile's menu. Other languages keep Projectile's behavior.
 
+## System operations
+
 The installers build one native command for routine operations on every platform:
 
 ```text
@@ -318,8 +320,6 @@ sys doom doctor
 tool ecosystems already under management, and `check` validates the complete setup.
 Doom's narrower operations live under `sys doom`. `sys update` deliberately does not
 pull this repository; choosing and integrating Git changes remains explicit.
-Function signatures appear in a small popup while typing calls; press
-`C-S-SPC` inside a call to request one again after moving the cursor.
 
 `sys restart` closes every Emacs process, starts one fresh launchd daemon, and
 opens Emacs Client.app connected to it. The restart countdown lets you save
@@ -446,6 +446,12 @@ complete edit/save/refresh loop. The same workflow runs on macOS and Windows;
 on Windows, associate `.excalidraw` files with the installed Chrome Excalidraw
 PWA once so `SPC m D o` can open the editor. Emacs's native file notifications
 drive export on both platforms—no external watcher is required.
+
+The automatic SVG export fits all visible drawing elements. If a preview has a
+large empty margin, look for an element left far from the diagram, move or
+delete it in Excalidraw, and save. The exporter ignores elements already marked
+deleted in Excalidraw's scene data, so old deleted content cannot enlarge the
+preview. This filtering affects only the generated SVG, not the editable source.
 
 ## API, JSON, and data tools in Emacs
 

@@ -768,17 +768,51 @@ drawing, clipping and enlarging the image at its use site."
       (when changed
         (write-region (point-min) (point-max) svg nil 'silent)))))
 
+(defun my/org-excalidraw--convert (path svg &optional transparent)
+  "Export active elements in PATH to SVG, excluding deleted scene history.
+TRANSPARENT omits the drawing's canvas background.  The source is never edited."
+  (let ((clean-source (make-temp-file "excalidraw-export-" nil ".excalidraw")))
+    (unwind-protect
+        (progn
+          (with-temp-buffer
+            (insert-file-contents path)
+            (let* ((scene (json-parse-buffer :object-type 'hash-table
+                                             :array-type 'array))
+                   (elements (gethash "elements" scene)))
+              (unless (vectorp elements)
+                (error "Invalid Excalidraw elements in %s" path))
+              (puthash "elements"
+                       (vconcat (seq-remove
+                                 (lambda (element)
+                                   (eq (gethash "isDeleted" element) t))
+                                 (append elements nil)))
+                       scene)
+              (erase-buffer)
+              (insert (json-serialize scene)))
+            (write-region (point-min) (point-max) clean-source nil 'silent))
+          (let ((status (apply #'call-process "excalidraw-cli" nil nil nil
+                               (append (list "convert" clean-source
+                                             "--format" "svg")
+                                       (when transparent
+                                         '("--no-export-background"))
+                                       (list "--output" svg)))))
+            (unless (equal status 0)
+              (error "excalidraw-cli exited %s for %s" status path)))
+          (my/org-excalidraw--fix-image-symbols svg))
+      (delete-file clean-source))))
+
 (defun my/org-excalidraw--export (path)
   "Export Excalidraw PATH to its opaque Org preview SVG."
   (remhash path my/org-excalidraw--export-timers)
   (when (and (file-readable-p path) (executable-find "excalidraw-cli"))
-    (let ((status (shell-command (org-excalidraw--shell-cmd-to-svg path))))
-      (if (zerop status)
-          (let ((svg (concat path ".svg")))
-            (my/org-excalidraw--fix-image-symbols svg)
+    (let ((svg (concat path ".svg")))
+      (condition-case err
+          (progn
+            (my/org-excalidraw--convert path svg)
             (my/org-excalidraw--refresh-previews svg)
             (my/org-excalidraw--sync-open-document-assets path))
-        (message "Excalidraw SVG export failed for %s (exit %s)" path status)))))
+        (error (message "Excalidraw SVG export failed for %s: %s"
+                        path (error-message-string err)))))))
 
 (defun my/org-excalidraw--ensure-transparent-svg (path &optional force)
   "Ensure transparent SVG for Excalidraw source PATH exists.
@@ -788,12 +822,7 @@ With FORCE, regenerate it even when the source is older than the SVG."
               (file-newer-than-file-p path svg))
       (unless (executable-find "excalidraw-cli")
         (error "excalidraw-cli is required to export %s" path))
-      (let ((status (call-process "excalidraw-cli" nil nil nil
-                                  "convert" path "--format" "svg"
-                                  "--no-export-background" "--output" svg)))
-        (unless (equal status 0)
-          (error "excalidraw-cli exited %s for %s" status path))
-        (my/org-excalidraw--fix-image-symbols svg)))
+      (my/org-excalidraw--convert path svg t))
     svg))
 
 (defun my/org-excalidraw--handle-file-change (event)
@@ -1126,6 +1155,12 @@ Renames the .excalidraw source and both SVG exports."
            :variable-pitch-family "IBM Plex Sans"
            :variable-pitch-height 1.15
            :line-spacing 0.25)
+          (prose-libron             ; JetBrains Mono for code + Libron for reading
+           :default-family "JetBrainsMono NF"
+           :default-height 145
+           :variable-pitch-family "Libron"
+           :variable-pitch-height 1.15
+           :line-spacing 0.25)
           ;; --- Situational ---
           (small                    ; laptop / narrow windows / 11pt
            :default-height 110)
@@ -1193,12 +1228,6 @@ Renames the .excalidraw source and both SVG exports."
   "MRU list of fontaine presets, most recent first.
 Updated only on explicit commits (preview scrolls don't pollute it).")
 
-          (prose-libron             ; JetBrains Mono for code + Libron for reading
-           :default-family "JetBrainsMono NF"
-           :default-height 145
-           :variable-pitch-family "Libron"
-           :variable-pitch-height 1.15
-           :line-spacing 0.25)
 (defun my/fontaine--push-history (preset)
   "Push PRESET onto `my/fontaine-preset-history', dedup, cap at 5."
   (when preset
