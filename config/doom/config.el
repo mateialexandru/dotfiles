@@ -367,10 +367,26 @@ The first that exists is opened; the first in the list is what gets created.")
 (use-package! sqlite-mode-extras
   :hook (sqlite-mode . sqlite-extras-minor-mode))
 
-;; When Corfu auto-opens on a YASnippet trigger, TAB should expand the exact
-;; snippet rather than merely select the next completion candidate.
+;; Completion owns TAB while its menu is open; Yasnippet owns it afterward.
 (after! corfu
-  (setq +corfu-want-tab-prefer-expand-snippets t))
+  (setq +corfu-want-tab-prefer-navigating-snippets nil)
+  (define-key corfu-map (kbd "TAB") #'corfu-complete)
+  (define-key corfu-map (kbd "<tab>") #'corfu-complete)
+  (define-key corfu-map (kbd "<backtab>") #'corfu-previous)
+  (define-key corfu-map (kbd "S-TAB") #'corfu-previous)
+  (define-key corfu-map (kbd "C-y") #'corfu-insert))
+
+;; lsp-mode's LV signature window can be reused as an editor window.  A later
+;; signature update would then replace the source buffer with help text.
+(defun my/lsp-signature-display (signature)
+  "Show SIGNATURE without writing through LV's reused window."
+  (if (and (display-graphic-p) (require 'posframe nil t))
+      (lsp-signature-posframe signature)
+    (if signature (message "%s" signature) (message nil))))
+
+(after! lsp-mode
+  (setq lsp-signature-function #'my/lsp-signature-display
+        lsp-signature-render-documentation nil))
 
 ;;; winpulse — flash focused window
 (use-package! winpulse

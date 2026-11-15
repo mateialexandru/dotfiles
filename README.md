@@ -248,6 +248,8 @@ sys doom doctor
 tool ecosystems already under management, and `check` validates the complete setup.
 Doom's narrower operations live under `sys doom`. `sys update` deliberately does not
 pull this repository; choosing and integrating Git changes remains explicit.
+Function signatures appear in a small popup while typing calls; press
+`C-S-SPC` inside a call to request one again after moving the cursor.
 
 `sys restart` closes every Emacs process, starts one fresh launchd daemon, and
 opens Emacs Client.app connected to it. The restart countdown lets you save
