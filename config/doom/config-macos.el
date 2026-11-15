@@ -8,6 +8,11 @@
       mac-option-modifier 'alt
       mac-right-option-modifier 'alt)
 
+;; Glove80 navigation sends Option+arrows, matching macOS word movement.
+;; Option is Alt here; Command remains Meta for existing Emacs shortcuts.
+(global-set-key (kbd "A-<left>") #'backward-word)
+(global-set-key (kbd "A-<right>") #'forward-word)
+
 ;; Fix path issues on macOS (ensures Emacs has the same PATH as the login shell).
 ;; `window-system' is nil while the launchd-started daemon boots, so gate on
 ;; `daemonp' too — otherwise the daemon keeps launchd's bare

@@ -2,6 +2,125 @@
 
 Cross-platform Doom Emacs configuration for macOS, Windows, and Linux (Bluefin/Fedora).
 
+## Glove80 programming layout
+
+[`config/glove80.json`](config/glove80.json) is a macOS layout for **Colemak
+selected in the operating system**. Base letters send QWERTY keycodes. Import
+the JSON into the [MoErgo Layout Editor](https://my.moergo.com/glove80), build
+the firmware, and follow the editor's flashing instructions to apply it.
+The installers do not apply keyboard firmware.
+
+The outer left key directly below Esc (originally Grave/backtick) is sticky
+Shift: tap and release, then press the key to shift. It uses the firmware's
+default sticky-key timeout (ZMK defaults to one second). Grave/backtick remains
+available on Symbols at physical P. The upper-left thumb remains dedicated
+Symbols, and the right upper thumb remains ordinary Shift.
+
+The thumb assignments are:
+
+| Key | Tap | Hold |
+| --- | --- | --- |
+| Left upper Shift position | Symbols immediately while pressed | Symbols |
+| Left Backspace | Backspace | Repeat deletion |
+| Left thumb Tab | Tab | Numbers |
+| Right Space | Space | Navigation |
+| Right Enter | Enter | Command |
+| Left Layer | Symbols immediately while pressed | Symbols |
+
+Release a layer hold to return to Base. Within these three typing layers,
+the thumb Backspace, Tab, and Space keys produce plain keypresses, so you can enter
+complete expressions without activating another layer. The outer left Tab
+remains a dedicated Tab. Backspace repeats normally; the right upper Shift
+remains Shift. Enter uses tap/hold in Base and the typing layers: hold Enter
+for Command, tap the left thumb Tab to cycle apps, then release Enter to choose.
+Tap/hold uses the existing firmware defaults; try quick typing and corrections
+before adjusting timing. Release typing-layer holds before using Magic,
+because Navigation and Numbers have higher layer priority than Magic.
+
+The five main columns on each hand are shown by physical position:
+
+```text
+                 Left hand           Right hand
+Upper row      !  @  #  $  %         ^  &  *  ~  `
+Home row       ;  [  (  {  <         >  }  )  ]  :
+Lower row      \  /  -  =  +         _  "  '  ,  .
+```
+
+The outer key beside the upper-right row produces `|`; the outer key beside
+the lower-left row produces `?`. Each symbol needs only Layer plus its key,
+without an additional Shift press. Semicolon and colon intentionally send
+P and Shift+P for standard host Colemak; switching the OS to QWERTY would
+produce p and P instead.
+
+Symbols replaces the factory Lower layer's navigation/numpad mappings while
+retaining its media row. Other positions inherit Base, including digits,
+arrows and modifiers. Magic and Factory are unchanged.
+
+Navigation uses a J/K/L/semicolon arrow row on the four resting columns,
+shown by physical QWERTY position:
+
+```text
+ Y           U             I             O           P
+Line start  Word left   Word right    Line end     Page Up
+ H           J             K             L           ;
+Line end    Left          Down           Up        Right
+ N           M             ,             .           /
+Backspace Cmd+Backspace  Reserved       Delete     Page Down
+```
+
+U/I send Option+Left/Right. The macOS Doom configuration binds these Alt-arrow
+events to backward/forward word, while preserving Command as Meta. Y/O
+send Ctrl+A/E for line movement; Ctrl+E uses the physical K keycode because
+the host applies Colemak. Doom retains its existing indentation/comment-aware
+line commands. Physical F holds Shift to extend movement into a selection
+in supporting contexts. P/slash give
+Page Up/Down. N gives Backspace and period gives Delete, both repeatable when held.
+M sends Command+Backspace: Meta+Backspace (backward word deletion) in Doom,
+and deletion to line start in standard macOS text fields. H also provides line end,
+using the same Ctrl+E binding as O. Comma is reserved for a future editing
+command and currently disabled.
+
+The left side of Navigation provides app and window controls, also labelled
+by physical QWERTY position:
+
+```text
+       W                 E                 R
+ Ctrl+Shift+Tab        Ctrl+Tab       Hold Ctrl+Option
+ A                 S                 D                 F
+Ctrl             Option          Reserved           Shift
+```
+
+While holding right-thumb Space, W/E switch tabs in apps supporting Ctrl+Tab.
+Hold F with right-hand movement to select text. Hold R and use the right-hand
+arrows for Rectangle window halves; R plus a tap of thumb Enter maximizes
+with Rectangle's recommended shortcuts. D and V are reserved and disabled.
+App switching uses the thumb Enter/Command and Tab keys instead of a
+dedicated Navigation shortcut.
+These are macOS shortcuts; Doom still interprets Command as Meta when the
+OS does not intercept a shortcut. Rectangle settings are managed locally,
+not installed by this repository.
+
+The thumb Enter remains available. Reload Doom's configuration or restart Emacs after
+updating the macOS bindings; no `doom sync` is needed.
+
+Numbers uses standard number keycodes in a right-hand numpad:
+
+```text
+Physical positions      7  8  9             7  8  9
+                     Y  U  I  O  P       /  4  5  6  *
+                     H  J  K  L  ;       -  1  2  3  +
+                     N  M  ,  .  /       0  —  0  .  .
+```
+
+The comma/less-than key gives 0 without Shift. M is reserved and disabled.
+The outer right backslash and quote positions give equals and comma.
+Keep host Colemak selected when reading these physical QWERTY labels.
+Before relying on the layout, check `::`, `->`, `!=`, `&&`, `<=`, `>=`,
+`[]`, `{}`, `()`, quotes, and Python underscores with the intended OS input
+source, locally and through remote desktop where used. The JSON can be
+checked locally, but firmware build and typing behavior need verification
+in the editor and on the keyboard.
+
 ## Install
 
 Installers are intended to be rerunnable, but some steps can download packages,
