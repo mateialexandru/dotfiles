@@ -30,12 +30,30 @@ which is the correct outcome, not an obstacle.
 Windows provisioning clarification: uv still owns project environments, but
 global Pyright/Ruff may come from an existing approved package-manager install.
 The Windows installer verifies and preserves those tools instead of forcing a
-reinstall through uv. Missing global tools fail explicitly unless the standalone
-helper is given download consent and exact versions. Organizational network
-blocks must not be bypassed.
+reinstall through uv. Missing global tools fail explicitly unless their helper
+is given download consent and an exact version. New Windows Ruff installations
+delegate to WinGet's `astral-sh.ruff` package (catalog pin 0.17.2), without a
+local artifact downloader, hash manifest or PyPI fallback.
+`-AllowRuffDownloads` is separate from Pyright's `-AllowUvDownloads`.
+Working Ruff installations from other approved managers are still preserved.
+Organizational approval of the distribution must be established separately;
+download flags do not permit bypassing a network/security block. uv retains
+ownership of project environments and Python dependency resolution.
 
-**uv is the only thing that installs Python or resolves dependencies. Global tools are
-limited to the two that must run outside a project. ruff is the single style/lint binary.**
+Security revision (2026-11-13): browser Markdown preview and its stock HTML
+compiler pipeline are disabled rather than replaced with a custom renderer.
+Dotfiles does not patch Emacs internals or intercept Ghostel native loading.
+Upstream security updates remain necessary.
+
+Both uv and uvx must be at least 0.13.4; a working
+but vulnerable version is not considered satisfied. A stale standard local
+copy can be retired with rollback only if a patched WinGet copy already exists.
+Custom installations require explicit owner-managed repair. These choices do
+not bypass or remediate the previous Python-host network block.
+
+**uv is the only thing that installs Python or resolves dependencies. Global Python
+language tools are limited to the two that must run outside a project. ruff is the
+single style/lint binary.**
 
 ### Environments: the `+uv` module flag
 
@@ -163,8 +181,8 @@ project dependencies. Scanning is single-file only.
 
 ## Consequences
 
-- Global Python tools drop from six to two (`pyright`, `ruff`). `sys check` checks the
-  same two.
+- Global Python language tools drop from six to two (`pyright`, `ruff`). `sys check`
+  checks the same two; enabled editor utilities are checked separately.
 - Anything project-specific (pytest, mypy, nox, ...) is a project dependency invoked through
   `uv run`, which is where version pinning belongs.
 - New project setup uses `uv init` and `uv add --dev pytest ruff`; opening a file is

@@ -8,6 +8,7 @@ param(
 )
 
 . "$PSScriptRoot\emacs-paths.ps1"
+. "$PSScriptRoot\uv-security.ps1"
 
 $initialProcessPath = $env:PATH
 try {
@@ -46,8 +47,8 @@ $devTools = @(
     @{ Name = "csharpier"; Fix = "dotnet tool install --global csharpier" }
     @{ Name = "excalidraw-dir"; Fix = "New-Item -ItemType Directory -Force -Path (Join-Path `$env:USERPROFILE 'Documents\org\excalidraw') | Out-Null" }
     @{ Name = "uv"; Fix = "winget install astral-sh.uv" }
-    @{ Name = "pyright"; Manual = $true; Fix = "& `"$PSScriptRoot\install-python-tools.ps1`" -AllowUvDownloads -PyrightVersion <exact-version> -RuffVersion <exact-version>" }
-    @{ Name = "ruff"; Manual = $true; Fix = "& `"$PSScriptRoot\install-python-tools.ps1`" -AllowUvDownloads -PyrightVersion <exact-version> -RuffVersion <exact-version>" }
+    @{ Name = "pyright"; Manual = $true; Fix = "& `"$PSScriptRoot\install-python-tools.ps1`" -AllowUvDownloads -PyrightVersion <exact-version>" }
+    @{ Name = "ruff"; Manual = $true; Fix = "& `"$PSScriptRoot\install-ruff-windows.ps1`" -AllowDownloads" }
     @{ Name = "rust-analyzer"; Fix = "rustup component add rust-analyzer" }
     @{ Name = "typescript-language-server"; Fix = "npm install -g typescript-language-server" }
     @{ Name = "pi"; Fix = "& `"$PSScriptRoot\install-pi.ps1`"" }
@@ -156,7 +157,7 @@ function Get-ToolVersion($name) {
             "mmdc" { & mmdc --version 2>$null }
             "excalidraw-cli" { & excalidraw-cli --version 2>$null }
             "csharpier" { & csharpier --version 2>$null }
-            "uv" { & uv --version 2>$null }
+            "uv" { Assert-UvSecurity; & uv --version 2>$null }
             "pyright" { & pyright --version 2>$null }
             "ruff" { & ruff --version 2>$null }
             "rust-analyzer" { & rust-analyzer --version 2>$null }
@@ -202,6 +203,14 @@ function Test-Tool($tool) {
         $exists = Get-Command $tool.Name -ErrorAction SilentlyContinue
     }
     if ($exists) {
+        if ($tool.Name -eq 'uv') {
+            try { Assert-UvSecurity }
+            catch {
+                $script:failed++
+                Write-Host "  FAIL: $($_.Exception.Message)" -ForegroundColor Red
+                return $false
+            }
+        }
         $version = Get-ToolVersion $tool.Name
         $script:passed++
         if (-not $Quiet) {
@@ -244,7 +253,7 @@ function Install-MissingTools {
         if ($tool.Manual) {
             Write-Host "  Manual action required: " -NoNewline
             Write-Host $tool.Fix -ForegroundColor Yellow
-            Write-Host "  Review and supply approved exact versions; doctor will not authorize downloads." -ForegroundColor DarkGray
+            Write-Host "  Review download consent and any required exact versions; doctor will not authorize downloads." -ForegroundColor DarkGray
             Write-Host ""
             continue
         }

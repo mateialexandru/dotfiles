@@ -4,7 +4,9 @@
 
 param(
     [string]$GnuplotVersion,
-    [switch]$AllowGnuplotElevation
+    [switch]$AllowGnuplotElevation,
+    [switch]$AllowRuffDownloads,
+    [string]$RuffVersion
 )
 
 $ErrorActionPreference = 'Stop'
@@ -56,6 +58,9 @@ foreach ($pkg in $wingetPackages) {
 }
 
 & "$PSScriptRoot\build-emacs-windows.ps1"
+
+. "$PSScriptRoot\uv-security.ps1"
+Repair-UvWindowsSelection
 
 if ($GnuplotVersion) {
     & "$PSScriptRoot\install-gnuplot.ps1" -Version $GnuplotVersion -AllowElevation
@@ -148,7 +153,8 @@ $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
 $env:PATH = "$machinePath;$userPath"
 
 # Python and Rust tools required by the enabled shared Doom modules.
-& "$PSScriptRoot\install-python-tools.ps1"
+& "$PSScriptRoot\install-python-tools.ps1" -AllowRuffDownloads:$AllowRuffDownloads `
+    -RuffVersion $RuffVersion
 rustup default stable
 if ($LASTEXITCODE -ne 0) { throw 'Could not select the stable Rust toolchain.' }
 rustup component add rust-analyzer

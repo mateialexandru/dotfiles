@@ -4,7 +4,9 @@
 
 param(
     [string]$GnuplotVersion,
-    [switch]$AllowGnuplotElevation
+    [switch]$AllowGnuplotElevation,
+    [switch]$AllowRuffDownloads,
+    [string]$RuffVersion
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,7 +26,9 @@ Write-Host "`n--- PowerShell profile setup ---" -ForegroundColor Cyan
 # 2. Development prerequisites (ctags, node, dotnet, cmake, roslyn, etc.)
 Write-Host "`n--- Development prerequisites ---" -ForegroundColor Cyan
 & (Join-Path $scriptsDir "install-prerequisites.ps1") `
-    -GnuplotVersion $GnuplotVersion -AllowGnuplotElevation:$AllowGnuplotElevation
+    -GnuplotVersion $GnuplotVersion -AllowGnuplotElevation:$AllowGnuplotElevation `
+    -AllowRuffDownloads:$AllowRuffDownloads `
+    -RuffVersion $RuffVersion
 
 # 3. Nushell configuration (parallel; does not change the default shell)
 Write-Host "`n--- Nushell configuration ---" -ForegroundColor Cyan

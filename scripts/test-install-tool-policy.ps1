@@ -13,7 +13,7 @@ function Assert-True($condition, $message) {
 try {
     foreach ($case in @(
         'python-existing', 'python-missing', 'python-broken', 'python-download-fails',
-        'python-pinned-install', 'gnuplot-existing', 'gnuplot-no-elevation',
+        'python-pinned-install', 'python-ruff-uv-only', 'gnuplot-existing', 'gnuplot-no-elevation',
         'gnuplot-cancelled', 'gnuplot-pinned-install'
     )) {
         $global:DotfilesPolicyCase = $case
@@ -21,7 +21,7 @@ try {
         $global:DotfilesPolicyInstalled = $case -in @('python-existing', 'python-broken', 'gnuplot-existing')
         $expectedFailure = $case -in @(
             'python-missing', 'python-broken', 'python-download-fails',
-            'gnuplot-no-elevation', 'gnuplot-cancelled'
+            'python-ruff-uv-only', 'gnuplot-no-elevation', 'gnuplot-cancelled'
         )
         & {
             function pyright {
@@ -30,8 +30,14 @@ try {
             }
             function ruff { $global:LASTEXITCODE = 0; 'ruff 0.16.7' }
             function gnuplot { $global:LASTEXITCODE = 0; 'gnuplot 6.0 patchlevel 4' }
-            function Get-Command($Name, $ErrorAction) {
-                if ($global:DotfilesPolicyInstalled) {
+            function Test-UvExecutable { $global:LASTEXITCODE = 0; 'uv 0.13.8' }
+            function Get-Command($Name, $ErrorAction, $CommandType) {
+                if ($Name -in @('uv', 'uvx')) {
+                    return [pscustomobject]@{ Source = 'Test-UvExecutable' }
+                }
+                if ($global:DotfilesPolicyInstalled -or
+                    ($Name -eq 'ruff' -and $global:DotfilesPolicyCase -in @('python-download-fails', 'python-pinned-install')) -or
+                    ($Name -eq 'pyright' -and $global:DotfilesPolicyCase -eq 'python-ruff-uv-only')) {
                     Microsoft.PowerShell.Core\Get-Command $Name -CommandType Function
                 }
             }
@@ -51,6 +57,8 @@ try {
                     if ($case -in @('python-download-fails', 'python-pinned-install')) {
                         & (Join-Path $root 'install-python-tools.ps1') -AllowUvDownloads `
                             -PyrightVersion '1.1.414' -RuffVersion '0.16.7'
+                    } elseif ($case -eq 'python-ruff-uv-only') {
+                        & (Join-Path $root 'install-python-tools.ps1') -AllowUvDownloads -RuffVersion '0.17.3'
                     } else {
                         & (Join-Path $root 'install-python-tools.ps1')
                     }
@@ -65,7 +73,7 @@ try {
                 "Unexpected result for $case : $failure"
             $expectedCalls = switch ($case) {
                 'python-download-fails' { 1 }
-                'python-pinned-install' { 2 }
+                'python-pinned-install' { 1 }
                 'gnuplot-cancelled' { 1 }
                 'gnuplot-pinned-install' { 1 }
                 default { 0 }
@@ -90,6 +98,7 @@ try {
         [IO.Path]::Combine($root, '..', 'install.ps1'),
         [IO.Path]::Combine($root, 'install-prerequisites.ps1'),
         [IO.Path]::Combine($root, 'install-python-tools.ps1'),
+        [IO.Path]::Combine($root, 'install-ruff-windows.ps1'),
         [IO.Path]::Combine($root, 'install-gnuplot.ps1'),
         [IO.Path]::Combine($root, 'doctor.ps1'),
         [IO.Path]::Combine($root, 'setup-doom.ps1'),

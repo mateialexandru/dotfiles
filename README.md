@@ -118,22 +118,47 @@ a full install, pass `-GnuplotVersion '6.0 patchlevel 4' -AllowGnuplotElevation`
 to `install.ps1`. These flags express local consent, not an IT-policy exemption.
 
 Working Pyright and Ruff installations are reused regardless of package manager.
-`scripts/install-python-tools.ps1` checks their versions without downloading or
-forcing uv ownership. If either is missing, the default is an actionable error.
-On machines where uv downloads are permitted, explicitly supply
-`-AllowUvDownloads -PyrightVersion <exact-version> -RuffVersion <exact-version>`
-to that helper. Never retry a Defender-blocked source or switch sources to evade
-policy; seek organizational guidance instead. uv continues to manage project
-environments independently of these global tool installations.
+`scripts/install-python-tools.ps1` checks their versions without forcing uv
+ownership. Missing tools require explicit download consent. Both `uv` and
+`uvx` must meet the reviewed security baseline, currently 0.13.4. Provisioning
+can retire stale `~\.local\bin` copies only when a patched WinGet pair already
+exists, preserving each old executable under
+`%LOCALAPPDATA%\dotfiles\retired-tools` for rollback. Custom installations are
+never moved automatically. Doctor reports unsafe selected versions as failures.
+
+On Windows, new Ruff installations delegate to `astral-sh.ruff` in WinGet,
+including WinGet's architecture selection and artifact verification. The
+pinned catalog version is 0.17.2; already-working versions, including an
+existing standalone 0.17.3 installation, are preserved without downgrading.
+Approve the distribution under your organizational policy first:
+
+```powershell
+.\scripts\install-ruff-windows.ps1 -AllowDownloads
+# Or include the Windows Ruff route in the full installation:
+.\install.ps1 -AllowRuffDownloads -RuffVersion '0.17.2'
+```
+
+The helper reuses existing working Ruff versions, repairs PATH without duplicate
+entries, and does not change PowerShell execution policy. Missing versions or
+failed/cancelled WinGet operations stop explicitly; there is no alternate
+download source, installer execution, or local checksum manifest.
+
+For missing Pyright, the Python helper retains its separate approved uv opt-in:
+`-AllowUvDownloads -PyrightVersion <exact-version>`. That flag does not authorize
+Ruff downloads. Never retry a Defender-blocked source or switch sources to evade
+policy; use a separately approved distribution or seek organizational guidance.
+uv continues to manage project environments independently of global Ruff.
 
 Offline installer-policy checks:
 `pwsh -NoProfile -File scripts\test-install-tool-policy.ps1`.
-
 Offline font-archive checks:
 `pwsh -NoProfile -File scripts\test-install-fonts-windows.ps1`.
-
+Offline Ruff package-manager delegation checks:
+`pwsh -NoProfile -File scripts\test-install-ruff-windows.ps1`.
 Offline Windows Ghostel compilation checks:
 `emacs -Q --batch -l scripts\test-windows-ghostel.el -f ert-run-tests-batch-and-exit`.
+Offline uv selection checks:
+`pwsh -NoProfile -File scripts\test-uv-security.ps1`.
 
 ## Python projects in Emacs
 
