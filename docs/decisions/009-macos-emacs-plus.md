@@ -3,6 +3,12 @@
 **Status:** Accepted
 **Date:** 2026-05-15
 
+## November 2026 update
+
+The macOS installer now targets stable Emacs 31.1 via `emacs-plus@31`, with
+the same daemon and client workflow. Migration stops the old service and
+keeps the Emacs 30 keg installed for rollback. The original decision follows.
+
 ## Context
 
 The previous macOS install path used `brew install --cask emacs` — the official "Emacs for OSX" build from emacsformacosx.com. That build:

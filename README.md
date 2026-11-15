@@ -2,6 +2,125 @@
 
 Cross-platform Doom Emacs configuration for macOS, Windows, and Linux (Bluefin/Fedora).
 
+## Glove80 programming layout
+
+[`config/glove80.json`](config/glove80.json) is a macOS layout for **Colemak
+selected in the operating system**. Base letters send QWERTY keycodes. Import
+the JSON into the [MoErgo Layout Editor](https://my.moergo.com/glove80), build
+the firmware, and follow the editor's flashing instructions to apply it.
+The installers do not apply keyboard firmware.
+
+The outer left key directly below Esc (originally Grave/backtick) is sticky
+Shift: tap and release, then press the key to shift. It uses the firmware's
+default sticky-key timeout (ZMK defaults to one second). Grave/backtick remains
+available on Symbols at physical P. The upper-left thumb remains dedicated
+Symbols, and the right upper thumb remains ordinary Shift.
+
+The thumb assignments are:
+
+| Key | Tap | Hold |
+| --- | --- | --- |
+| Left upper Shift position | Symbols immediately while pressed | Symbols |
+| Left Backspace | Backspace | Repeat deletion |
+| Left thumb Tab | Tab | Numbers |
+| Right Space | Space | Navigation |
+| Right Enter | Enter | Command |
+| Left Layer | Symbols immediately while pressed | Symbols |
+
+Release a layer hold to return to Base. Within these three typing layers,
+the thumb Backspace, Tab, and Space keys produce plain keypresses, so you can enter
+complete expressions without activating another layer. The outer left Tab
+remains a dedicated Tab. Backspace repeats normally; the right upper Shift
+remains Shift. Enter uses tap/hold in Base and the typing layers: hold Enter
+for Command, tap the left thumb Tab to cycle apps, then release Enter to choose.
+Tap/hold uses the existing firmware defaults; try quick typing and corrections
+before adjusting timing. Release typing-layer holds before using Magic,
+because Navigation and Numbers have higher layer priority than Magic.
+
+The five main columns on each hand are shown by physical position:
+
+```text
+                 Left hand           Right hand
+Upper row      !  @  #  $  %         ^  &  *  ~  `
+Home row       ;  [  (  {  <         >  }  )  ]  :
+Lower row      \  /  -  =  +         _  "  '  ,  .
+```
+
+The outer key beside the upper-right row produces `|`; the outer key beside
+the lower-left row produces `?`. Each symbol needs only Layer plus its key,
+without an additional Shift press. Semicolon and colon intentionally send
+P and Shift+P for standard host Colemak; switching the OS to QWERTY would
+produce p and P instead.
+
+Symbols replaces the factory Lower layer's navigation/numpad mappings while
+retaining its media row. Other positions inherit Base, including digits,
+arrows and modifiers. Magic and Factory are unchanged.
+
+Navigation uses a J/K/L/semicolon arrow row on the four resting columns,
+shown by physical QWERTY position:
+
+```text
+ Y           U             I             O           P
+Line start  Word left   Word right    Line end     Page Up
+ H           J             K             L           ;
+Line end    Left          Down           Up        Right
+ N           M             ,             .           /
+Backspace Cmd+Backspace  Reserved       Delete     Page Down
+```
+
+U/I send Option+Left/Right. The macOS Doom configuration binds these Alt-arrow
+events to backward/forward word, while preserving Command as Meta. Y/O
+send Ctrl+A/E for line movement; Ctrl+E uses the physical K keycode because
+the host applies Colemak. Doom retains its existing indentation/comment-aware
+line commands. Physical F holds Shift to extend movement into a selection
+in supporting contexts. P/slash give
+Page Up/Down. N gives Backspace and period gives Delete, both repeatable when held.
+M sends Command+Backspace: Meta+Backspace (backward word deletion) in Doom,
+and deletion to line start in standard macOS text fields. H also provides line end,
+using the same Ctrl+E binding as O. Comma is reserved for a future editing
+command and currently disabled.
+
+The left side of Navigation provides app and window controls, also labelled
+by physical QWERTY position:
+
+```text
+       W                 E                 R
+ Ctrl+Shift+Tab        Ctrl+Tab       Hold Ctrl+Option
+ A                 S                 D                 F
+Ctrl             Option          Reserved           Shift
+```
+
+While holding right-thumb Space, W/E switch tabs in apps supporting Ctrl+Tab.
+Hold F with right-hand movement to select text. Hold R and use the right-hand
+arrows for Rectangle window halves; R plus a tap of thumb Enter maximizes
+with Rectangle's recommended shortcuts. D and V are reserved and disabled.
+App switching uses the thumb Enter/Command and Tab keys instead of a
+dedicated Navigation shortcut.
+These are macOS shortcuts; Doom still interprets Command as Meta when the
+OS does not intercept a shortcut. Rectangle settings are managed locally,
+not installed by this repository.
+
+The thumb Enter remains available. Reload Doom's configuration or restart Emacs after
+updating the macOS bindings; no `doom sync` is needed.
+
+Numbers uses standard number keycodes in a right-hand numpad:
+
+```text
+Physical positions      7  8  9             7  8  9
+                     Y  U  I  O  P       /  4  5  6  *
+                     H  J  K  L  ;       -  1  2  3  +
+                     N  M  ,  .  /       0  —  0  .  .
+```
+
+The comma/less-than key gives 0 without Shift. M is reserved and disabled.
+The outer right backslash and quote positions give equals and comma.
+Keep host Colemak selected when reading these physical QWERTY labels.
+Before relying on the layout, check `::`, `->`, `!=`, `&&`, `<=`, `>=`,
+`[]`, `{}`, `()`, quotes, and Python underscores with the intended OS input
+source, locally and through remote desktop where used. The JSON can be
+checked locally, but firmware build and typing behavior need verification
+in the editor and on the keyboard.
+
 ## Install
 
 Installers are intended to be rerunnable, but some steps can download packages,
@@ -16,7 +135,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/
 To install the editor/tooling baseline without LM Studio or the
 optional local model set, append `-- --skip-llm`.
 
-Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. Doom's official Ghostel module provides modern terminal emulation through `libghostty-vt`; macOS installation also provisions its pinned native module automatically. On macOS, the installer sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool and the cross-platform `sys` operations CLI, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `config/git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
+Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. Doom's official Ghostel module provides modern terminal emulation through `libghostty-vt`; macOS installation also provisions its pinned native module automatically. On macOS, the installer sets up `emacs-plus@31` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool and the cross-platform `sys` operations CLI, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `config/git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
 
 ### Windows
 
@@ -42,6 +161,10 @@ font archives; only matching font files are extracted, and fonts already
 available on the machine are reused. macOS uses
 Homebrew font casks, and Linux installs the same preset families under
 `~/.local/share/fonts`.
+The `prose-libron` Fontaine preset pairs JetBrains Mono for code with
+[Libron](https://github.com/nicoverbruggen/libron/releases) for Org and Markdown
+body text. The installers add Libron for the current user; select the preset
+with `SPC t F`. It does not change the default coding font.
 
 The Windows installer repairs PATH for an existing standard LLVM installation,
 and Doom setup runs synchronously with checked exit codes without appending to
@@ -172,6 +295,40 @@ Offline Windows Ghostel compilation checks:
 Offline uv selection checks:
 `pwsh -NoProfile -File scripts\test-uv-security.ps1`.
 
+## In-buffer completion
+
+Emacs 31.1 and newer use Hermit for the completion popup. Use `C-n`/`C-p` to
+select, `RET` to insert, and `C-g` to dismiss before using snippet `TAB`.
+`M-h` shows candidate documentation when the completion source provides it.
+On older Emacs versions, use built-in completion at point.
+
+## C++ header comments in Emacs
+
+In a C++ header (`.h` or `.hpp`), type `docclass` or `docmethod` above a
+declaration and press `TAB` to expand a Doxygen-style comment. Press `TAB` to
+move through the fields.
+Use `SPC i s` to insert a snippet explicitly.
+For methods with no parameters or no return value, remove the unused `@param`
+or `@return` line. These use Doom's existing snippet support; no `doom sync` is
+needed. Restart Emacs or reload snippets to see newly added templates.
+With clangd running, Eldoc shows declaration comments in the echo area while
+you move over C++ symbols. Press `SPC c k` to open the full documentation on
+demand. lsp-ui documentation popups are disabled in all languages.
+
+## CMake projects in Emacs
+
+New `CMakeLists.txt` files opened in Doom start with a minimal CMake project
+template. Edit the project name and language with `TAB`, then add targets below.
+Use `SPC p g` to configure into `build/`, then `SPC p c` to build. The template
+only applies to new, empty files; existing CMake files are left alone.
+Use `SPC p t` to run registered tests. Failed CTest tests show their captured
+output in the compilation buffer. Build after source changes before running tests;
+CTest's `test` target does not normally rebuild test executables.
+Keep `build/` in the project's `.gitignore` so generated files stay out of Doom's
+`SPC SPC` project-file picker. On macOS and Linux, the picker refreshes from the
+project instead of reusing a persistent file list; on other platforms, use
+`M-x projectile-invalidate-cache` after creating files outside Emacs if needed.
+
 ## Python projects in Emacs
 
 Press `SPC p n` from any buffer. Choose **Python app** (the default, with a
@@ -189,6 +346,8 @@ linting. `SPC c c` runs the current Python file, which is most useful for
 standalone scripts and simple apps. Doom activates
 the project's environment when a Python file opens and uses Pyright for
 completion and types.
+Function signatures appear in a small popup while typing calls; press
+`C-S-SPC` inside a call to request one again after moving the cursor.
 
 In a Python buffer, `SPC e` sends the current line to the project REPL, or
 the selected region when one is active. `SPC E` evaluates the enclosing
@@ -201,6 +360,44 @@ same interactive REPL, so definitions and variables remain available there;
 short output appears inline, with longer output in a popup. For long-running
 code, use `SPC c s` to send it to the REPL without waiting for inline output.
 The infrequent uv adoption commands remain available through `M-x`.
+
+For creation, `SPC m n` in a Python buffer opens the **new** menu:
+`f` opens a Python file (adding `.py` and creating parent folders), `c` inserts
+a class with an initializer, `t` opens a test file (defaulting to
+`tests/test_<current-file>.py`), and `T` inserts a test at point. New empty test
+files receive a test skeleton; existing files are left intact. Templates use
+editable snippet fields and enter insert mode automatically: type the name,
+then press `TAB` to move into the body. Save normally when ready.
+With no completion menu, snippet `TAB`/`Shift-TAB` move forward/backward.
+Run the test at point with `SPC m t t`, its file with `SPC m t f`, or all tests
+with `SPC m t a`. A skeleton's `pass` is a placeholder: add assertions before
+treating a passing test as evidence.
+The Python test commands use standard Emacs compilation buffers, with pytest's
+native named results, short tracebacks, and count. No custom headers or output
+filters are used. Results appear in a top Doom popup (one quarter of the frame)
+without taking focus. They remain visible until dismissed; test buffers opt out
+of compilation auto-close and automatic error jumps. Normal-mode `q` dismisses;
+`SPC ~` or Ctrl + backtick hides/restores popups, and `C-~` raises a popup into a
+regular window. `SPC w w` cycles windows. Use `SPC m t r` to repeat from code;
+`M-x recompile` also repeats in the results buffer. Dismissing preserves the
+report and does not stop a running test process.
+`SPC m t o` explicitly reopens and focuses the current project's retained
+test report, including after its window has closed.
+
+Use `SPC m t s` to switch between an implementation and its test. If the test
+is missing, a path prompt suggests `tests/test_<module>.py`; accept or edit it
+to open a new test skeleton. Save the buffer normally.
+The path prompt edits the suggested path literally, with the cursor at the
+end; Enter accepts that exact text. Empty paths and bare `.py` names are rejected.
+Package subdirectories are mirrored under `tests/`, with a leading `src/` removed. Paths are derived
+fresh on every toggle; no file-pair cache is used. Keep the suggested naming
+for automatic navigation in both directions. Existing test content is preserved.
+New test skeletons prefill the source module in `from <module> import Name`;
+edit the imported name, then press `TAB` to name the test and again for its
+body. Package paths become dotted imports, with a leading `src/` removed.
+Projectile's standard `projectile-toggle-between-implementation-and-test`
+command uses this same workflow in Python buffers, including when invoked
+through `M-x` or Projectile's menu. Other languages keep Projectile's behavior.
 
 ## System operations
 
@@ -344,6 +541,12 @@ complete edit/save/refresh loop. The same workflow runs on macOS and Windows;
 on Windows, associate `.excalidraw` files with the installed Chrome Excalidraw
 PWA once so `SPC m D o` can open the editor. Emacs's native file notifications
 drive export on both platforms—no external watcher is required.
+
+The automatic SVG export fits all visible drawing elements. If a preview has a
+large empty margin, look for an element left far from the diagram, move or
+delete it in Excalidraw, and save. The exporter ignores elements already marked
+deleted in Excalidraw's scene data, so old deleted content cannot enlarge the
+preview. This filtering affects only the generated SVG, not the editable source.
 
 ## API, JSON, and data tools in Emacs
 

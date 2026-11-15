@@ -1,0 +1,11 @@
+# -*- mode: snippet -*-
+# name: Doxygen method comment
+# key: docmethod
+# --
+/**
+ * @brief ${1:What this method does.}
+ *
+ * @param ${2:name} ${3:Description of the parameter.}
+ * @return ${4:Description of the result.}
+ */
+$0

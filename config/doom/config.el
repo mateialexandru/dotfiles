@@ -314,6 +314,9 @@
   (setf (alist-get 'csharp-mode apheleia-mode-alist) 'csharpier)
   (setf (alist-get 'csharp-ts-mode apheleia-mode-alist) 'csharpier))
 
+;; Show CTest's captured assertion output when a test fails.
+(setenv "CTEST_OUTPUT_ON_FAILURE" "1")
+
 ;; SPC p t → run project tests
 (map! :leader
       (:prefix "p"
@@ -367,10 +370,42 @@ The first that exists is opened; the first in the list is what gets created.")
 (use-package! sqlite-mode-extras
   :hook (sqlite-mode . sqlite-extras-minor-mode))
 
-;; When Corfu auto-opens on a YASnippet trigger, TAB should expand the exact
-;; snippet rather than merely select the next completion candidate.
-(after! corfu
-  (setq +corfu-want-tab-prefer-expand-snippets t))
+(when (version<= "31.1" emacs-version)
+  (use-package! hermit
+    :hook (doom-first-buffer . global-hermit-mode))
+  (after! lsp-mode
+    (setq lsp-completion-provider :none)))
+
+;; lsp-mode's LV signature window can be reused as an editor window.  A later
+;; signature update would then replace the source buffer with help text.
+(defun my/lsp-signature-display (signature)
+  "Show SIGNATURE without writing through LV's reused window."
+  (if (and (display-graphic-p) (require 'posframe nil t))
+      (lsp-signature-posframe signature)
+    (if signature (message "%s" signature) (message nil))))
+
+(after! lsp-mode
+  (setq lsp-signature-function #'my/lsp-signature-display
+        lsp-signature-render-documentation nil))
+
+;; clangd includes declaration comments in its hover response, but lsp-mode's
+;; default Eldoc rendering keeps only the signature.  Show the full response
+;; for C/C++ without expanding Eldoc output in unrelated languages.
+(defun my/cc-show-hover-documentation ()
+  "Show C/C++ documentation comments in Eldoc."
+  (setq-local lsp-eldoc-render-all t
+              eldoc-echo-area-use-multiline-p 8))
+
+(dolist (hook '(c-mode-hook c++-mode-hook c-ts-mode-hook c++-ts-mode-hook))
+  (add-hook hook #'my/cc-show-hover-documentation))
+
+;; Keep lsp-ui's other features, but disable its documentation popups in every
+;; language. Eldoc and explicit lookup remain available.
+(after! lsp-ui
+  (setq lsp-ui-doc-enable nil))
+
+;; Start new CMakeLists.txt files with a minimal project scaffold.
+(set-file-template! "/CMakeLists\\.txt$" :mode 'cmake-mode)
 
 ;;; winpulse — flash focused window
 (use-package! winpulse
@@ -730,17 +765,51 @@ drawing, clipping and enlarging the image at its use site."
       (when changed
         (write-region (point-min) (point-max) svg nil 'silent)))))
 
+(defun my/org-excalidraw--convert (path svg &optional transparent)
+  "Export active elements in PATH to SVG, excluding deleted scene history.
+TRANSPARENT omits the drawing's canvas background.  The source is never edited."
+  (let ((clean-source (make-temp-file "excalidraw-export-" nil ".excalidraw")))
+    (unwind-protect
+        (progn
+          (with-temp-buffer
+            (insert-file-contents path)
+            (let* ((scene (json-parse-buffer :object-type 'hash-table
+                                             :array-type 'array))
+                   (elements (gethash "elements" scene)))
+              (unless (vectorp elements)
+                (error "Invalid Excalidraw elements in %s" path))
+              (puthash "elements"
+                       (vconcat (seq-remove
+                                 (lambda (element)
+                                   (eq (gethash "isDeleted" element) t))
+                                 (append elements nil)))
+                       scene)
+              (erase-buffer)
+              (insert (json-serialize scene)))
+            (write-region (point-min) (point-max) clean-source nil 'silent))
+          (let ((status (apply #'call-process "excalidraw-cli" nil nil nil
+                               (append (list "convert" clean-source
+                                             "--format" "svg")
+                                       (when transparent
+                                         '("--no-export-background"))
+                                       (list "--output" svg)))))
+            (unless (equal status 0)
+              (error "excalidraw-cli exited %s for %s" status path)))
+          (my/org-excalidraw--fix-image-symbols svg))
+      (delete-file clean-source))))
+
 (defun my/org-excalidraw--export (path)
   "Export Excalidraw PATH to its opaque Org preview SVG."
   (remhash path my/org-excalidraw--export-timers)
   (when (and (file-readable-p path) (executable-find "excalidraw-cli"))
-    (let ((status (shell-command (org-excalidraw--shell-cmd-to-svg path))))
-      (if (zerop status)
-          (let ((svg (concat path ".svg")))
-            (my/org-excalidraw--fix-image-symbols svg)
+    (let ((svg (concat path ".svg")))
+      (condition-case err
+          (progn
+            (my/org-excalidraw--convert path svg)
             (my/org-excalidraw--refresh-previews svg)
             (my/org-excalidraw--sync-open-document-assets path))
-        (message "Excalidraw SVG export failed for %s (exit %s)" path status)))))
+        (error (message "Excalidraw SVG export failed for %s: %s"
+                        path (error-message-string err)))))))
 
 (defun my/org-excalidraw--ensure-transparent-svg (path &optional force)
   "Ensure transparent SVG for Excalidraw source PATH exists.
@@ -750,12 +819,7 @@ With FORCE, regenerate it even when the source is older than the SVG."
               (file-newer-than-file-p path svg))
       (unless (executable-find "excalidraw-cli")
         (error "excalidraw-cli is required to export %s" path))
-      (let ((status (call-process "excalidraw-cli" nil nil nil
-                                  "convert" path "--format" "svg"
-                                  "--no-export-background" "--output" svg)))
-        (unless (equal status 0)
-          (error "excalidraw-cli exited %s for %s" status path))
-        (my/org-excalidraw--fix-image-symbols svg)))
+      (my/org-excalidraw--convert path svg t))
     svg))
 
 (defun my/org-excalidraw--handle-file-change (event)
@@ -1089,6 +1153,12 @@ Renames the .excalidraw source and both SVG exports."
            :default-family "IBM Plex Mono"
            :default-height 140
            :variable-pitch-family "IBM Plex Sans"
+           :variable-pitch-height 1.15
+           :line-spacing 0.25)
+          (prose-libron             ; JetBrains Mono for code + Libron for reading
+           :default-family "JetBrainsMono NF"
+           :default-height 145
+           :variable-pitch-family "Libron"
            :variable-pitch-height 1.15
            :line-spacing 0.25)
           ;; --- Situational ---

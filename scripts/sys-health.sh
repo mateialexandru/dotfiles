@@ -47,12 +47,12 @@ daemon_up=false
 if $EMACSCLIENT --eval t >/dev/null 2>&1; then
   daemon_up=true
   if $IS_MAC; then
-    svc="$(brew services list 2>/dev/null | awk '/emacs-plus@30/{print $2}')"
-    if [[ "$svc" == "started" ]]; then pass "daemon" "emacs-plus@30 started + ping ok"
+    svc="$(brew services list 2>/dev/null | awk '/emacs-plus@31/{print $2}')"
+    if [[ "$svc" == "started" ]]; then pass "daemon" "emacs-plus@31 started + ping ok"
     else info "daemon" "reachable, but brew service='${svc:-unknown}' (stale label — \`sys restart\` to clear)"; fi
   else pass "daemon" "reachable"; fi
 elif $IS_MAC; then
-  svc="$(brew services list 2>/dev/null | awk '/emacs-plus@30/{print $2}')"
+  svc="$(brew services list 2>/dev/null | awk '/emacs-plus@31/{print $2}')"
   fail "daemon" "not reachable (brew service: ${svc:-not started}) — run \`sys restart\`"
 else info "daemon" "not running (start emacs --fg-daemon when needed)"; fi
 

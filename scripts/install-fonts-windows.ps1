@@ -23,6 +23,7 @@ $installedFamilies = @((New-Object System.Drawing.Text.InstalledFontCollection).
     ForEach-Object { $_.Name })
 $nerdFontsVersion = 'v3.4.0'
 $mapleVersion = 'v7.9'
+$libronVersion = 'v0.25'
 
 function Get-IosevkaAssetUrl {
     param([Parameter(Mandatory)][string]$Variant)
@@ -110,6 +111,8 @@ Install-FontArchive -Name 'MapleMono-NF' -Families @('Maple Mono NF') -Url "http
 $plexBase = 'https://github.com/IBM/plex/releases/download'
 Install-FontArchive -Name 'IBMPlexMono' -Families @('IBM Plex Mono') -Url "$plexBase/%40ibm/plex-mono%401.1.0/ibm-plex-mono.zip"
 Install-FontArchive -Name 'IBMPlexSans' -Families @('IBM Plex Sans') -Url "$plexBase/%40ibm/plex-sans%401.1.0/ibm-plex-sans.zip"
+Install-FontArchive -Name 'Libron' -Families @('Libron') `
+    -Url "https://github.com/nicoverbruggen/libron/releases/download/$libronVersion/Libron.zip"
 
 foreach ($variant in @('Aile', 'Etoile')) {
     $family = "Iosevka $variant"

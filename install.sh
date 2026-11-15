@@ -179,6 +179,8 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 		font-ibm-plex-sans \
 		font-inter \
 		font-symbols-only-nerd-font
+	# Libron is released as desktop TTF files, not a Homebrew font cask.
+	bash "$DOTFILES_DIR/scripts/install-libron-macos.sh"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 	# Userspace install into ~/.local/share/fonts — works on immutable hosts
 	# (Bluefin/rpm-ostree) without root or reboot. Idempotent.
@@ -311,8 +313,11 @@ fi
 # failures: a successful install must leave Emacs Client.app able to connect.
 if [[ "$OSTYPE" == "darwin"* ]]; then
 	step "Emacs daemon"
-	brew services restart d12frosted/emacs-plus/emacs-plus@30 ||
-		brew services start d12frosted/emacs-plus/emacs-plus@30
+	if brew list --versions emacs-plus@30 >/dev/null 2>&1; then
+		brew services stop emacs-plus@30
+	fi
+	brew services restart d12frosted/emacs-plus/emacs-plus@31 ||
+		brew services start d12frosted/emacs-plus/emacs-plus@31
 
 	step "Ghostel native module"
 	for _ in $(seq 30); do
