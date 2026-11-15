@@ -139,3 +139,10 @@
   :recipe (:host github :repo "mrc/tla-tools"))
 (package! gptel-preset-collection
   :recipe (:host github :repo "karthink/gptel-preset-collection"))
+
+
+;; Hermit's popup needs the child-frame support in Emacs 31.1.
+(when (version<= "31.1" emacs-version)
+  (package! hermit
+    :recipe (:host github :repo "joaotavora/hermit")
+    :pin "8be997593eb80c20099fa0535695bca131aeece6"))

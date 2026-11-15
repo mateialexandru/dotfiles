@@ -313,8 +313,11 @@ fi
 # failures: a successful install must leave Emacs Client.app able to connect.
 if [[ "$OSTYPE" == "darwin"* ]]; then
 	step "Emacs daemon"
-	brew services restart d12frosted/emacs-plus/emacs-plus@30 ||
-		brew services start d12frosted/emacs-plus/emacs-plus@30
+	if brew list --versions emacs-plus@30 >/dev/null 2>&1; then
+		brew services stop emacs-plus@30
+	fi
+	brew services restart d12frosted/emacs-plus/emacs-plus@31 ||
+		brew services start d12frosted/emacs-plus/emacs-plus@31
 
 	step "Ghostel native module"
 	for _ in $(seq 30); do

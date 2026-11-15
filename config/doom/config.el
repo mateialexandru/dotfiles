@@ -370,14 +370,11 @@ The first that exists is opened; the first in the list is what gets created.")
 (use-package! sqlite-mode-extras
   :hook (sqlite-mode . sqlite-extras-minor-mode))
 
-;; Completion owns TAB while its menu is open; Yasnippet owns it afterward.
-(after! corfu
-  (setq +corfu-want-tab-prefer-navigating-snippets nil)
-  (define-key corfu-map (kbd "TAB") #'corfu-complete)
-  (define-key corfu-map (kbd "<tab>") #'corfu-complete)
-  (define-key corfu-map (kbd "<backtab>") #'corfu-previous)
-  (define-key corfu-map (kbd "S-TAB") #'corfu-previous)
-  (define-key corfu-map (kbd "C-y") #'corfu-insert))
+(when (version<= "31.1" emacs-version)
+  (use-package! hermit
+    :hook (doom-first-buffer . global-hermit-mode))
+  (after! lsp-mode
+    (setq lsp-completion-provider :none)))
 
 ;; lsp-mode's LV signature window can be reused as an editor window.  A later
 ;; signature update would then replace the source buffer with help text.

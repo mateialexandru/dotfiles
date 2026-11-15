@@ -4,7 +4,7 @@
 set -euo pipefail
 
 seconds="${1:-10}"
-service="d12frosted/emacs-plus/emacs-plus@30"
+service="d12frosted/emacs-plus/emacs-plus@31"
 server_file="$HOME/.config/emacs/server/server"
 export ALTERNATE_EDITOR=false
 

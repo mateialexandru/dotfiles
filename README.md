@@ -135,7 +135,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/mateialexandru/dotfiles/
 To install the editor/tooling baseline without LM Studio or the
 optional local model set, append `-- --skip-llm`.
 
-Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. Doom's official Ghostel module provides modern terminal emulation through `libghostty-vt`; macOS installation also provisions its pinned native module automatically. On macOS, the installer sets up `emacs-plus@30` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool and the cross-platform `sys` operations CLI, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `config/git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
+Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfiles`, then installs Homebrew, Doom Emacs and its dependencies. Doom's official Ghostel module provides modern terminal emulation through `libghostty-vt`; macOS installation also provisions its pinned native module automatically. On macOS, the installer sets up `emacs-plus@31` as a daemon + `Emacs Client.app`. It also builds the `hack` worktree tool and the cross-platform `sys` operations CLI, appends a `Host *.ts.net` SSH ControlMaster block to `~/.ssh/config` so TRAMP and the Emacs remote-terminal workflow reconnect fast to tailnet hosts (see ADR-011), and links `config/git/ignore` to `~/.config/git/ignore`. On macOS it installs the optional local LLM layer unless `--skip-llm` is supplied.
 
 ### Windows
 
@@ -202,14 +202,19 @@ environments independently of these global tool installations.
 Offline installer-policy checks:
 `pwsh -NoProfile -File scripts\test-install-tool-policy.ps1`.
 
+## In-buffer completion
+
+Emacs 31.1 and newer use Hermit for the completion popup. Use `C-n`/`C-p` to
+select, `RET` to insert, and `C-g` to dismiss before using snippet `TAB`.
+`M-h` shows candidate documentation when the completion source provides it.
+On older Emacs versions, use built-in completion at point.
+
 ## C++ header comments in Emacs
 
 In a C++ header (`.h` or `.hpp`), type `docclass` or `docmethod` above a
 declaration and press `TAB` to expand a Doxygen-style comment. Press `TAB` to
 move through the fields.
-When a Corfu completion menu is open, `TAB` moves through its candidates and
-`RET` accepts one. Use `SPC i s` to insert a snippet explicitly; once a snippet
-is active, `TAB` moves through its fields even if Corfu opens.
+Use `SPC i s` to insert a snippet explicitly.
 For methods with no parameters or no return value, remove the unused `@param`
 or `@return` line. These use Doom's existing snippet support; no `doom sync` is
 needed. Restart Emacs or reload snippets to see newly added templates.
@@ -270,9 +275,6 @@ a class with an initializer, `t` opens a test file (defaulting to
 files receive a test skeleton; existing files are left intact. Templates use
 editable snippet fields and enter insert mode automatically: type the name,
 then press `TAB` to move into the body. Save normally when ready.
-When completion is open, `TAB` invokes Corfu's native completion command:
-accept the selected candidate, then press `TAB` again to advance the snippet
-field after the menu closes. Use `C-n`/`C-p` to select a different candidate.
 With no completion menu, snippet `TAB`/`Shift-TAB` move forward/backward.
 Run the test at point with `SPC m t t`, its file with `SPC m t f`, or all tests
 with `SPC m t a`. A skeleton's `pass` is a placeholder: add assertions before
