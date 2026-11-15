@@ -7,6 +7,19 @@
 ;; Use Git bash for POSIX compatibility (works with Windows paths)
 (setq shell-file-name "C:/Program Files/Git/bin/bash.exe")
 
+(defun my/windows-ghostel-compilation-start (original stock &rest args)
+  "Use standard compilation locally, retaining Ghostel for remote builds."
+  ;; The pinned Ghostel compiler hardcodes /bin/sh and a Unix PTY.
+  (if (file-remote-p default-directory)
+      (apply original stock args)
+    (apply stock args)))
+
+(after! ghostel-compile
+  (unless (advice-member-p #'my/windows-ghostel-compilation-start
+                          'ghostel-compile--compilation-start-advice)
+    (advice-add 'ghostel-compile--compilation-start-advice :around
+                #'my/windows-ghostel-compilation-start)))
+
 ;; Windows variable-pitch font (overrides Cantarell from shared config)
 (setq doom-variable-pitch-font (font-spec :family "Segoe UI" :size 15))
 

@@ -3,6 +3,7 @@
 $ErrorActionPreference = 'Stop'
 
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
@@ -41,7 +42,10 @@ function Install-FontArchive {
         [string]$FileNamePattern = '*'
     )
 
-    if (@($Families | Where-Object { $_ -notin $installedFamilies }).Count -eq 0) {
+    if (@($Families | Where-Object {
+        $_ -notin $installedFamilies -and
+        ($_ -replace ' Nerd Font$', ' NF') -notin $installedFamilies
+    }).Count -eq 0) {
         Write-Host "  $Name already installed; skipping." -ForegroundColor Gray
         return
     }
@@ -51,25 +55,45 @@ function Install-FontArchive {
     New-Item -ItemType Directory -Path $work -Force | Out-Null
     try {
         $archive = Join-Path $work 'font.zip'
-        $extracted = Join-Path $work 'extracted'
         Invoke-WebRequest -Uri $Url -OutFile $archive -UseBasicParsing
-        Expand-Archive -LiteralPath $archive -DestinationPath $extracted -Force
-        $fonts = @(Get-ChildItem -LiteralPath $extracted -File -Recurse |
-            Where-Object { $_.Extension -in @('.ttf', '.otf') -and $_.Name -like $FileNamePattern })
-        if ($fonts.Count -eq 0) { throw "No usable font files found in $Name archive." }
+        $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+        try {
+            # Source archives may contain thousands of glyph files we never use.
+            $fonts = @($zip.Entries | Where-Object {
+                [IO.Path]::GetExtension($_.Name) -in @('.ttf', '.otf') -and
+                $_.Name -like $FileNamePattern
+            })
+            if ($fonts.Count -eq 0) { throw "No usable font files found in $Name archive." }
 
-        New-Item -ItemType Directory -Path $fontDir -Force | Out-Null
-        foreach ($font in $fonts) {
-            # Prefix names so archives with similarly named faces do not overwrite each other.
-            $relative = $font.FullName.Substring($extracted.Length + 1)
-            $safeName = ($relative -replace '[\\/:*?"<>|]', '-')
-            $destination = Join-Path $fontDir "$Name-$safeName"
-            Copy-Item -LiteralPath $font.FullName -Destination $destination -Force
-            $kind = if ($font.Extension -eq '.otf') { 'OpenType' } else { 'TrueType' }
-            Set-ItemProperty -Path $fontRegistry -Name "$Name-$safeName ($kind)" -Value $destination
-            [void][DotfilesFonts]::AddFontResource($destination)
+            New-Item -ItemType Directory -Path $fontDir -Force | Out-Null
+            foreach ($font in $fonts) {
+                # Prefix names so archives with similarly named faces do not overwrite each other.
+                $safeName = ($font.FullName -replace '[\\/:*?"<>|]', '-')
+                $destination = Join-Path $fontDir "$Name-$safeName"
+                if (Test-Path -LiteralPath $destination -PathType Leaf) {
+                    # Loaded Windows fonts cannot be overwritten, even with identical bytes.
+                    $stream = $font.Open()
+                    $sha256 = [Security.Cryptography.SHA256]::Create()
+                    try {
+                        $expected = [BitConverter]::ToString($sha256.ComputeHash($stream)).Replace('-', '')
+                    } finally {
+                        $stream.Dispose()
+                        $sha256.Dispose()
+                    }
+                    if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $expected) {
+                        throw "Existing font differs from the archive; refusing to replace a possibly loaded font: $destination"
+                    }
+                } else {
+                    [IO.Compression.ZipFileExtensions]::ExtractToFile($font, $destination, $false)
+                }
+                $kind = if ([IO.Path]::GetExtension($font.Name) -eq '.otf') { 'OpenType' } else { 'TrueType' }
+                Set-ItemProperty -Path $fontRegistry -Name "$Name-$safeName ($kind)" -Value $destination
+                [void][DotfilesFonts]::AddFontResource($destination)
+            }
+            Write-Host "  Installed $($fonts.Count) $Name font files for this user." -ForegroundColor Green
+        } finally {
+            $zip.Dispose()
         }
-        Write-Host "  Installed $($fonts.Count) $Name font files for this user." -ForegroundColor Green
     } finally {
         Remove-Item -LiteralPath $work -Recurse -Force -ErrorAction SilentlyContinue
     }

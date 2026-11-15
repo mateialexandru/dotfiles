@@ -38,7 +38,8 @@ WinGet catalog membership is not a substitute for organizational approval.
 Other installer stages can still rebuild or provision tools; this is not an
 offline or universally non-admin operation.
 The Doom font presets are installed for the current user from their upstream
-font archives; fonts already available on the machine are reused. macOS uses
+font archives; only matching font files are extracted, and fonts already
+available on the machine are reused. macOS uses
 Homebrew font casks, and Linux installs the same preset families under
 `~/.local/share/fonts`.
 
@@ -79,6 +80,15 @@ the script takes `-EmacsArguments` to avoid PowerShell parameter binding.
 Use `-Gui -EmacsArguments @('-Q')` for a clean diagnostic window.
 Offline build/launcher regressions: `.\scripts\test-build-emacs-windows.ps1`.
 
+Windows also provisions Graphviz and shfmt through WinGet. Existing working tools
+and Emacs are preserved rather than replaced. Docker formatting is not a Windows
+installation requirement; enabling the Docker module does not install a formatter.
+
+On Windows, local builds use standard Emacs compilation because the pinned
+Ghostel compilation backend requires `/bin/sh` and Unix PTYs. The workaround
+lives in `config/doom/config-windows.el`; Ghostel terminals, comint integration
+and remote compilation routing remain unchanged. No private layer is required.
+
 Doctor treats missing Defender exclusions as an advisory, not a broken install.
 Only with organizational approval, run `scripts\setup-doom.ps1 -AddDefenderExclusions`
 from an elevated shell to exclude the active Emacs installation and Doom runtime
@@ -118,6 +128,12 @@ environments independently of these global tool installations.
 
 Offline installer-policy checks:
 `pwsh -NoProfile -File scripts\test-install-tool-policy.ps1`.
+
+Offline font-archive checks:
+`pwsh -NoProfile -File scripts\test-install-fonts-windows.ps1`.
+
+Offline Windows Ghostel compilation checks:
+`emacs -Q --batch -l scripts\test-windows-ghostel.el -f ert-run-tests-batch-and-exit`.
 
 ## Python projects in Emacs
 

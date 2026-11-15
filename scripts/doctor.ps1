@@ -23,6 +23,8 @@ $coreTools = @(
     @{ Name = "clang-format"; Fix = "winget install LLVM.LLVM" }
     @{ Name = "pandoc"; Fix = "winget install JohnMacFarlane.Pandoc" }
     @{ Name = "shellcheck"; Fix = "winget install koalaman.shellcheck" }
+    @{ Name = "shfmt"; Fix = "winget install --id mvdan.shfmt -e --source winget --no-upgrade" }
+    @{ Name = "dot"; Fix = "winget install --id Graphviz.Graphviz -e --source winget --no-upgrade" }
     @{ Name = "git"; Fix = "winget install Git.Git" }
     @{ Name = "nu"; Fix = "winget install Nushell.Nushell" }
 )
@@ -124,6 +126,8 @@ function Get-ToolVersion($name) {
             "clang-format" { & clang-format --version 2>$null | Select-Object -First 1 }
             "pandoc" { & pandoc --version 2>$null | Select-Object -First 1 }
             "shellcheck" { & shellcheck --version 2>$null | Where-Object { $_ -match "version:" } }
+            "shfmt" { & shfmt --version 2>$null }
+            "dot" { & dot -V 2>&1 | ForEach-Object { "$_" } }
             "ctags" {
                 # Must be Universal Ctags, not Emacs etags
                 $ver = & ctags --version 2>$null | Select-Object -First 1

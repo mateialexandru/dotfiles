@@ -40,6 +40,8 @@ $wingetPackages = @(
     # Docs / linting
     "JohnMacFarlane.Pandoc",
     "koalaman.shellcheck",
+    "Graphviz.Graphviz",
+    "mvdan.shfmt",
     # Fonts
     "DEVCOM.JetBrainsMonoNerdFont"
 )
@@ -129,13 +131,16 @@ if (-not (Get-Module -ListAvailable BurntToast)) {
 }
 
 # Refresh PATH from registry (picks up changes from winget/MSI installers)
-# LLVM's machine installer does not always register its bin directory.
-$llvmBin = Join-Path $env:ProgramFiles 'LLVM\bin'
-if (Test-Path (Join-Path $llvmBin 'clang-format.exe')) {
+# Some machine installers do not register their bin directories.
+foreach ($toolPath in @('LLVM\bin\clang-format.exe', 'Graphviz\bin\dot.exe')) {
+    $executable = Join-Path $env:ProgramFiles $toolPath
+    if (-not (Test-Path -LiteralPath $executable)) { continue }
+    $bin = Split-Path $executable
     $userPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
-    if ($llvmBin -notin ($userPath -split ';')) {
-        [Environment]::SetEnvironmentVariable('PATH', "$userPath;$llvmBin", 'User')
-        Write-Host "Added existing LLVM tools to user PATH: $llvmBin"
+    $registered = [Environment]::GetEnvironmentVariable('PATH', 'Machine') + ';' + $userPath
+    if ($bin -notin ($registered -split ';' | ForEach-Object { $_.TrimEnd('\') })) {
+        [Environment]::SetEnvironmentVariable('PATH', "$userPath;$bin", 'User')
+        Write-Host "Added existing tools to user PATH: $bin"
     }
 }
 $machinePath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
@@ -157,6 +162,8 @@ $tools = @{
     "fd" = "fd --version"
     "pandoc" = "pandoc --version"
     "shellcheck" = "shellcheck --version"
+    "shfmt" = "shfmt --version"
+    "dot" = "dot -V"
     "ctags" = "ctags --version"
     "dotnet" = "dotnet --version"
     "node" = "node --version"
