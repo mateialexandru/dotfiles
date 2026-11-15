@@ -1,3 +1,4 @@
+#Requires -Version 7.3
 # scripts/install-prerequisites.ps1
 # Installs development tool prerequisites (idempotent)
 
@@ -7,6 +8,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. "$PSScriptRoot\emacs-paths.ps1"
+$env:PATH = Get-DotfilesProcessPath
 if ($GnuplotVersion -and -not $AllowGnuplotElevation) {
     throw 'An explicit Gnuplot install requires -AllowGnuplotElevation; its package uses machine scope.'
 }
@@ -15,8 +18,6 @@ Write-Host "Installing development prerequisites..." -ForegroundColor Cyan
 
 # Winget packages
 $wingetPackages = @(
-    # Editors
-    "GNU.Emacs",
     # Build / dev tools
     "OpenJS.NodeJS.LTS",
     "Microsoft.DotNet.SDK.8",
@@ -51,6 +52,8 @@ foreach ($pkg in $wingetPackages) {
         throw "WinGet failed or was cancelled for $pkg (exit $LASTEXITCODE)."
     }
 }
+
+& "$PSScriptRoot\build-emacs-windows.ps1"
 
 if ($GnuplotVersion) {
     & "$PSScriptRoot\install-gnuplot.ps1" -Version $GnuplotVersion -AllowElevation
@@ -182,6 +185,11 @@ $tools = @{
 
 $missingTools = @()
 foreach ($tool in $tools.Keys) {
+    if ($tool -eq 'emacs') {
+        Invoke-DotfilesEmacs -Arguments @('--version')
+        Write-Host '  OK: selected Emacs runtime' -ForegroundColor Green
+        continue
+    }
     if ($tool -eq 'gnuplot' -and -not $GnuplotVersion -and
         -not (Get-Command gnuplot -ErrorAction SilentlyContinue)) {
         Write-Host '  SKIPPED: gnuplot (optional)' -ForegroundColor Gray

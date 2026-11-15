@@ -1,3 +1,4 @@
+#Requires -Version 7.3
 param(
     [string]$Command = 'doctor',
     [string]$DoomDirectory = (Join-Path $env:USERPROFILE '.config\emacs'),
@@ -7,25 +8,22 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $doomArguments = @($args)
-if (-not $EmacsExecutable) {
-    $EmacsExecutable = (Get-Command emacs.exe -ErrorAction Stop).Source
-}
-$names = @('EMACSDIR', '__DOOMSH', '__DOOMPID', '__DOOMSTEP', '__DOOMGEOM', '__DOOMPIPE', 'PATH')
+. "$PSScriptRoot\emacs-paths.ps1"
+$PSNativeCommandArgumentPassing = 'Standard'
+$names = @('EMACSDIR', '__DOOMSH', '__DOOMPID', '__DOOMSTEP', '__DOOMGEOM', '__DOOMPIPE', 'PATH',
+    'EMACS_NATIVE_COMP_ROOT')
 $saved = @{}
 foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
 try {
-    $nativeRoot = $env:EMACS_NATIVE_COMP_ROOT
-    if (-not $nativeRoot) {
-        $nativeRoot = [Environment]::GetEnvironmentVariable('EMACS_NATIVE_COMP_ROOT', 'User')
+    $env:PATH = Get-DotfilesProcessPath
+    if (-not $EmacsExecutable) {
+        $selected = Get-DotfilesEmacsRuntime
+        $EmacsExecutable = $selected.Executable
+        $env:EMACS_NATIVE_COMP_ROOT = $selected.CompilerRoot
     }
+    $nativeRoot = $env:EMACS_NATIVE_COMP_ROOT
     if ($nativeRoot) {
-        $nativeBin = Join-Path $nativeRoot 'bin'
-        foreach ($file in @('libgccjit-0.dll', 'gcc.exe', 'as.exe', 'ld.exe')) {
-            if (-not (Test-Path (Join-Path $nativeBin $file))) {
-                throw "Configured native compiler runtime is incomplete: $file"
-            }
-        }
-        $env:PATH = "$nativeBin;$env:PATH"
+        $env:PATH = "$(Join-Path $nativeRoot 'bin');$env:PATH"
     }
     $env:EMACSDIR = $DoomDirectory
     $env:__DOOMSH = 'ps1'
@@ -35,15 +33,28 @@ try {
     $env:__DOOMPIPE = '01'
     $options = @('--no-color')
     if ($Force) { $options += '--force' }
-    $bootstrap = "(setq warning-inhibit-types '((files missing-lexbind-cookie)))"
+    $bootstrap = "(setq warning-inhibit-types '((files missing-lexbind-cookie)) coding-system-for-write 'utf-8-unix)"
     if ($nativeRoot) {
         $bootstrap = "(progn $bootstrap (setq native-comp-async-jobs-number 2))"
     }
-    # The upstream PowerShell wrapper can lose nonzero Emacs exit codes.
-    & $EmacsExecutable -q --no-site-file --batch `
-        --eval $bootstrap `
-        --load (Join-Path $DoomDirectory 'bin\doom') -- @options $Command @doomArguments
-    if ($LASTEXITCODE -ne 0) { throw "Doom $Command failed (exit $LASTEXITCODE)." }
+    function doom {
+        $nativeArguments = @(
+            '-q', '--no-site-file', '--batch', '--eval', $bootstrap,
+            '--load', (Join-Path $DoomDirectory 'bin\doom'), '--') + $options + @($args)
+        & $EmacsExecutable @nativeArguments
+        $result = $LASTEXITCODE
+        if ($result -eq 254) {
+            # Doom hands initialized context to a generated shell continuation.
+            $continuation = Join-Path $env:TEMP "doom.$($env:__DOOMPID).$($env:__DOOMSTEP).ps1"
+            if (-not (Test-Path -LiteralPath $continuation -PathType Leaf)) {
+                throw "Doom $Command requested a missing continuation: $continuation"
+            }
+            . $continuation
+        } elseif ($result -ne 0) {
+            throw "Doom $Command failed (exit $result)."
+        }
+    }
+    doom $Command @doomArguments
 } finally {
-    foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
+    foreach ($name in $names) { Set-Item -LiteralPath "Env:$name" -Value $saved[$name] }
 }

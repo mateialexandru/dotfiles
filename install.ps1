@@ -1,3 +1,4 @@
+#Requires -Version 7.3
 # Dotfiles Install Script (Windows)
 # Run after cloning: .\install.ps1
 

@@ -138,7 +138,9 @@ fn ps_script(path: &Path, args: &[OsString], cwd: &Path) -> Result<u8> {
         path.as_os_str().to_owned(),
     ];
     command_args.extend_from_slice(args);
-    execute("powershell.exe", &command_args, Some(cwd))
+    execute("pwsh.exe", &command_args, Some(cwd)).map_err(|error| {
+        format!("PowerShell 7.3+ is required (winget install Microsoft.PowerShell): {error}")
+    })
 }
 
 fn platform_script(name: &str, args: &[OsString]) -> Result<u8> {
@@ -236,14 +238,26 @@ fn vanilla(args: &[OsString]) -> Result<u8> {
     if !args.is_empty() {
         return Err("vanilla takes no arguments".into());
     }
-    Command::new("emacs")
-        .arg("-Q")
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .map(|_| 0)
-        .map_err(|error| format!("could not launch Emacs: {error}"))
+    #[cfg(windows)]
+    {
+        let root = repo()?;
+        ps_script(
+            &root.join("scripts/emacs-windows.ps1"),
+            &[OsString::from("-Gui"), OsString::from("-Q")],
+            &root,
+        )
+    }
+    #[cfg(not(windows))]
+    {
+        Command::new("emacs")
+            .arg("-Q")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map(|_| 0)
+            .map_err(|error| format!("could not launch Emacs: {error}"))
+    }
 }
 
 fn llm(args: &[OsString]) -> Result<u8> {

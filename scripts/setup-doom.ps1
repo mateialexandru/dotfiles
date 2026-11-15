@@ -1,3 +1,4 @@
+#Requires -Version 7.3
 # Doom Emacs Windows Setup Script
 # Installs required dependencies via winget (idempotent)
 
@@ -64,6 +65,7 @@ if ([System.Environment]::GetEnvironmentVariable("HOME", "User") -ne $homePath) 
 
 Write-Host "`nChecking and synchronizing Doom Emacs..."
 $doomSetupInvoker = Join-Path $PSScriptRoot 'invoke-doom.ps1'
+$emacsWindowsLauncher = Join-Path $PSScriptRoot 'emacs-windows.ps1'
 
 # Run in the caller so output and failures reach the top-level installer.
 $scriptBlock = @'
@@ -93,18 +95,8 @@ if ($currentPath -notlike "*$doomBin*") {
     Write-Host 'Doom already in PATH.' -ForegroundColor Green
 }
 
-# Ensure Emacs is discoverable — check PATH first, then scan common locations
-$emacsExe = Get-Command emacs.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source
-if (-not $emacsExe) {
-    $searchPaths = @('C:\Program Files\Emacs') + @(Get-PSDrive -PSProvider FileSystem |
-        Where-Object { $_.Name.Length -eq 1 -and $_.Name -ne 'C' } |
-        ForEach-Object { "$($_.Root)tools" }) | Where-Object { Test-Path $_ }
-    foreach ($sp in $searchPaths) {
-        $emacsExe = Get-ChildItem $sp -Recurse -Filter 'emacs.exe' -ErrorAction SilentlyContinue |
-            Sort-Object FullName -Descending | Select-Object -First 1 -ExpandProperty FullName
-        if ($emacsExe) { break }
-    }
-}
+$selectedEmacs = Get-DotfilesEmacsRuntime
+$emacsExe = $selectedEmacs.Executable
 if ($emacsExe) {
     $emacsBin = Split-Path $emacsExe
     if ($env:PATH -notlike "*$emacsBin*") {
@@ -116,7 +108,7 @@ if ($emacsExe) {
 }
 
 function Invoke-DoomSetupCommand([string]$Command) {
-    & $doomSetupInvoker -Command $Command -DoomDirectory $doomDir -EmacsExecutable $emacsExe -Force
+    & $doomSetupInvoker -Command $Command -DoomDirectory $doomDir -Force
 }
 
 # Install Doom if needed, then synchronize the declared configuration. Upgrades
@@ -155,18 +147,10 @@ if ($csharpierInstalled) {
 
 # Add Windows Explorer context menu entries using PowerShell registry commands
 Write-Host 'Setting up Windows Explorer context menu...' -ForegroundColor Cyan
-# Discover emacsclientw.exe — same directory as emacs.exe if found, otherwise scan
-$emacsClient = $null
-if ($emacsBin) {
-    $emacsClient = Join-Path $emacsBin 'emacsclientw.exe'
-    if (-not (Test-Path $emacsClient)) { $emacsClient = $null }
+$emacsClient = $selectedEmacs.GuiClient
+if (-not (Test-Path -LiteralPath $emacsClient)) {
+    throw 'The built Emacs GUI client is missing. Run scripts\build-emacs-windows.ps1.'
 }
-if (-not $emacsClient) {
-    $emacsClient = Get-Command emacsclientw.exe -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source
-}
-if (-not $emacsClient) {
-    Write-Host 'WARNING: emacsclientw.exe not found - skipping context menu setup' -ForegroundColor Yellow
-} else {
 Write-Host "  Using: $emacsClient" -ForegroundColor Gray
 
 # Helper to create registry key and set values
@@ -185,18 +169,18 @@ function Set-ContextMenu($keyPath, $label, $command) {
 }
 
 # Files - Open with Emacs
-Set-ContextMenu 'Software\Classes\*\shell\OpenWithEmacs' 'Open with Emacs' "`"$emacsClient`" -n `"%1`""
+$powershell = (Get-Command pwsh.exe -ErrorAction Stop).Source
+$clientCommand = "`"$powershell`" -NoProfile -WindowStyle Hidden -File `"$emacsWindowsLauncher`" -Client -Gui"
+Set-ContextMenu 'Software\Classes\*\shell\OpenWithEmacs' 'Open with Emacs' "$clientCommand -n `"%1`""
 Write-Host '  Added: Open with Emacs (files)' -ForegroundColor Green
 
 # Directories - Open in Emacs
-Set-ContextMenu 'Software\Classes\Directory\shell\OpenInEmacs' 'Open in Emacs' "`"$emacsClient`" -n `"%V`""
+Set-ContextMenu 'Software\Classes\Directory\shell\OpenInEmacs' 'Open in Emacs' "$clientCommand -n `"%V`""
 Write-Host '  Added: Open in Emacs (directories)' -ForegroundColor Green
 
 # Directory background - Open in Emacs
-Set-ContextMenu 'Software\Classes\Directory\Background\shell\OpenInEmacs' 'Open in Emacs' "`"$emacsClient`" -n `"%V`""
+Set-ContextMenu 'Software\Classes\Directory\Background\shell\OpenInEmacs' 'Open in Emacs' "$clientCommand -n `"%V`""
 Write-Host '  Added: Open in Emacs (folder background)' -ForegroundColor Green
-}
-
 Write-Host "`nDoom setup complete." -ForegroundColor Cyan
 '@
 

@@ -1,8 +1,9 @@
+#Requires -Version 7.3
 # Upgrade the packages and tools managed by this dotfiles checkout.
 
 $ErrorActionPreference = "Stop"
 $dotfilesDir = Split-Path -Parent $PSScriptRoot
-$doom = Join-Path $env:USERPROFILE ".config\emacs\bin\doom.ps1"
+$doom = Join-Path $PSScriptRoot 'invoke-doom.ps1'
 
 function Invoke-Native {
     param(
@@ -52,7 +53,7 @@ if (Get-Command Get-InstalledPSResource -ErrorAction SilentlyContinue) {
 }
 
 Write-Host "`n==> Doom Emacs and packages" -ForegroundColor Cyan
-Invoke-Native $doom @("upgrade")
+& $doom -Command upgrade
 
 Write-Host "`n==> Compiled worktree tool" -ForegroundColor Cyan
 & (Join-Path $PSScriptRoot "install-hack.ps1")

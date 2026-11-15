@@ -20,7 +20,9 @@ Bootstraps prerequisites (Git, Curl, Unzip), clones the repo to `~/Source/dotfil
 
 ### Windows
 
-Prerequisite: Developer Mode enabled (for symlinks) or run as Administrator.
+Prerequisites: PowerShell 7.3+ (`winget install Microsoft.PowerShell`) and
+Developer Mode enabled (for symlinks) or run as Administrator. Run the commands
+below from `pwsh`, not Windows PowerShell 5.1.
 
 ```powershell
 git clone https://github.com/mateialexandru/dotfiles C:\avd\dotfiles
@@ -43,17 +45,55 @@ Homebrew font casks, and Linux installs the same preset families under
 The Windows installer repairs PATH for an existing standard LLVM installation,
 and Doom setup runs synchronously with checked exit codes without appending to
 the public Emacs configuration. Bash language server is not required on Windows.
-When `EMACS_NATIVE_COMP_ROOT` selects an approved MinGW compiler runtime,
-Windows Doom setup and `sys doom sync|doctor` add its `bin` directory only to
-the Emacs process environment, limit native compilation to two workers, and
-surface nonzero Emacs exits. Doctor also checks native-comp availability.
-These commands do not download or update that runtime.
+Managed Windows commands always use the dotfiles-built Emacs, not a system
+installation. The existing installer builds or reuses it; source/bootstrap pins
+and native-comp/AOT options live in `scripts\build-emacs-windows.ps1`.
+
+```powershell
+.\scripts\build-emacs-windows.ps1       # build or reuse; optional -Jobs 4 / -Rebuild
+.\scripts\setup-doom.ps1                # normal Doom install/sync and launch integration
+.\scripts\test-build-emacs-windows.ps1 -Doom  # separate Doom/Ghostel/GUI smoke check
+```
+
+The pinned, unpatched upstream build and its isolated MSYS2 compiler live under
+ignored `.build\emacs\`, alongside logs and `accepted.json`. Bootstrap downloads
+are hash-verified; pacman signatures remain enabled. Initial toolchain setup
+performs a full update; later updates require `-UpdateTools` and a cleanly stopped
+source Emacs. Changed source/options/toolchain or build-recipe version trigger a
+new candidate; orchestration-only changes do not. Changed native tests revalidate
+the accepted binary without rebuilding it. Failed checks preserve acceptance.
+Building does not install or synchronize Doom.
+
+The matching compiler remains necessary for native compilation. The launcher
+sets its environment per invocation, never globally. It uses the last accepted
+build even after build inputs change. Doom's environment snapshot excludes PATH
+and compiler selection. For a daemon restart, save and quit normally, then:
+
+```powershell
+.\scripts\emacs-windows.ps1 -EmacsArguments @('--daemon')
+.\scripts\emacs-windows.ps1 -Client -Gui -EmacsArguments @('-c', '-n')
+```
+
+Shell helpers accept ordinary flags (`emacs --daemon`, `emacsclient -c -n`);
+the script takes `-EmacsArguments` to avoid PowerShell parameter binding.
+Use `-Gui -EmacsArguments @('-Q')` for a clean diagnostic window.
+Offline build/launcher regressions: `.\scripts\test-build-emacs-windows.ps1`.
 
 Doctor treats missing Defender exclusions as an advisory, not a broken install.
 Only with organizational approval, run `scripts\setup-doom.ps1 -AddDefenderExclusions`
 from an elevated shell to exclude the active Emacs installation and Doom runtime
 (including its symlink target). Existing exclusions are preserved, and rejected
 changes stop with an error. This does not change network protection.
+
+Windows health checks and the Doom wrapper refresh the child process PATH from
+the current user/machine settings while preserving process-only entries. They
+restore the caller's PATH and never change persistent PATH settings. This avoids
+reporting newly installed tools as missing from a terminal opened before installation.
+
+Doom Doctor uses upstream diagnostics without warning rewriting or advice.
+Some checks target optional or Unix-oriented tools; `scripts\doctor.ps1` verifies
+the Windows toolchain. `config/doom/cli.el` only keeps runtime-specific
+environment values out of Doom's snapshot.
 
 Gnuplot plotting is opt-in, because its WinGet installer declares machine scope.
 After reviewing an exact version and approving elevation, install just that tool:

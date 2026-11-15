@@ -149,14 +149,8 @@ try {
                 $setupText, [ref]$tokens, [ref]$setupErrors)
             Assert-True ($setupErrors.Count -eq 0) 'Embedded Doom setup must parse'
             Assert-True ($setupText -notmatch 'Add-Content') 'Setup must not append to the public config'
-            $invoke = $setupAst.Find({
-                param($node)
-                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-                $node.Name -eq 'Invoke-DoomSetupCommand'
-            }, $true)
             foreach ($exitCode in @(0, 1, 254)) {
                 & {
-                    . ([scriptblock]::Create($invoke.Extent.Text))
                     function Test-Emacs { $global:LASTEXITCODE = $exitCode }
                     $emacsExe = 'Test-Emacs'
                     $doomSetupInvoker = Join-Path $root 'invoke-doom.ps1'
@@ -164,9 +158,49 @@ try {
                     $doomBin = $root
                     $previousStep = $env:__DOOMSTEP
                     $failed = $false
-                    try { Invoke-DoomSetupCommand 'sync' } catch { $failed = $true }
+                    try { & $doomSetupInvoker -Command sync -DoomDirectory $doomDir -EmacsExecutable $emacsExe } catch { $failed = $true }
                     Assert-True ($failed -eq ($exitCode -ne 0)) "Lost Doom exit code $exitCode"
                     Assert-True ([string]$env:__DOOMSTEP -eq [string]$previousStep) 'Doom environment was not restored'
+                }
+            }
+            foreach ($continuationExit in @(0, 5)) {
+                & {
+                    $temporary = Join-Path ([IO.Path]::GetTempPath()) ("dotfiles-doom-test-" + [guid]::NewGuid().ToString('N'))
+                    New-Item -ItemType Directory -Path $temporary | Out-Null
+                    $previousTemp = $env:TEMP
+                    $previousStep = $env:__DOOMSTEP
+                    $previousPath = $env:PATH
+                    $global:DotfilesDoomCalls = 0
+                    $global:DotfilesDoomExit = $continuationExit
+                    function Test-Emacs {
+                        $global:DotfilesDoomCalls++
+                        if ($global:DotfilesDoomCalls -eq 1) {
+                            $continuation = Join-Path $env:TEMP "doom.$($env:__DOOMPID).$($env:__DOOMSTEP).ps1"
+                            Set-Content -LiteralPath $continuation -Value '$env:__DOOMSTEP = "1"; doom sync'
+                            $global:LASTEXITCODE = 254
+                        } else {
+                            $global:LASTEXITCODE = $global:DotfilesDoomExit
+                        }
+                    }
+                    try {
+                        $env:TEMP = $temporary
+                        $emacsExe = 'Test-Emacs'
+                        $doomSetupInvoker = Join-Path $root 'invoke-doom.ps1'
+                        $doomDir = $root
+                        $failed = $false
+                        try { & $doomSetupInvoker -Command sync -DoomDirectory $doomDir -EmacsExecutable $emacsExe } catch {
+                            $failed = $true
+                            Assert-True ($_.ToString() -match "exit $continuationExit") 'Continuation failure lost its exit code'
+                        }
+                        Assert-True ($global:DotfilesDoomCalls -eq 2) 'Doom continuation did not resume Emacs'
+                        Assert-True ($failed -eq ($continuationExit -ne 0)) 'Incorrect Doom continuation result'
+                        Assert-True ([string]$env:__DOOMSTEP -eq [string]$previousStep) 'Continuation context was not restored'
+                        Assert-True ($env:PATH -eq $previousPath) 'Continuation PATH was not restored'
+                    } finally {
+                        $env:TEMP = $previousTemp
+                        Remove-Item -LiteralPath $temporary -Recurse -Force
+                        Remove-Variable DotfilesDoomCalls, DotfilesDoomExit -Scope Global
+                    }
                 }
             }
         }

@@ -1,3 +1,4 @@
+#Requires -Version 7.3
 # scripts/doctor.ps1
 # Validates Doom Emacs prerequisites are installed and configured correctly
 
@@ -8,9 +9,14 @@ param(
 
 . "$PSScriptRoot\emacs-paths.ps1"
 
+$initialProcessPath = $env:PATH
+try {
+$env:PATH = Get-DotfilesProcessPath
+$selectedEmacs = Get-DotfilesEmacsRuntime
+
 # Tool definitions - easily expandable
 $coreTools = @(
-    @{ Name = "emacs"; Fix = "winget install GNU.Emacs" }
+    @{ Name = "emacs"; Fix = "& `"$PSScriptRoot\build-emacs-windows.ps1`"" }
     @{ Name = "rg"; Fix = "winget install BurntSushi.ripgrep.MSVC" }
     @{ Name = "fd"; Fix = "winget install sharkdp.fd" }
     @{ Name = "clangd"; Fix = "winget install LLVM.clangd" }
@@ -107,7 +113,7 @@ function Find-RoslynLsp {
 function Get-ToolVersion($name) {
     try {
         $output = switch ($name) {
-            "emacs" { & emacs --version 2>$null | Select-Object -First 1 }
+            "emacs" { Invoke-DotfilesEmacs -Arguments @('--version') | Select-Object -First 1 }
             "node" { & node --version 2>$null }
             "npm" { & npm --version 2>$null }
             "dotnet" { & dotnet --version 2>$null }
@@ -173,7 +179,9 @@ function Get-ToolVersion($name) {
 
 function Test-Tool($tool) {
     # Special cases for tools not in PATH
-    if ($tool.Name -eq "plantuml") {
+    if ($tool.Name -eq "emacs") {
+        $exists = Test-Path -LiteralPath $selectedEmacs.Executable
+    } elseif ($tool.Name -eq "plantuml") {
         $jar = "$env:LOCALAPPDATA\plantuml\plantuml.jar"
         $exists = Test-Path $jar
     } elseif ($tool.Name -eq "java") {
@@ -371,13 +379,8 @@ function Test-EmacsCapability($name, $expression, $remedy) {
     $oldPath = $env:PATH
     $exitCode = 1
     try {
-        $nativeRoot = $env:EMACS_NATIVE_COMP_ROOT
-        if (-not $nativeRoot) {
-            $nativeRoot = [Environment]::GetEnvironmentVariable('EMACS_NATIVE_COMP_ROOT', 'User')
-        }
-        if ($nativeRoot) { $env:PATH = "$(Join-Path $nativeRoot 'bin');$env:PATH" }
-        & emacs --quick --batch --eval $expression 2>$null
-        $exitCode = $LASTEXITCODE
+        Invoke-DotfilesEmacs -Arguments @('--quick', '--batch', '--eval', $expression)
+        $exitCode = 0
     } catch {
         Write-Warning "Could not check ${name}: $($_.Exception.Message)"
     } finally {
@@ -424,16 +427,13 @@ Write-Host "Environment" -ForegroundColor White
 Test-Environment
 Test-EmacsCapability "Emacs file notifications" `
     '(unless (and (require (quote filenotify) nil t) (fboundp (quote file-notify-add-watch))) (kill-emacs 1))' `
-    "Install the current GNU.Emacs winget build"
+    "Run scripts\build-emacs-windows.ps1 to rebuild Emacs"
 Test-EmacsCapability "Emacs SVG images" `
     '(unless (image-type-available-p (quote svg)) (kill-emacs 1))' `
-    "Install a GNU Emacs build with SVG support"
-if ($env:EMACS_NATIVE_COMP_ROOT -or
-    [Environment]::GetEnvironmentVariable('EMACS_NATIVE_COMP_ROOT', 'User')) {
-    Test-EmacsCapability "Emacs native compilation" `
-        '(unless (native-comp-available-p) (kill-emacs 1))' `
-        "Repair the approved compiler runtime selected by EMACS_NATIVE_COMP_ROOT"
-}
+    "Run scripts\build-emacs-windows.ps1 to rebuild Emacs"
+Test-EmacsCapability "Emacs native compilation" `
+    '(unless (native-comp-available-p) (kill-emacs 1))' `
+    "Run scripts\build-emacs-windows.ps1 to repair the native compiler runtime"
 Write-Host ""
 
 Write-Host "Performance" -ForegroundColor White
@@ -461,3 +461,6 @@ if ($script:failed -gt 0) {
     exit 1
 }
 exit 0
+} finally {
+    $env:PATH = $initialProcessPath
+}
