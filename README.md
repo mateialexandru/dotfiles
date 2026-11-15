@@ -158,6 +158,10 @@ The Doom font presets are installed for the current user from their upstream
 font archives; fonts already available on the machine are reused. macOS uses
 Homebrew font casks, and Linux installs the same preset families under
 `~/.local/share/fonts`.
+The `prose-libron` Fontaine preset pairs JetBrains Mono for code with
+[Libron](https://github.com/nicoverbruggen/libron/releases) for Org and Markdown
+body text. The installers add Libron for the current user; select the preset
+with `SPC t F`. It does not change the default coding font.
 
 The Windows installer repairs PATH for an existing standard LLVM installation,
 and Doom setup runs synchronously with checked exit codes without appending to

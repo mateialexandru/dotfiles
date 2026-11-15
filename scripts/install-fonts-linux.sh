@@ -10,6 +10,7 @@
 #   Inter/        UI variable-pitch from rsms/inter
 #   IBMPlexMono/  IBM/plex-mono latest release
 #   IBMPlexSans/  IBM/plex-sans latest release
+#   Libron/       Desktop TTFs from nicoverbruggen/libron
 
 set -euo pipefail
 
@@ -78,6 +79,12 @@ install_zip "IBM Plex Mono $PLEX_MONO_VERSION" \
 install_zip "IBM Plex Sans $PLEX_SANS_VERSION" \
     "https://github.com/IBM/plex/releases/download/%40ibm/plex-sans%40${PLEX_SANS_VERSION}/ibm-plex-sans.zip" \
     "$FONT_DIR/IBMPlexSans"
+
+# --- Libron (serif body text for the prose-libron Fontaine preset) ---
+LIBRON_VERSION="${LIBRON_VERSION:-v0.25}"
+install_zip "Libron $LIBRON_VERSION" \
+    "https://github.com/nicoverbruggen/libron/releases/download/$LIBRON_VERSION/Libron.zip" \
+    "$FONT_DIR/Libron"
 
 # --- Iosevka Aile / Etoile (latest from be5invis/Iosevka; version moves fast,
 #     so resolve the asset URL via the GitHub releases API rather than pin).

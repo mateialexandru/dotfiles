@@ -179,6 +179,8 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
 		font-ibm-plex-sans \
 		font-inter \
 		font-symbols-only-nerd-font
+	# Libron is released as desktop TTF files, not a Homebrew font cask.
+	bash "$DOTFILES_DIR/scripts/install-libron-macos.sh"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
 	# Userspace install into ~/.local/share/fonts — works on immutable hosts
 	# (Bluefin/rpm-ostree) without root or reboot. Idempotent.

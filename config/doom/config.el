@@ -1155,6 +1155,12 @@ Renames the .excalidraw source and both SVG exports."
   "MRU list of fontaine presets, most recent first.
 Updated only on explicit commits (preview scrolls don't pollute it).")
 
+          (prose-libron             ; JetBrains Mono for code + Libron for reading
+           :default-family "JetBrainsMono NF"
+           :default-height 145
+           :variable-pitch-family "Libron"
+           :variable-pitch-height 1.15
+           :line-spacing 0.25)
 (defun my/fontaine--push-history (preset)
   "Push PRESET onto `my/fontaine-preset-history', dedup, cap at 5."
   (when preset
