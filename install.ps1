@@ -54,7 +54,11 @@ if ($env:SYS_SKIP_SELF_INSTALL -eq "1") {
     & (Join-Path $scriptsDir "install-sys.ps1")
 }
 
-# 8. Git performance settings (Windows-specific)
+# 8. Shared editor navigation and coding-session skills
+Write-Host "`n--- Shared editor and agent skills ---" -ForegroundColor Cyan
+& (Join-Path $scriptsDir "install-skills.ps1")
+
+# 9. Git performance settings (Windows-specific)
 Write-Host "`n--- Git performance ---" -ForegroundColor Cyan
 git config --global core.preloadindex true
 git config --global core.fscache true

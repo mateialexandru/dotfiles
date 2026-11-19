@@ -524,6 +524,18 @@ checkout roots without exposing their paths here. Normal commands read
 `~/.cache/hack/repos`; an unknown name triggers one filesystem-only refresh, so Windows
 does not pay for a directory walk or a series of Git processes on every invocation.
 
+## Editor and session skills on Windows
+
+The Windows installer installs the shared `/emacs` skill for Copilot
+and Claude, and records the public checkout in `DOOM_DOTFILES_DIR`.
+Run `.\scripts\install-skills.ps1 -Force` to refresh installed copies after
+reviewing local edits, or `-Check` for read-only hash verification.
+
+`/emacs` uses `scripts\open-in-emacs.ps1` for file/line navigation, saved patches,
+and Magit status, staged, unstaged or revision-range views in the existing daemon.
+It preserves unsaved buffers and creates a client frame only when no GUI exists;
+it never starts a daemon, saves files or changes Git state.
+
 ## Mermaid diagrams in Emacs
 
 Mermaid is rendered locally with `mmdc`; diagram source is never sent to a
