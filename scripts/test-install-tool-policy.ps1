@@ -245,6 +245,65 @@ try {
             }
         }
         if ($scriptPath -like '*install-prerequisites.ps1') {
+            $notifications = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.IfStatementAst] -and
+                $node.Extent.Text.StartsWith('if (-not (Get-Module -ListAvailable BurntToast))')
+            }, $true)
+            Assert-True ($null -ne $notifications) 'BurntToast provisioning block not found'
+            foreach ($case in @('existing', 'nuget', 'legacy', 'no-feed', 'untrusted', 'blocked', 'not-visible')) {
+                & {
+                    $script:burntToastInstalled = $case -eq 'existing'
+                    $script:burntToastInstalls = 0
+                    $script:burntToastQueries = 0
+                    function Get-Module {
+                        if ($script:burntToastInstalled) { [pscustomobject]@{ Name = 'BurntToast'; Version = '1.1.0' } }
+                    }
+                    function Get-Command {
+                        if ($case -ne 'legacy') { [pscustomobject]@{ Name = 'Install-PSResource' } }
+                    }
+                    function Get-PSResourceRepository {
+                        $script:burntToastQueries++
+                        [pscustomobject]@{ Name = 'Containers'; ApiVersion = 'ContainerRegistry'; Priority = 0; Trusted = $true }
+                        if ($case -ne 'no-feed') {
+                            [pscustomobject]@{ Name = 'ApprovedModules'; ApiVersion = 'V3'; Priority = 2; Trusted = ($case -ne 'untrusted') }
+                            [pscustomobject]@{ Name = 'PriorityModules'; ApiVersion = 'V2'; Priority = 1; Trusted = ($case -eq 'nuget') }
+                        }
+                    }
+                    function Get-PSRepository {
+                        $script:burntToastQueries++
+                        [pscustomobject]@{ Name = 'ApprovedModules'; InstallationPolicy = 'Trusted' }
+                        [pscustomobject]@{ Name = 'Untrusted'; InstallationPolicy = 'Untrusted' }
+                    }
+                    function Install-PSResource($Name, $Repository, $Scope, $ErrorAction, [switch]$TrustRepository) {
+                        Assert-True ($Name -eq 'BurntToast' -and $Scope -eq 'CurrentUser') 'Unexpected module install'
+                        $expectedRepositories = if ($case -eq 'nuget') { 'PriorityModules,ApprovedModules' } else { 'ApprovedModules' }
+                        Assert-True (($Repository -join ',') -eq $expectedRepositories) 'Only trusted NuGet module feeds may be selected, in priority order'
+                        Assert-True (-not $TrustRepository) 'Installer must not override repository trust'
+                        Assert-True ($ErrorAction -eq 'Stop') 'Module download failures must be terminating'
+                        $script:burntToastInstalls++
+                        if ($case -eq 'blocked') { throw 'Simulated feed failure' }
+                        $script:burntToastInstalled = $case -ne 'not-visible'
+                    }
+                    function Install-Module($Name, $Repository, $Scope, $ErrorAction, [switch]$Force) {
+                        Assert-True (-not $Force) 'Legacy module install must not force a reinstall'
+                        Install-PSResource -Name $Name -Repository $Repository -Scope $Scope -ErrorAction $ErrorAction
+                    }
+                    $failure = $null
+                    try { . ([scriptblock]::Create($notifications.Extent.Text)) } catch { $failure = $_ }
+                    Assert-True (($null -ne $failure) -eq ($case -in @('no-feed', 'untrusted', 'blocked', 'not-visible'))) `
+                        "Unexpected BurntToast result for $case : $failure"
+                    $expectedInstalls = if ($case -in @('existing', 'no-feed', 'untrusted')) { 0 } else { 1 }
+                    Assert-True ($script:burntToastInstalls -eq $expectedInstalls) "Unexpected module downloads for $case"
+                    if ($case -eq 'existing') {
+                        Assert-True ($script:burntToastQueries -eq 0) 'Existing BurntToast must not query any feed'
+                    }
+                    if ($case -eq 'blocked') {
+                        Assert-True ("$failure" -match 'Simulated feed failure') 'Feed errors must not be masked or retried'
+                    }
+                }
+                Write-Host "PASS: BurntToast $case"
+            }
             # Exercise the actual loop without executing the rest of the installer.
             $loop = $ast.Find({
                 param($node)

@@ -175,6 +175,12 @@ read-only verification. `-PythonSeries 3.14` changes the series provisioned
 **only when no suitable runtime exists**; upgrades remain explicit.
 Other installer stages can still rebuild or provision tools; this is not an
 offline or universally non-admin operation.
+An existing BurntToast notification module is reused. If it is missing, Windows
+provisioning explicitly selects configured, trusted NuGet module feeds (in
+PSResourceGet priority order), excluding container registries. It does not add
+PSGallery, change repository trust, or fall back to another source after a
+download failure. Feed failures remain fatal rather than silently dropping
+notification support.
 The Doom font presets are installed for the current user from their upstream
 font archives; only matching font files are extracted, and fonts already
 available on the machine are reused. macOS uses
@@ -451,6 +457,9 @@ The installers build one native command for routine operations on every platform
 sys install
 sys update
 sys check
+sys status
+sys status <provider>
+sys check <provider>
 sys doom sync
 sys doom doctor
 ```
@@ -460,11 +469,33 @@ tool ecosystems already under management, and `check` validates the complete set
 Doom's narrower operations live under `sys doom`. `sys update` deliberately does not
 pull this repository; choosing and integrating Git changes remains explicit.
 
-`sys restart` closes every Emacs process, starts one fresh launchd daemon, and
-opens Emacs Client.app connected to it. The restart countdown lets you save
-work in standalone windows before they close. `sys llm` also
-exposes a macOS-specific service; other
-platforms receive an unsupported-operation error. Set `SYS_DOTFILES_DIR` only when the
+Private overlays can register read-only status/check providers without adding
+private code to this repository. Link a directory under
+`~/.config/sys/providers.d/<name>` containing `status.ps1` and `check.ps1` on
+Windows, or `status.sh` and `check.sh` on Unix. Names use ASCII letters, digits,
+hyphens or underscores. Providers inherit output, receive no arguments/input,
+and must not install, start services, or change configuration. Exit zero for
+healthy/advisory states and nonzero for failures. `sys status` runs all registered
+providers; `sys check` runs the platform baseline and every provider, retaining
+failures without suppressing later results. Selecting a provider skips the baseline.
+An absent provider registry is valid; broken registrations fail explicitly.
+`SYS_CONFIG_DIR` overrides `~/.config/sys`. Each provider has a 15-second deadline
+(`SYS_PROVIDER_TIMEOUT_SECONDS`, 1-300); providers must bound their own I/O and
+must not leave subprocesses behind. Only register trusted local scripts.
+
+`sys restart` notifies you, waits 10 seconds, saves modified file-backed buffers,
+then restarts Emacs and reconnects a GUI frame. Use `sys restart 30` for more
+time or `sys restart 0` for no countdown. Windows accepts 0-3600 seconds and uses
+BurntToast (installed by prerequisites); Ctrl+C during the countdown cancels.
+On Windows it identifies the managed daemon through its server file, stops only
+that PID, and uses the accepted source build and matching clients. A failed save
+aborts before shutdown; shutdown gets 10 seconds before that PID is force-stopped.
+Non-file buffers and running tasks do not survive restart. The daemon must be
+reachable to identify it safely; an unreachable daemon fails without guessing
+which process to kill. On macOS it closes every Emacs process and restarts the
+launchd service; save standalone-window edits before the countdown ends.
+Linux restart is not supported. `sys llm` remains macOS-only.
+Set `SYS_DOTFILES_DIR` only when the
 checkout does not live at the conventional `~/Source/dotfiles` location.
 
 ## Trying Nushell

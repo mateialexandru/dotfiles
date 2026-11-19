@@ -53,6 +53,21 @@ The top-level vocabulary describes whole-system intent:
   and the compiled `hack` helper, then checks the result;
 - `check` validates the complete environment without changing it.
 
+Read-only provider extension (2026-11-18): `status [provider]` runs registered
+local status scripts; `check [provider]` either selects one provider or combines
+the platform baseline with all registered checks. Registration is a directory
+(typically a junction/symlink owned by an overlay installer) in
+`~/.config/sys/providers.d/<name>`, with platform-specific `status.ps1`/`check.ps1`
+or `status.sh`/`check.sh` entry points. Public sys knows no private checkout,
+endpoint or credentials. Provider scripts own their domain logic and print plain
+health/advisory/failure lines. Paused/optional/unprepared states are advisory,
+not claims of readiness. A provider failure never suppresses later checks.
+The CLI validates provider names, disables interactive input and enforces a
+15-second per-provider deadline. `SYS_CONFIG_DIR` supports other registry
+locations; `SYS_PROVIDER_TIMEOUT_SECONDS` permits 1-300 seconds. Only trusted
+scripts should be registered; providers must bound I/O and not launch background
+processes. This preserves the dependency-free CLI and platform script boundary.
+
 Doom-only operations are namespaced as `doom sync` and `doom doctor`; `restart`,
 `vanilla`, and `llm` remain focused operational commands. `update` deliberately does not
 pull the dotfiles repository: selecting and integrating source changes remains an
@@ -70,7 +85,7 @@ The name moved from `atelier` to `keeper`, then to the deliberately plain `sys`:
 easy to type, and accurate for a tool operating the configured system. `hack` remains a
 separate tool because repository/worktree management is a distinct concern.
 
-`restart` invokes `scripts/restart-emacs-mac.sh` and converges on one daemon
+On macOS, `restart` invokes `scripts/restart-emacs-mac.sh` and converges on one daemon
 with a client frame:
 
 1. **Warn and save.** Notify, wait the requested countdown (10 seconds by
@@ -88,6 +103,22 @@ Installation replaces the bundled Emacs Client.app AppleScript, which calls
 only to the verified TCP server and never falls back to a second Emacs.
 Calls that might hang use a perl-`alarm` timeout because stock macOS lacks
 coreutils `timeout`.
+
+On Windows, `restart [seconds]` invokes `scripts/restart-emacs-windows.ps1`.
+It posts a BurntToast notification and waits 10 seconds by default (0-3600
+accepted; Ctrl+C cancels during the wait). The explicit managed server file
+identifies an Emacs PID in the current Windows session. A separate per-user
+restart mutex rejects overlapping restarts. After the countdown, file-backed
+buffers are saved in a bounded client call; a save failure aborts without
+queueing a shutdown. Each mutating client expression rechecks the daemon PID.
+Shutdown suppresses confirmation prompts and allows 10 seconds before force-stopping
+only that verified PID. A stop failure never starts a replacement.
+The existing launch-lock-protected Doom launcher selects the accepted source
+build, waits for readiness, and connects its matching GUI client. Restart
+verifies a new daemon PID and a visible graphical frame. Unrelated Emacs
+processes are never stopped. An unreachable daemon cannot be safely identified
+and fails without launching a duplicate. Non-file buffers and running jobs
+are not preserved. Linux restart remains unsupported.
 
 ### `sys check` (`scripts/sys-health.sh`)
 

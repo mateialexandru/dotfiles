@@ -27,6 +27,10 @@ through PowerShell 7.3+. Compiler/PATH settings are process-local. Launching doe
 not compare current pins with the receipt: editing build inputs must not prevent
 connecting to an existing daemon. Save/quit/start is the daemon workflow.
 
-There is no stock selector, restart manager, local Emacs patch stack, portable
+`sys restart [seconds]` provides notification, countdown, file-buffer saves and
+managed-daemon restart on Windows (ADR-012). It reuses this accepted runtime and
+the launch-lock-protected Doom launcher; it is not an always-running supervisor.
+
+There is no stock selector, background restart manager, local Emacs patch stack, portable
 distribution or release service. MSYS2/compiler upgrades may invalidate older
 builds, so rebuilding is required; rolling dependencies are not bit-reproducible.

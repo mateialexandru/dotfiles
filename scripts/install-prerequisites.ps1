@@ -126,9 +126,25 @@ Write-Host "  Excalidraw: associate .excalidraw files with the Chrome PWA once i
 if (-not (Get-Module -ListAvailable BurntToast)) {
     Write-Host "`nInstalling BurntToast..." -ForegroundColor Cyan
     if (Get-Command Install-PSResource -ErrorAction SilentlyContinue) {
-        Install-PSResource BurntToast -Scope CurrentUser -TrustRepository
+        $moduleRepositories = @(Get-PSResourceRepository |
+            Where-Object { $_.Trusted -and $_.ApiVersion -in @('V2', 'V3') } |
+            Sort-Object Priority)
+        if (-not $moduleRepositories.Count) {
+            throw 'BurntToast is missing and no trusted NuGet PowerShell repository is configured. Configure an approved module feed before retrying.'
+        }
+        Install-PSResource -Name BurntToast -Repository $moduleRepositories.Name `
+            -Scope CurrentUser -ErrorAction Stop
     } else {
-        Install-Module BurntToast -Scope CurrentUser -Force
+        $moduleRepositories = @(Get-PSRepository |
+            Where-Object { $_.InstallationPolicy -eq 'Trusted' })
+        if (-not $moduleRepositories.Count) {
+            throw 'BurntToast is missing and no trusted PowerShell repository is configured. Configure an approved module feed before retrying.'
+        }
+        Install-Module -Name BurntToast -Repository $moduleRepositories.Name `
+            -Scope CurrentUser -ErrorAction Stop
+    }
+    if (-not (Get-Module -ListAvailable BurntToast)) {
+        throw 'BurntToast installation returned without a discoverable module. Check PSModulePath and the approved feed before retrying.'
     }
 }
 
