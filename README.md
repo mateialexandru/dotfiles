@@ -526,7 +526,7 @@ does not pay for a directory walk or a series of Git processes on every invocati
 
 ## Editor and session skills on Windows
 
-The Windows installer installs the shared `/emacs` skill for Copilot
+The Windows installer installs shared `/emacs` and `/launch` skills for Copilot
 and Claude, and records the public checkout in `DOOM_DOTFILES_DIR`.
 Run `.\scripts\install-skills.ps1 -Force` to refresh installed copies after
 reviewing local edits, or `-Check` for read-only hash verification.
@@ -535,6 +535,18 @@ reviewing local edits, or `-Check` for read-only hash verification.
 and Magit status, staged, unstaged or revision-range views in the existing daemon.
 It preserves unsaved buffers and creates a client frame only when no GUI exists;
 it never starts a daemon, saves files or changes Git state.
+
+`/launch` opens an existing directory or `repo/task` under `HACK_WORKTREE_ROOT`
+(default `~/worktree`). `scripts\launch-session.ps1` starts a new PowerShell
+session with `copilot`, or `claude` when invoked from Claude Code. Explicit
+`-Command` and `-CommandArguments` support other installed tools. No permission
+bypass, organization or MCP arguments are added by default. Launching does not
+create worktrees or modify branches.
+
+Private setup may set `DOTFILES_LAUNCHER` to its own launcher script. The skill
+delegates the requested argument unchanged to that override, which owns private
+aliases, repository context and optional agent arguments. Missing overrides fail
+explicitly. Keep those settings and paths outside this public repository.
 
 ## Mermaid diagrams in Emacs
 

@@ -55,3 +55,11 @@ the freshly fetched remote base.
 - No fuzzy picker. Zoxide and editor project navigation already solve navigation.
 - No PR/provider integration.
 - No forced removal of dirty or unmerged work.
+
+## Separate session integration
+
+Windows dotfiles owns the generic `/launch` and `/emacs` skills and their
+PowerShell helpers. They open existing directories/editor views without
+extending Hack's Git responsibilities. The optional `DOTFILES_LAUNCHER` script
+override owns private aliases and agent configuration; the public launcher adds
+no organization, MCP or permission-bypass defaults.
