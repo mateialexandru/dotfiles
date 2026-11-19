@@ -167,6 +167,51 @@ try {
             }
             Write-Host "PASS: build $case"
         }
+        New-Item -ItemType File -Path "$msys\.dotfiles-initialized" -Force | Out-Null
+        $case = 'pending'
+        function Invoke-EmacsBuildStage {
+            param($Stage, $Extra)
+            $script:calls += $Stage
+            if ($Stage -eq 'dependencies') { Set-Variable bash 'Test-Inventory' -Scope 1 }
+            if ($Stage -eq 'build') {
+                New-Item -ItemType Directory -Path "$($Extra[0])\install\bin" -Force | Out-Null
+                Set-Content -LiteralPath "$($Extra[0])\install\bin\emacs.exe" 'completed candidate'
+            }
+        }
+        function Invoke-BuildNative {
+            param($Executable, $Arguments)
+            $script:calls += 'validate'
+            throw 'Fixture TLS validation failure'
+        }
+        $beforeReceipt = Get-Content $accepted -Raw
+        foreach ($attempt in @('first', 'retry', 'changed-tests', 'changed-inputs', 'corrupt', 'reinitialized', 'forced')) {
+            $pendingPath = Join-Path $root 'pending.json'
+            if ($attempt -eq 'changed-tests') {
+                Add-Content "$fixture\scripts\test-emacs-windows.el" ';; fixed TLS state'
+            }
+            if ($attempt -in @('changed-inputs', 'corrupt', 'reinitialized')) {
+                $pending = Get-Content $pendingPath -Raw | ConvertFrom-Json
+                switch ($attempt) {
+                    'changed-inputs' { $pending.identity = 'different-recipe' }
+                    'corrupt' { Set-Content -LiteralPath $pending.executable 'corrupted candidate' }
+                    'reinitialized' { $pending.completedAt = '2000-01-01T00:00:00Z' }
+                }
+                $pending | ConvertTo-Json | Set-Content $pendingPath
+            }
+            $script:calls = @()
+            $failure = $null
+            try { Invoke-EmacsBuild -Rebuild:($attempt -eq 'forced') } catch { $failure = $_ }
+            Assert-True ($failure -match 'Fixture TLS validation failure') "Unexpected pending $attempt failure: $failure"
+            $expected = if ($attempt -in @('retry', 'changed-tests')) {
+                'dependencies,validate'
+            } else {
+                'dependencies,source,build,validate'
+            }
+            Assert-True (($script:calls -join ',') -eq $expected) "Unexpected pending $attempt stages: $script:calls"
+            Assert-True (Test-Path $pendingPath) 'Validation failure lost the completed candidate'
+            Assert-True ((Get-Content $accepted -Raw) -eq $beforeReceipt) 'Pending candidate replaced accepted build'
+            Write-Host "PASS: pending candidate $attempt"
+        }
         Remove-Item -LiteralPath $msys -Recurse -Force
         function Invoke-WebRequest {
             param($Uri, $OutFile)
@@ -199,14 +244,18 @@ try {
         Assert-True ($runtime.Executable -eq $hostExe) 'Launch depends on current build configuration'
         $argumentsFile = "$fixture\arguments.ps1"
         Set-Content $argumentsFile @'
-param([string]$PathValue, [string]$QuotedValue, [int]$Result)
+param([string]$PathValue, [string]$QuotedValue, [int]$Result, [string]$ExpectedServer)
 if ($PathValue -cne 'C:\space path\' -or $QuotedValue -cne 'say "hi"') { exit 2 }
 if (-not $env:EMACS_NATIVE_COMP_ROOT -or "$env:EMACS_NATIVE_COMP_ROOT\bin" -notin ($env:PATH -split ';')) { exit 3 }
+if ($ExpectedServer -and $env:EMACS_SERVER_FILE -cne $ExpectedServer) { exit 4 }
 'captured-output'
 exit $Result
 '@
         function Get-DotfilesEmacsRuntime {
-            [pscustomobject]@{ Executable = $hostExe; GuiExecutable = $hostExe; CompilerRoot = "$fixture\compiler" }
+            [pscustomobject]@{
+                Executable = $hostExe; GuiExecutable = $hostExe
+                Client = $hostExe; GuiClient = $hostExe; CompilerRoot = "$fixture\compiler"
+            }
         }
         $arguments = @('-NoProfile', '-File', $argumentsFile, '-PathValue', 'C:\space path\',
             '-QuotedValue', 'say "hi"', '-Result')
@@ -220,6 +269,20 @@ exit $Result
             Assert-True $failed 'Process failure was hidden'
             Assert-True ($env:PATH -eq $beforePath -and $env:EMACS_NATIVE_COMP_ROOT -eq $beforeCompiler) 'Launcher leaked environment'
         }
+        $beforeServer = $env:EMACS_SERVER_FILE
+        try {
+            foreach ($configuredServer in @('', 'C:\custom server\connection')) {
+                $env:EMACS_SERVER_FILE = $configuredServer
+                $expectedServer = if ($configuredServer) { $configuredServer } else {
+                    Join-Path $env:USERPROFILE '.config\emacs\server\server'
+                }
+                foreach ($gui in @($false, $true)) {
+                    Invoke-DotfilesEmacs -Client -Gui:$gui -Arguments (
+                        $arguments + @('0', '-ExpectedServer', $expectedServer)) | Out-Null
+                    Assert-True ([string]$env:EMACS_SERVER_FILE -ceq $configuredServer) 'Client leaked server discovery settings'
+                }
+            }
+        } finally { $env:EMACS_SERVER_FILE = $beforeServer }
         $env:PATH = "C:\DotfilesSessionFixture;C:\DotfilesSessionFixture\;$env:PATH"
         try {
             $actual = Get-DotfilesProcessPath
@@ -228,6 +291,125 @@ exit $Result
                 $actual -eq (Get-DotfilesProcessPath)) 'PATH refresh lost session overrides or is not idempotent'
         } finally { $env:PATH = $beforePath }
         Write-Host 'PASS: accepted runtime, console/GUI arguments, output, failures, environment and PATH'
+    }
+    & {
+        . "$fixture\scripts\emacs-windows.ps1"
+        $hostExe = (Get-Process -Id $PID).Path
+        $previousProfile = $env:USERPROFILE
+        $env:USERPROFILE = Join-Path $fixture 'daemon home with spaces'
+        $doomDirectory = Join-Path $env:USERPROFILE '.config\emacs'
+        New-Item -ItemType Directory -Path $doomDirectory -Force | Out-Null
+        New-Item -ItemType File -Path "$doomDirectory\early-init.el" | Out-Null
+        $launches = [Collections.Generic.List[object]]::new()
+        $probes = [Collections.Generic.Queue[bool]]::new()
+        $probeTimeouts = [Collections.Generic.List[int]]::new()
+        function Get-DotfilesEmacsRuntime {
+            [pscustomobject]@{ Client = $hostExe; GuiClient = $hostExe }
+        }
+        function Test-DotfilesDoomServer {
+            param($ClientPath, $ServerFile, $TimeoutMilliseconds)
+            Assert-True ($ServerFile -eq "$doomDirectory\server\server") 'Probe used the wrong Doom server'
+            $probeTimeouts.Add($TimeoutMilliseconds)
+            return $probes.Dequeue()
+        }
+        function Invoke-DotfilesEmacs {
+            param([switch]$Client, [switch]$Gui, [string[]]$Arguments)
+            $launches.Add([pscustomobject]@{ Client = $Client; Gui = $Gui; Arguments = $Arguments })
+            if (-not $Client) { return $PID }
+        }
+        try {
+            foreach ($states in @(@($true), @($false, $false, $true))) {
+                $launches.Clear()
+                $probeTimeouts.Clear()
+                foreach ($state in $states) { $probes.Enqueue($state) }
+                Open-DotfilesDoom
+                Assert-True ($probeTimeouts[0] -eq 120000) 'Existing server was not given the full readiness timeout'
+                Assert-True ($launches.Count -eq $(if ($states[0]) { 1 } else { 2 })) 'Doom started an unnecessary daemon or omitted startup'
+                $clientLaunch = $launches[$launches.Count - 1]
+                Assert-True ($clientLaunch.Client -and $clientLaunch.Gui -and
+                    ($clientLaunch.Arguments -join '|') -ceq "--server-file|$doomDirectory\server\server|-c|-n") 'Doom did not open a client on its explicit server'
+                if (-not $states[0]) {
+                    Assert-True (($launches[0].Arguments -join '|') -ceq "--daemon|--init-directory=$doomDirectory") 'Daemon lost its explicit Doom init directory'
+                    Assert-True ($probeTimeouts.Count -eq 3 -and
+                        $probeTimeouts[1] -gt 5000 -and $probeTimeouts[1] -le 120000 -and
+                        $probeTimeouts[2] -lt $probeTimeouts[1]) 'Cold startup probes did not share the remaining readiness budget'
+                }
+            }
+            $launches.Clear()
+            $probes.Enqueue($false)
+            $failed = $false
+            try { Open-DotfilesDoom -StartupTimeoutSeconds 0 } catch { $failed = $_ -match 'timed out' }
+            Assert-True ($failed -and $launches.Count -eq 1 -and -not $launches[0].Client) 'Startup timeout was hidden or opened a client too early'
+            function Test-DotfilesDoomServer { throw 'Existing server did not respond' }
+            $launches.Clear()
+            $failed = $false
+            try { Open-DotfilesDoom } catch { $failed = $_ -match 'Existing server did not respond' }
+            Assert-True ($failed -and $launches.Count -eq 0) 'An unresponsive server triggered a duplicate daemon'
+            Write-Host 'PASS: Doom server reuse, cold start, readiness, explicit paths, timeout and unresponsive-server safety'
+        } finally { $env:USERPROFILE = $previousProfile }
+    }
+    & {
+        $shortcutRoot = Join-Path $fixture 'shortcut repo with spaces'
+        $programs = Join-Path $shortcutRoot 'Programs'
+        $homeDirectory = Join-Path $shortcutRoot 'user home'
+        $doomDirectory = Join-Path $homeDirectory '.config\emacs'
+        $compiler = Join-Path $shortcutRoot 'compiler'
+        $receiptPath = Join-Path $shortcutRoot '.build\emacs\accepted.json'
+        $previousProfile = $env:USERPROFILE
+        $process = $null
+        try {
+            New-Item -ItemType Directory -Path "$shortcutRoot\scripts", (Split-Path $receiptPath),
+                $doomDirectory, "$compiler\bin" -Force | Out-Null
+            Copy-Item "$PSScriptRoot\install-emacs-shortcut.ps1", "$PSScriptRoot\emacs-windows.ps1" "$shortcutRoot\scripts"
+            New-Item -ItemType File -Path "$compiler\bin\libgccjit-0.dll", "$doomDirectory\early-init.el" | Out-Null
+            $env:USERPROFILE = $homeDirectory
+            $shell = New-Object -ComObject WScript.Shell
+            $shortcutPath = Join-Path $programs 'Doom Emacs.lnk'
+            $expectedArguments = "-NoLogo -NoProfile -WindowStyle Hidden -File `"$shortcutRoot\scripts\emacs-windows.ps1`" -DoomClient"
+            foreach ($build in @('first build', 'replacement build')) {
+                New-Item -ItemType Directory -Path "$shortcutRoot\$build" | Out-Null
+                New-Item -ItemType File -Path "$shortcutRoot\$build\emacs.exe", "$shortcutRoot\$build\runemacs.exe",
+                    "$shortcutRoot\$build\emacsclient.exe", "$shortcutRoot\$build\emacsclientw.exe" | Out-Null
+                @{ executable = "$shortcutRoot\$build\emacs.exe"; compilerRoot = $compiler } |
+                    ConvertTo-Json | Set-Content -LiteralPath $receiptPath
+                & "$shortcutRoot\scripts\install-emacs-shortcut.ps1" -ProgramsDirectory $programs
+                $shortcut = $shell.CreateShortcut($shortcutPath)
+                Assert-True ($shortcut.TargetPath -eq (Join-Path $PSHOME 'pwsh.exe')) 'Shortcut bypasses PowerShell 7'
+                Assert-True ($shortcut.Arguments -ceq $expectedArguments) 'Shortcut lost the managed launcher, Doom directory, or quoting'
+                Assert-True ($shortcut.WorkingDirectory -eq $homeDirectory) 'Shortcut starts in the installer directory'
+                Assert-True ($shortcut.IconLocation -eq "$shortcutRoot\$build\runemacs.exe,0") 'Shortcut retained the old build icon'
+                $shortcut.Arguments = 'stale shortcut'
+                $shortcut.Save()
+            }
+            foreach ($missing in @($receiptPath, "$doomDirectory\early-init.el", "$shortcutRoot\replacement build\emacsclientw.exe")) {
+                $beforeShortcut = (Get-FileHash -LiteralPath $shortcutPath).Hash
+                Move-Item -LiteralPath $missing -Destination "$missing.saved"
+                try {
+                    $failure = $null
+                    try { & "$shortcutRoot\scripts\install-emacs-shortcut.ps1" -ProgramsDirectory $programs }
+                    catch { $failure = $_ }
+                    Assert-True ($null -ne $failure) "Shortcut ignored missing prerequisite: $missing"
+                    Assert-True ((Get-FileHash -LiteralPath $shortcutPath).Hash -eq $beforeShortcut) 'Failed setup changed the existing shortcut'
+                } finally { Move-Item -LiteralPath "$missing.saved" -Destination $missing }
+            }
+            & "$shortcutRoot\scripts\install-emacs-shortcut.ps1" -ProgramsDirectory $programs
+            Set-Content -LiteralPath "$shortcutRoot\scripts\emacs-windows.ps1" @'
+param([switch]$DoomClient)
+if (-not $DoomClient) { exit 9 }
+exit 0
+'@
+            $shortcut = $shell.CreateShortcut($shortcutPath)
+            $start = [Diagnostics.ProcessStartInfo]::new($shortcut.TargetPath)
+            $start.UseShellExecute = $false
+            $start.Arguments = $shortcut.Arguments
+            $process = [Diagnostics.Process]::Start($start)
+            $process.WaitForExit()
+            Assert-True ($process.ExitCode -eq 0) 'Windows could not pass the shortcut arguments to the GUI launcher'
+            Write-Host 'PASS: Start menu shortcut creation, repair, accepted build changes, failures and client-or-daemon invocation'
+        } finally {
+            if ($process) { $process.Dispose() }
+            $env:USERPROFILE = $previousProfile
+        }
     }
 } finally {
     Remove-Item -LiteralPath $fixture -Recurse -Force

@@ -66,6 +66,7 @@ if ([System.Environment]::GetEnvironmentVariable("HOME", "User") -ne $homePath) 
 Write-Host "`nChecking and synchronizing Doom Emacs..."
 $doomSetupInvoker = Join-Path $PSScriptRoot 'invoke-doom.ps1'
 $emacsWindowsLauncher = Join-Path $PSScriptRoot 'emacs-windows.ps1'
+$emacsShortcutInstaller = Join-Path $PSScriptRoot 'install-emacs-shortcut.ps1'
 
 # Run in the caller so output and failures reach the top-level installer.
 $scriptBlock = @'
@@ -181,6 +182,7 @@ Write-Host '  Added: Open in Emacs (directories)' -ForegroundColor Green
 # Directory background - Open in Emacs
 Set-ContextMenu 'Software\Classes\Directory\Background\shell\OpenInEmacs' 'Open in Emacs' "$clientCommand -n `"%V`""
 Write-Host '  Added: Open in Emacs (folder background)' -ForegroundColor Green
+& $emacsShortcutInstaller
 Write-Host "`nDoom setup complete." -ForegroundColor Cyan
 '@
 

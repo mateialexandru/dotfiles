@@ -30,7 +30,11 @@ try {
     $env:__DOOMPID = "$PID"
     $env:__DOOMSTEP = '0'
     $env:__DOOMGEOM = '120x40'
-    $env:__DOOMPIPE = '01'
+    # Doom drains stdin before command dispatch when an input pipe is advertised.
+    $env:__DOOMPIPE = -join @(
+        if ([Console]::IsInputRedirected) { '0' }
+        if ([Console]::IsOutputRedirected) { '1' }
+    )
     $options = @('--no-color')
     if ($Force) { $options += '--force' }
     $bootstrap = "(setq warning-inhibit-types '((files missing-lexbind-cookie)) coding-system-for-write 'utf-8-unix)"

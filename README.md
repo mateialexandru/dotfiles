@@ -213,14 +213,34 @@ build even after build inputs change. Doom's environment snapshot excludes PATH
 and compiler selection. For a daemon restart, save and quit normally, then:
 
 ```powershell
-.\scripts\emacs-windows.ps1 -EmacsArguments @('--daemon')
-.\scripts\emacs-windows.ps1 -Client -Gui -EmacsArguments @('-c', '-n')
+.\scripts\emacs-windows.ps1 -DoomClient
 ```
 
 Shell helpers accept ordinary flags (`emacs --daemon`, `emacsclient -c -n`);
 the script takes `-EmacsArguments` to avoid PowerShell parameter binding.
 Use `-Gui -EmacsArguments @('-Q')` for a clean diagnostic window.
 Offline build/launcher regressions: `.\scripts\test-build-emacs-windows.ps1`.
+
+Windows setup also creates or repairs a current-user **Doom Emacs** Start menu
+shortcut. It opens a client window on the existing Doom server, including one in
+an already-running GUI Emacs. If no server is reachable, it starts the accepted
+Emacs build as a Doom daemon, waits for its server, then opens the client window.
+Closing a daemon's last client window leaves the daemon running; reusing a
+standalone GUI does not convert it into a daemon. Concurrent shortcut launches
+are serialized to avoid duplicate daemons. Startup failures are shown in a dialog.
+Server queries allow the full two-minute readiness timeout, including when a
+daemon is already listening but Doom has not yet finished startup. A busy server
+does not trigger a second daemon.
+Nothing is started at sign-in or during installation, and no Desktop shortcut is
+created. The managed launcher follows later accepted builds and supplies Doom's
+server-file location to shell clients without changing persistent environment
+variables; explicit client server arguments and `EMACS_SERVER_FILE` still win.
+To create or repair the Start menu entry without rerunning installation
+(no administrator privileges needed):
+
+```powershell
+.\scripts\install-emacs-shortcut.ps1
+```
 
 Windows also provisions Graphviz and shfmt through WinGet. Existing working tools
 and Emacs are preserved rather than replaced. Docker formatting is not a Windows
@@ -247,6 +267,11 @@ Windows health checks and the Doom wrapper refresh the child process PATH from
 the current user/machine settings while preserving process-only entries. They
 restore the caller's PATH and never change persistent PATH settings. This avoids
 reporting newly installed tools as missing from a terminal opened before installation.
+The Doom wrapper detects actual console redirection rather than treating terminal
+input as a pipe, preventing setup from waiting indefinitely for an input EOF.
+If first-time Doom setup was interrupted, retry
+`.\scripts\invoke-doom.ps1 -Command install -Force` before rerunning `.\install.ps1`
+to finish initialization even when a partial runtime directory already exists.
 
 Doom Doctor uses upstream diagnostics without warning rewriting or advice.
 Some checks target optional or Unix-oriented tools; `scripts\doctor.ps1` verifies

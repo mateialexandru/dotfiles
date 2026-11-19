@@ -52,16 +52,21 @@
 
 (ert-deftest dotfiles/windows-verified-tls ()
   (require 'url)
-  (let* ((gnutls-verify-error t)
+  (let* ((user-emacs-directory (make-temp-file "dotfiles-tls-" t))
+         (nsm-settings-file (expand-file-name "network-security.eld" user-emacs-directory))
+         (gnutls-verify-error t)
          (network-security-level 'high)
-         (buffer (url-retrieve-synchronously "https://www.gnu.org/" t nil 60)))
-    (should (buffer-live-p buffer))
+         buffer)
     (unwind-protect
-        (with-current-buffer buffer
-          (should (and (boundp 'url-http-response-status)
-                       (<= 200 url-http-response-status)
-                       (< url-http-response-status 400))))
-      (kill-buffer buffer))))
+        (progn
+          (setq buffer (url-retrieve-synchronously "https://www.gnu.org/" t nil 60))
+          (should (buffer-live-p buffer))
+          (with-current-buffer buffer
+            (should (and (boundp 'url-http-response-status)
+                         (<= 200 url-http-response-status)
+                         (< url-http-response-status 400)))))
+      (when (buffer-live-p buffer) (kill-buffer buffer))
+      (delete-directory user-emacs-directory t))))
 
 (ert-deftest dotfiles/windows-installed-aot ()
   (let* ((installation (expand-file-name ".." invocation-directory))

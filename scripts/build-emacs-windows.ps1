@@ -100,6 +100,7 @@ function Invoke-EmacsBuild {
         try { $identity = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($recipe))).Replace('-', '').ToLowerInvariant() }
         finally { $sha.Dispose() }
         $acceptedPath = Join-Path $root 'accepted.json'
+        $pendingPath = Join-Path $root 'pending.json'
         $reuse = $false
         if (-not $Rebuild -and -not $toolsUpdated -and (Test-Path -LiteralPath $acceptedPath)) {
             $accepted = Get-Content -LiteralPath $acceptedPath -Raw | ConvertFrom-Json
@@ -125,12 +126,33 @@ function Invoke-EmacsBuild {
                 Write-Host "Checks changed; revalidating existing Emacs without rebuilding: $executable"
             }
         }
-        if (-not $reuse) {
+        $pending = $null
+        if (-not $reuse -and -not $Rebuild -and -not $toolsUpdated -and
+            (Test-Path -LiteralPath $pendingPath)) {
+            $pending = Get-Content -LiteralPath $pendingPath -Raw | ConvertFrom-Json
+            if ($pending.identity -eq $identity -and
+                (Test-Path -LiteralPath $pending.executable) -and
+                (Get-Item -LiteralPath $initialized).LastWriteTimeUtc -le ([datetime]$pending.completedAt).ToUniversalTime() -and
+                $pending.executableSha256 -eq (Get-FileHash -LiteralPath $pending.executable -Algorithm SHA256).Hash) {
+                $executable = $pending.executable
+                $candidate = Split-Path (Split-Path (Split-Path $executable))
+                Write-Host "Retrying validation of completed Emacs without rebuilding: $executable"
+            } else {
+                $pending = $null
+            }
+        }
+        if (-not $reuse -and -not $pending) {
             Invoke-EmacsBuildStage 'source'
             $candidate = Join-Path $root ("builds\{0}-{1}" -f $identity.Substring(0, 12), (Get-Date -Format 'yyyyMMdd-HHmmss'))
             Invoke-EmacsBuildStage 'build' (@($candidate.Replace('\', '/')) + @($configuration.configureOptions))
             $executable = Join-Path $candidate 'install\bin\emacs.exe'
             if (-not (Test-Path -LiteralPath $executable)) { throw "Build produced no Emacs executable at $executable." }
+            @{
+                identity = $identity
+                executable = $executable
+                executableSha256 = (Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash
+                completedAt = [datetime]::UtcNow.ToString('o')
+            } | ConvertTo-Json | Set-Content -LiteralPath $pendingPath -Encoding UTF8
         }
         $env:PATH = "$(Join-Path $compilerRoot 'bin');$env:PATH"
         $env:EMACS_NATIVE_COMP_ROOT = $compilerRoot
@@ -167,6 +189,7 @@ function Invoke-EmacsBuild {
         $reportPath = Join-Path $candidate 'build.json'
         $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $reportPath -Encoding UTF8
         Set-AcceptedEmacs $report
+        if (Test-Path -LiteralPath $pendingPath) { Remove-Item -LiteralPath $pendingPath }
         Write-Host "Validated source Emacs: $executable"
         Write-Host "Build report: $reportPath"
     } finally {

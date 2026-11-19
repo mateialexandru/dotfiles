@@ -14,6 +14,9 @@ bump that version when compile/install semantics change. Orchestrator refactors
 do not rebuild Emacs; changed tests revalidate the accepted binary. Original
 build identity and immutable reports remain intact on revalidation. Failed
 builds/checks preserve the previous acceptance.
+Record completed candidates separately before validation, allowing a failed check
+to be retried without recompilation after verifying the same inputs and executable
+hash. Only passing validation promotes a candidate to acceptance.
 
 The builder validates Emacs, not Doom. Existing setup owns Doom packages and
 profiles; a separate post-setup smoke check covers Doom/Ghostel/Windows GUI.

@@ -146,6 +146,28 @@ try {
                 }
             }
         }
+        if ($scriptPath -like '*invoke-doom.ps1') {
+            $pipeAssignment = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.AssignmentStatementAst] -and
+                $node.Left.Extent.Text -eq '$env:__DOOMPIPE'
+            }, $true)
+            Assert-True ($null -ne $pipeAssignment) 'Doom pipe detection not found'
+            foreach ($case in @(
+                @{ InputRedirected = $false; OutputRedirected = $false; Expected = '' },
+                @{ InputRedirected = $false; OutputRedirected = $true; Expected = '1' },
+                @{ InputRedirected = $true; OutputRedirected = $false; Expected = '0' },
+                @{ InputRedirected = $true; OutputRedirected = $true; Expected = '01' }
+            )) {
+                # Inject console facts, retaining the launcher's pipe-detection logic.
+                $expression = $pipeAssignment.Right.Extent.Text.
+                    Replace('[Console]::IsInputRedirected', '$case.InputRedirected').
+                    Replace('[Console]::IsOutputRedirected', '$case.OutputRedirected')
+                $pipes = & ([scriptblock]::Create($expression))
+                Assert-True ([string]$pipes -ceq $case.Expected) `
+                    "Incorrect Doom pipes for input=$($case.InputRedirected), output=$($case.OutputRedirected): '$pipes'"
+            }
+        }
         if ($scriptPath -like '*setup-doom.ps1') {
             $setup = $ast.Find({
                 param($node)
@@ -160,16 +182,25 @@ try {
             Assert-True ($setupText -notmatch 'Add-Content') 'Setup must not append to the public config'
             foreach ($exitCode in @(0, 1, 254)) {
                 & {
-                    function Test-Emacs { $global:LASTEXITCODE = $exitCode }
+                    function Test-Emacs {
+                        $pipes = [string]$env:__DOOMPIPE
+                        Assert-True ($pipes.Contains('0') -eq [Console]::IsInputRedirected) `
+                            'Doom stdin redirection does not match the console'
+                        Assert-True ($pipes.Contains('1') -eq [Console]::IsOutputRedirected) `
+                            'Doom stdout redirection does not match the console'
+                        $global:LASTEXITCODE = $exitCode
+                    }
                     $emacsExe = 'Test-Emacs'
                     $doomSetupInvoker = Join-Path $root 'invoke-doom.ps1'
                     $doomDir = $root
                     $doomBin = $root
                     $previousStep = $env:__DOOMSTEP
+                    $previousPipe = $env:__DOOMPIPE
                     $failed = $false
                     try { & $doomSetupInvoker -Command sync -DoomDirectory $doomDir -EmacsExecutable $emacsExe } catch { $failed = $true }
                     Assert-True ($failed -eq ($exitCode -ne 0)) "Lost Doom exit code $exitCode"
                     Assert-True ([string]$env:__DOOMSTEP -eq [string]$previousStep) 'Doom environment was not restored'
+                    Assert-True ([string]$env:__DOOMPIPE -ceq [string]$previousPipe) 'Doom pipe state was not restored'
                 }
             }
             foreach ($continuationExit in @(0, 5)) {
