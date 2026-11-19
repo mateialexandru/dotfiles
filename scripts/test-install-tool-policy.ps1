@@ -126,24 +126,51 @@ try {
                 $node.Name -eq 'Test-DefenderExclusions'
             }, $true)
             Assert-True ($null -ne $definition) 'Defender advisory function not found'
-            foreach ($case in @('covered', 'missing', 'unavailable')) {
+            foreach ($case in @('covered', 'missing', 'unavailable', 'covered-quiet', 'missing-quiet', 'unavailable-quiet', 'missing-quoted')) {
                 & {
-                    . ([scriptblock]::Create($definition.Extent.Text))
+                    $kind = $case -replace '-(?:quiet|quoted)$', ''
+                    $Quiet = $case.EndsWith('-quiet')
+                    $messages = [Collections.Generic.List[string]]::new()
+                    $fixtureRoot = if ($case.EndsWith('-quoted')) { "C:\Test O'Brien\dotfiles\scripts" } else { $root }
+                    $advisorySource = $definition.Extent.Text.Replace(
+                        '$PSScriptRoot', "'$($fixtureRoot.Replace("'", "''"))'")
+                    . ([scriptblock]::Create($advisorySource))
                     function Get-MpPreference {
-                        if ($case -eq 'unavailable') { throw 'Policy prevents querying exclusions' }
-                        @{ ExclusionPath = if ($case -eq 'covered') { @('C:\') } else { @() } }
+                        if ($kind -eq 'unavailable') { throw 'Policy prevents querying exclusions' }
+                        @{ ExclusionPath = if ($kind -eq 'covered') { @('C:\') } else { @() } }
                     }
                     function Test-Path { $true }
                     function Get-DotfilesEmacsPaths { 'C:\Test\Emacs' }
+                    function Write-Host {
+                        param($Object, $ForegroundColor)
+                        $messages.Add([string]$Object)
+                    }
+                    function Write-Warning {
+                        param($Message)
+                        $messages.Add([string]$Message)
+                    }
                     $script:passed = 0
                     $script:failed = 0
                     $script:advisories = 0
                     Test-DefenderExclusions
                     Assert-True ($script:passed -eq 0 -and $script:failed -eq 0) `
                         'Exclusion status must not count as a health pass or failure'
-                    $expectedAdvisories = if ($case -eq 'covered') { 0 } else { 1 }
+                    $expectedAdvisories = if ($kind -eq 'covered') { 0 } else { 1 }
                     Assert-True ($script:advisories -eq $expectedAdvisories) 'Missing Defender advisory'
+                    $output = $messages -join "`n"
+                    if ($kind -eq 'covered') {
+                        Assert-True ($output -notmatch 'AddDefenderExclusions') 'Covered paths must not suggest changing exclusions'
+                    } else {
+                        Assert-True ($output -match 'PowerShell 7 as Administrator') 'Missing elevated-shell instructions'
+                        Assert-True ($output.Contains('(Get-MpPreference -ErrorAction Stop).ExclusionPath')) 'Missing read-only inspection command'
+                        $setupScript = (Join-Path $fixtureRoot 'setup-doom.ps1').Replace("'", "''")
+                        Assert-True ($output.Contains("& '$setupScript' -AddDefenderExclusions")) 'Missing copy-pasteable exclusions-only command'
+                        Assert-True ($output.Contains('Then rerun: sys check')) 'Missing post-change verification command'
+                        Assert-True ($output -match 'even from administrators.*ask IT') 'Missing managed-policy guidance'
+                        Assert-True ($output.Contains('C:\Test\Emacs')) 'Missing affected paths'
+                    }
                 }
+                Write-Host "PASS: Defender guidance $case"
             }
         }
         if ($scriptPath -like '*invoke-doom.ps1') {

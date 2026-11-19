@@ -264,10 +264,16 @@ lives in `config/doom/config-windows.el`; Ghostel terminals, comint integration
 and remote compilation routing remain unchanged. No private layer is required.
 
 Doctor treats missing Defender exclusions as an advisory, not a broken install.
-Only with organizational approval, run `scripts\setup-doom.ps1 -AddDefenderExclusions`
-from an elevated shell to exclude the active Emacs installation and Doom runtime
-(including its symlink target). Existing exclusions are preserved, and rejected
-changes stop with an error. This does not change network protection.
+The advisory prints a copy-pasteable command using the current checkout's path.
+Open **PowerShell 7 as Administrator**, inspect existing entries with
+`(Get-MpPreference -ErrorAction Stop).ExclusionPath`, and, only with organizational
+approval, run `& .\scripts\setup-doom.ps1 -AddDefenderExclusions` from this checkout.
+That switch only configures exclusions for the active Emacs installation and Doom
+runtime (including its symlink target); it does not run full setup. Existing
+exclusions are preserved, and rejected changes stop with an error. Rerun `sys check`
+afterwards. Policy can hide exclusions even from administrators; if visibility or
+changes are blocked, ask IT to verify/configure the listed paths. This does not
+change network protection.
 
 Windows health checks and the Doom wrapper refresh the child process PATH from
 the current user/machine settings while preserving process-only entries. They

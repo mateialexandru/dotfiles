@@ -310,6 +310,7 @@ function Test-DefenderExclusions {
             if (-not $Quiet) {
                 Write-Host "  [info] Existing Emacs paths are covered by Defender exclusions."
             }
+            return
         } else {
             $script:advisories++
             Write-Host "  [advisory] Defender exclusion coverage is not confirmed by this query." -ForegroundColor Yellow
@@ -317,12 +318,21 @@ function Test-DefenderExclusions {
                 Write-Host "    $path"
             }
             Write-Host "    No exclusion is required to pass doctor. Keep organizational protection policy intact."
-            Write-Host "    Exclusions may be hidden in non-elevated sessions; an elevated check is authoritative."
         }
     } catch {
         $script:advisories++
         Write-Warning "Defender exclusion status could not be queried: $($_.Exception.Message)"
+        foreach ($path in $requiredExclusions) {
+            Write-Host "    $path"
+        }
     }
+    Write-Host "    Next: open PowerShell 7 as Administrator and inspect current exclusions:"
+    Write-Host '      (Get-MpPreference -ErrorAction Stop).ExclusionPath' -ForegroundColor Cyan
+    Write-Host "    To add the approved Emacs/Doom exclusions only (no full setup):"
+    $setupScript = (Join-Path $PSScriptRoot 'setup-doom.ps1').Replace("'", "''")
+    Write-Host "      & '$setupScript' -AddDefenderExclusions" -ForegroundColor Cyan
+    Write-Host "    Then rerun: sys check"
+    Write-Host "    Policy can hide exclusions even from administrators. If hidden or blocked, ask IT to verify/configure the paths above."
 }
 
 function Test-Environment {
