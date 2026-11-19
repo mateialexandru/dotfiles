@@ -549,7 +549,8 @@ hack remove product/fix-login
 Each spawn fetches first and starts a new task at `origin/develop` when that branch
 exists, otherwise at the remote default branch. An existing remote task branch is
 resumed. Hack only manages Git state; opening the worktree in Emacs or delegating work
-happens separately. Use local `git config hack.baseBranch BRANCH` for a repository whose
+happens separately. Existing local task branches are reused without resetting them
+to the remote, preserving unpushed commits. Use local `git config hack.baseBranch BRANCH` for a repository whose
 base is not inferred correctly. A private layer can set `HACK_SOURCE_ROOTS` to add more
 checkout roots without exposing their paths here. Normal commands read
 `~/.cache/hack/repos`; an unknown name triggers one filesystem-only refresh, so Windows

@@ -285,12 +285,6 @@ fn spawn(spec: &str) -> Result<()> {
     let local_ref = format!("refs/heads/{branch}");
     let remote_ref = format!("refs/remotes/origin/{branch}");
     if git_ok(&repo.path, ["show-ref", "--verify", "--quiet", &local_ref]) {
-        if git_ok(&repo.path, ["show-ref", "--verify", "--quiet", &remote_ref]) {
-            git(
-                &repo.path,
-                ["branch", "--force", &branch, &format!("origin/{branch}")],
-            )?;
-        }
         git(
             &repo.path,
             [
