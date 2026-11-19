@@ -21,6 +21,7 @@ configuration to preserve or copy machine-specific/private values into public fi
   language tooling, installers, or security policy.
 - Update `README.md` when changing installation or user-facing workflows.
 - Do not commit or push unless explicitly asked.
+- Always author commits in this repository as `mateialexandru <6072070+mateialexandru@users.noreply.github.com>`. Configure this identity locally for the repository; do not use the Microsoft work identity or change global Git settings.
 
 ### Windows safety
 
