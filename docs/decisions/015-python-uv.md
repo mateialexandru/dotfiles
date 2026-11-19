@@ -51,7 +51,30 @@ copy can be retired with rollback only if a patched WinGet copy already exists.
 Custom installations require explicit owner-managed repair. These choices do
 not bypass or remediate the previous Python-host network block.
 
-**uv is the only thing that installs Python or resolves dependencies. Global Python
+Windows runtime ownership (2026-11-18): `install-python-runtime.ps1` reuses a
+stable, non-venv, non-free-threaded 64-bit CPython 3.12+ after checking the native
+runtime and its Python Software Foundation Authenticode signature. Missing
+runtimes are installed by the official Python Install Manager (documented Store
+product `9NQ7512CXL7T`) from the signed python.org Windows feed, default series
+3.13. The repository supplies the feed's required publisher/signature settings.
+No custom runtime downloader, MSI installer or fallback distribution is added.
+Existing suitable runtimes are not upgraded. uv/uvx come from Astral's documented
+WinGet package and retain the existing minimum-version check. Windows setup
+persists `UV_PYTHON_DOWNLOADS=never` and `UV_PYTHON_PREFERENCE=only-system`; uv
+still manages project virtual environments and dependencies, not Windows base
+runtimes. These settings prohibit uv-managed runtimes, not every third-party
+system Python; infrastructure consumers use the shared signature-checking resolver.
+Work layers consume that resolver rather than maintaining a second policy.
+`sys check` checks both runtime and uv policy. Non-Windows runtime ownership is unchanged.
+Windows setup also publishes the verified runtime on the current user's PATH.
+Interpreter discovery runs with a bounded wait and an inherited
+`SEM_FAILCRITICALERRORS` error mode, restored immediately in the parent after
+process creation. Broken candidates therefore return loader failures rather than
+blocking onboarding on a modal missing-DLL dialog. This does not set `UV_PYTHON`:
+uv still performs its normal discovery and honors project version requests.
+Machine-wide stale PATH entries are not silently rewritten by the bootstrap.
+
+**uv owns Python dependency resolution and, outside Windows, runtime downloads. Global Python
 language tools are limited to the two that must run outside a project. ruff is the
 single style/lint binary.**
 

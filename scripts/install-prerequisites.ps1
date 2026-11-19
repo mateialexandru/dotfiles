@@ -25,8 +25,6 @@ $wingetPackages = @(
     "Microsoft.DotNet.SDK.8",
     "Microsoft.OpenJDK.21",
     "Kitware.CMake",
-    "Python.Python.3.13",
-    "astral-sh.uv",
     "Rustlang.Rustup",
     "Nushell.Nushell",
     # Search / file tools
@@ -57,10 +55,9 @@ foreach ($pkg in $wingetPackages) {
     }
 }
 
-& "$PSScriptRoot\build-emacs-windows.ps1"
+& "$PSScriptRoot\install-python-runtime.ps1" -AllowDownloads
 
-. "$PSScriptRoot\uv-security.ps1"
-Repair-UvWindowsSelection
+& "$PSScriptRoot\build-emacs-windows.ps1"
 
 if ($GnuplotVersion) {
     & "$PSScriptRoot\install-gnuplot.ps1" -Version $GnuplotVersion -AllowElevation

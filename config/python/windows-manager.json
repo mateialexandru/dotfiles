@@ -1,0 +1,8 @@
+{
+  "source_settings": {
+    "https://www.python.org/ftp/python/index-windows.json": {
+      "requires_signature": true,
+      "required_publisher_subject": "CN=Python Software Foundation"
+    }
+  }
+}

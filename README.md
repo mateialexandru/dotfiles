@@ -154,6 +154,25 @@ Run `sys check` afterwards to verify the environment.
 Windows prerequisite installs preserve existing WinGet packages (`--no-upgrade`)
 and existing npm tools. Missing packages can still require machine-wide elevation;
 WinGet catalog membership is not a substitute for organizational approval.
+Windows Python provisioning is owned by `scripts\install-python-runtime.ps1`.
+It reuses stable, native 64-bit CPython 3.12+ with a valid Python Software
+Foundation publisher signature. When missing, the full installer provisions the
+official Python Install Manager through its documented Microsoft Store product,
+then installs standard Python 3.13 from the signed python.org feed.
+Existing suitable runtimes are not upgraded or replaced. Astral's `astral-sh.uv`
+WinGet package supplies uv/uvx; shadowing custom installations fail explicitly.
+Setup adds the verified Python directory to the front of the current user's PATH.
+Python and uv discovery probes have a deadline and return loader errors rather
+than opening missing-DLL dialogs. They do not pin `UV_PYTHON` or override project
+version requests. Stale machine-wide PATH entries require an explicit elevated repair;
+the installer does not delete or relocate existing Python files.
+uv still owns project environments and dependency resolution, but Windows setup
+persists `UV_PYTHON_DOWNLOADS=never` and `UV_PYTHON_PREFERENCE=only-system` so missing
+Python versions fail instead of silently downloading another distribution.
+Open a new terminal after setup. Run the bootstrap by itself with
+`.\scripts\install-python-runtime.ps1 -AllowDownloads`, or use `-Check` for
+read-only verification. `-PythonSeries 3.14` changes the series provisioned
+**only when no suitable runtime exists**; upgrades remain explicit.
 Other installer stages can still rebuild or provision tools; this is not an
 offline or universally non-admin operation.
 The Doom font presets are installed for the current user from their upstream

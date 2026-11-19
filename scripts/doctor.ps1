@@ -9,6 +9,7 @@ param(
 
 . "$PSScriptRoot\emacs-paths.ps1"
 . "$PSScriptRoot\uv-security.ps1"
+. "$PSScriptRoot\python-windows.ps1"
 
 $initialProcessPath = $env:PATH
 try {
@@ -46,7 +47,8 @@ $devTools = @(
     @{ Name = "excalidraw-cli"; Fix = "npm install -g @swiftlysingh/excalidraw-cli" }
     @{ Name = "csharpier"; Fix = "dotnet tool install --global csharpier" }
     @{ Name = "excalidraw-dir"; Fix = "New-Item -ItemType Directory -Force -Path (Join-Path `$env:USERPROFILE 'Documents\org\excalidraw') | Out-Null" }
-    @{ Name = "uv"; Fix = "winget install astral-sh.uv" }
+    @{ Name = "python"; Manual = $true; Fix = "& `"$PSScriptRoot\install-python-runtime.ps1`" -AllowDownloads" }
+    @{ Name = "uv"; Manual = $true; Fix = "& `"$PSScriptRoot\install-python-runtime.ps1`" -AllowDownloads" }
     @{ Name = "pyright"; Manual = $true; Fix = "& `"$PSScriptRoot\install-python-tools.ps1`" -AllowUvDownloads -PyrightVersion <exact-version>" }
     @{ Name = "ruff"; Manual = $true; Fix = "& `"$PSScriptRoot\install-ruff-windows.ps1`" -AllowDownloads" }
     @{ Name = "rust-analyzer"; Fix = "rustup component add rust-analyzer" }
@@ -157,7 +159,8 @@ function Get-ToolVersion($name) {
             "mmdc" { & mmdc --version 2>$null }
             "excalidraw-cli" { & excalidraw-cli --version 2>$null }
             "csharpier" { & csharpier --version 2>$null }
-            "uv" { Assert-UvSecurity; & uv --version 2>$null }
+            "python" { (Get-DotfilesPython).version }
+            "uv" { & uv --version 2>$null }
             "pyright" { & pyright --version 2>$null }
             "ruff" { & ruff --version 2>$null }
             "rust-analyzer" { & rust-analyzer --version 2>$null }
@@ -183,8 +186,18 @@ function Get-ToolVersion($name) {
 }
 
 function Test-Tool($tool) {
+    $version = $null
     # Special cases for tools not in PATH
-    if ($tool.Name -eq "emacs") {
+    if ($tool.Name -eq "python") {
+        try {
+            $version = (Get-DotfilesPython).version
+            $exists = $true
+        } catch {
+            $script:failed++
+            Write-Host "  FAIL: $($_.Exception.Message)" -ForegroundColor Red
+            return $false
+        }
+    } elseif ($tool.Name -eq "emacs") {
         $exists = Test-Path -LiteralPath $selectedEmacs.Executable
     } elseif ($tool.Name -eq "plantuml") {
         $jar = "$env:LOCALAPPDATA\plantuml\plantuml.jar"
@@ -204,14 +217,14 @@ function Test-Tool($tool) {
     }
     if ($exists) {
         if ($tool.Name -eq 'uv') {
-            try { Assert-UvSecurity }
+            try { Assert-DotfilesUv; Set-DotfilesPythonPolicy -Check; Assert-DotfilesUvPython }
             catch {
                 $script:failed++
                 Write-Host "  FAIL: $($_.Exception.Message)" -ForegroundColor Red
                 return $false
             }
         }
-        $version = Get-ToolVersion $tool.Name
+        if (-not $version) { $version = Get-ToolVersion $tool.Name }
         $script:passed++
         if (-not $Quiet) {
             if ($version) {

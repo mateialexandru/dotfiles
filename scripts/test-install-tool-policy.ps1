@@ -221,6 +221,27 @@ try {
                 $node.Variable.VariablePath.UserPath -eq 'pkg'
             }, $true)
             Assert-True ($null -ne $loop) 'WinGet loop not found'
+            $packages = $ast.Find({
+                param($node)
+                $node -is [System.Management.Automation.Language.AssignmentStatementAst] -and
+                $node.Left.Extent.Text -eq '$wingetPackages'
+            }, $true)
+            Assert-True ($null -ne $packages) 'WinGet package list not found'
+            & {
+                . ([scriptblock]::Create($packages.Extent.Text))
+                $calls = [System.Collections.Generic.List[string]]::new()
+                function winget {
+                    if ($args -match '^Python\.') {
+                        throw 'Python provisioning belongs to the dedicated official-runtime bootstrap'
+                    }
+                    $calls.Add($args[$args.IndexOf('--id') + 1])
+                    $global:LASTEXITCODE = 0
+                }
+                & ([scriptblock]::Create($loop.Extent.Text))
+                Assert-True ($calls -notcontains 'astral-sh.uv') 'uv belongs to the dedicated official-runtime bootstrap'
+            }
+            Assert-True ($ast.Extent.Text -match 'install-python-runtime\.ps1"\s+-AllowDownloads') `
+                'Prerequisites must call the official Python/uv bootstrap'
             foreach ($exitCode in @(0, -1978335189, -1978335135, 2, 1)) {
                 & {
                     $wingetPackages = @('example.package')
