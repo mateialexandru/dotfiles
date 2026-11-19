@@ -74,6 +74,22 @@ elements to the CLI. The CLI otherwise includes deleted elements when computing
 SVG bounds, which can leave large blank margins after a drawing is rearranged.
 The editable `.excalidraw` file is not changed by this export step.
 
+### Background exports (2026-11-19)
+
+The public `config-excalidraw-export.el` owns conversion and background job
+orchestration; private layers do not replace its export callback. Save-triggered
+jobs use direct process arguments and filtered scene snapshots, serialize
+repeated saves of one drawing, and publish staged output only after success.
+SVG image-symbol repair and updates of existing open-document assets are part
+of the same pipeline. When HTML assets exist, a second asynchronous conversion
+produces the transparent variant before publishing either image.
+Failures retain diagnostics and previously published images.
+
+Explicit Org HTML/Markdown exports remain synchronous when a fresh asset is
+needed. They call the shared converter directly rather than embedding a
+not-yet-finished background result. Regression coverage lives in
+`scripts/test-excalidraw-export.el`.
+
 ### Exporter: dropped `excalidraw_export`, adopted `@swiftlysingh/excalidraw-cli`
 
 `wdavew/org-excalidraw` shells out to Timmmm's `excalidraw_export`. Two problems,
@@ -149,7 +165,8 @@ required:
   :config
   (setq org-excalidraw-directory "~/Documents/org/excalidraw")
   ;; Faithful exporter: real Excalidraw renderer, not excalidraw_export (garbles
-  ;; bound/multi-line text — see Decision). Same signature; our watcher uses it.
+  ;; bound/multi-line text — see Decision). Retained for upstream commands;
+  ;; the shared watcher uses the background pipeline's direct process arguments.
   (defun org-excalidraw--shell-cmd-to-svg (path)
     (format "excalidraw-cli convert %s --format svg --output %s"
             (shell-quote-argument path)

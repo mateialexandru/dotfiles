@@ -25,6 +25,22 @@ dependencies. Trading that for the default path was judged worth it: staying on 
 default is itself a long-term-support argument, since it is the configuration upstream
 exercises. See the revision note at the end of this ADR.
 
+#### PowerShell workflow (2026-11-18)
+
+Use Doom's `sh +powershell` integration with classic `powershell-mode`.
+Keep PSES on demand through the existing lsp-mode client, reusing an installed
+server rather than downloading tools on file visits. Scope workspaces to the
+nearest Scripts tree where available. Pester navigation extends Imenu, while
+tests use standard compilation buffers and the installed Pester version.
+Disable recursive file watching for PSES only, including asynchronous server
+registrations, so it cannot enumerate the surrounding C++ checkout.
+Include selected installed module sources (Pester by default) as explicit PSES
+library roots at initialization. Reuse its parser and cache instead of starting
+command-discovery shells or implementing another indexer. Keep PowerShell
+definition lookup on LSP rather than inheriting broad Doom text-search fallbacks.
+Formatting is manual. This avoids a separate native grammar, duplicate terminal
+integration, and unintended migration of legacy Pester assertion syntax.
+
 ### 2. C# Language Server: Microsoft Roslyn LSP
 
 **Choice:** `Microsoft.CodeAnalysis.LanguageServer` (same server VS Code uses)

@@ -30,7 +30,7 @@
   "Return configured layer directories in lexical order."
   (when (file-directory-p my/dotfiles-layers-directory)
     (seq-filter #'file-directory-p
-                (directory-files my/dotfiles-layers-directory t "^[^.].*" t))))
+                (directory-files my/dotfiles-layers-directory t "^[^.].*"))))
 
 (defun my/dotfiles-load-layers (relative-file)
   "Load RELATIVE-FILE from each configured private layer."

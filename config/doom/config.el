@@ -706,121 +706,7 @@ is cropped in split windows.  The cached PNG remains full resolution."
                    (search-forward svg-path nil t)))
         (org-redisplay-inline-images)))))
 
-(defun my/org-excalidraw--asset-target (source output transparent)
-  "Return the generated SVG target for SOURCE beside OUTPUT.
-TRANSPARENT selects the web variant; the default has a canvas background."
-  (let* ((output (expand-file-name output))
-         (asset-dir (expand-file-name
-                     (concat (downcase (file-name-base output)) "-assets")
-                     (file-name-directory output)))
-         (svg (concat source (if transparent ".transparent.svg" ".svg")))
-         (asset-name (format "%s-%s.svg"
-                             (file-name-sans-extension
-                              (file-name-nondirectory svg))
-                             (substring (secure-hash 'sha1 source) 0 8))))
-    (expand-file-name asset-name asset-dir)))
-
-(defun my/org-excalidraw--copy-asset (svg target)
-  "Copy SVG to TARGET, creating the asset directory if needed."
-  (make-directory (file-name-directory target) t)
-  (copy-file svg target t))
-
-(defun my/org-excalidraw--sync-open-document-assets (source)
-  "Refresh existing exported assets for open Org files linking to SOURCE."
-  (let ((opaque (concat source ".svg")))
-    (dolist (buffer (buffer-list))
-      (with-current-buffer buffer
-        (when (and (derived-mode-p 'org-mode) buffer-file-name
-                   (save-excursion
-                     (goto-char (point-min))
-                     (search-forward opaque nil t)))
-          (let* ((output (expand-file-name
-                          (concat (file-name-sans-extension buffer-file-name)
-                                  ".md")))
-                 (md-target (my/org-excalidraw--asset-target
-                             source output nil))
-                 (html-target (my/org-excalidraw--asset-target
-                               source output t)))
-            (when (file-exists-p md-target)
-              (my/org-excalidraw--copy-asset opaque md-target))
-            (when (file-exists-p html-target)
-              (my/org-excalidraw--copy-asset
-               (my/org-excalidraw--ensure-transparent-svg source)
-               html-target))))))))
-
-(defun my/org-excalidraw--fix-image-symbols (svg)
-  "Give pasted-image symbols in SVG a viewport for Emacs's SVG renderer.
-The Excalidraw exporter sizes each embedded image to 100% inside a symbol
-without a viewBox.  Librsvg resolves that percentage against the whole
-drawing, clipping and enlarging the image at its use site."
-  (with-temp-buffer
-    (insert-file-contents svg)
-    (goto-char (point-min))
-    (let ((changed nil))
-      (while (re-search-forward "<symbol\\( id=\"image-[^\"]+\"\\)>" nil t)
-        (replace-match
-         "<symbol\\1 viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\">"
-         nil nil)
-        (setq changed t))
-      (when changed
-        (write-region (point-min) (point-max) svg nil 'silent)))))
-
-(defun my/org-excalidraw--convert (path svg &optional transparent)
-  "Export active elements in PATH to SVG, excluding deleted scene history.
-TRANSPARENT omits the drawing's canvas background.  The source is never edited."
-  (let ((clean-source (make-temp-file "excalidraw-export-" nil ".excalidraw")))
-    (unwind-protect
-        (progn
-          (with-temp-buffer
-            (insert-file-contents path)
-            (let* ((scene (json-parse-buffer :object-type 'hash-table
-                                             :array-type 'array))
-                   (elements (gethash "elements" scene)))
-              (unless (vectorp elements)
-                (error "Invalid Excalidraw elements in %s" path))
-              (puthash "elements"
-                       (vconcat (seq-remove
-                                 (lambda (element)
-                                   (eq (gethash "isDeleted" element) t))
-                                 (append elements nil)))
-                       scene)
-              (erase-buffer)
-              (insert (json-serialize scene)))
-            (write-region (point-min) (point-max) clean-source nil 'silent))
-          (let ((status (apply #'call-process "excalidraw-cli" nil nil nil
-                               (append (list "convert" clean-source
-                                             "--format" "svg")
-                                       (when transparent
-                                         '("--no-export-background"))
-                                       (list "--output" svg)))))
-            (unless (equal status 0)
-              (error "excalidraw-cli exited %s for %s" status path)))
-          (my/org-excalidraw--fix-image-symbols svg))
-      (delete-file clean-source))))
-
-(defun my/org-excalidraw--export (path)
-  "Export Excalidraw PATH to its opaque Org preview SVG."
-  (remhash path my/org-excalidraw--export-timers)
-  (when (and (file-readable-p path) (executable-find "excalidraw-cli"))
-    (let ((svg (concat path ".svg")))
-      (condition-case err
-          (progn
-            (my/org-excalidraw--convert path svg)
-            (my/org-excalidraw--refresh-previews svg)
-            (my/org-excalidraw--sync-open-document-assets path))
-        (error (message "Excalidraw SVG export failed for %s: %s"
-                        path (error-message-string err)))))))
-
-(defun my/org-excalidraw--ensure-transparent-svg (path &optional force)
-  "Ensure transparent SVG for Excalidraw source PATH exists.
-With FORCE, regenerate it even when the source is older than the SVG."
-  (let ((svg (concat path ".transparent.svg")))
-    (when (or force (not (file-exists-p svg))
-              (file-newer-than-file-p path svg))
-      (unless (executable-find "excalidraw-cli")
-        (error "excalidraw-cli is required to export %s" path))
-      (my/org-excalidraw--convert path svg t))
-    svg))
+(load! "config-excalidraw-export")
 
 (defun my/org-excalidraw--handle-file-change (event)
   "Schedule an SVG export for a relevant file notification EVENT."
@@ -880,13 +766,8 @@ DESC becomes the Markdown alt text.  INFO supplies the output path."
      ((org-export-derived-backend-p backend 'md)
       (unless output
         (user-error "Export to a Markdown file to place Excalidraw assets"))
-      (let* ((svg (concat source ".svg"))
+      (let* ((svg (my/org-excalidraw--ensure-svg source))
              (target (my/org-excalidraw--asset-target source output nil)))
-        (when (or (not (file-exists-p svg))
-                  (file-newer-than-file-p source svg))
-          (my/org-excalidraw--export source))
-        (unless (file-exists-p svg)
-          (error "Excalidraw SVG export failed for %s" source))
         (my/org-excalidraw--copy-asset svg target)
         (format "![%s](%s)"
                 (or desc (file-name-base source))
@@ -914,8 +795,8 @@ DESC becomes the Markdown alt text.  INFO supplies the output path."
   (setq org-excalidraw-directory my/org-excalidraw-directory)
   ;; The package shells out to `excalidraw_export', whose reimplemented renderer
   ;; garbles bound/multi-line text. Swap in `@swiftlysingh/excalidraw-cli', which
-  ;; uses the real Excalidraw `exportToSvg' → faithful layout. Same signature; the
-  ;; Our file-notification handler calls this after a PWA save. See ADR-008.
+  ;; uses the real Excalidraw `exportToSvg' → faithful layout. Keep upstream
+  ;; commands on this renderer; save notifications use our background pipeline.
   (defun org-excalidraw--shell-cmd-to-svg (path)
     "Command to convert the excalidraw file at PATH to `PATH'.svg."
     (format "excalidraw-cli convert %s --format svg --output %s"
@@ -1058,6 +939,7 @@ Renames the .excalidraw source and both SVG exports."
 
 ;; Python: uv-owned venvs, ruff formatting/linting, pyright against the .venv
 (load! "config-python")
+(load! "config-powershell")
 
 ;; LLM client: editor-native chat, rewrites, and gptel-agent
 (load! "config-gptel")

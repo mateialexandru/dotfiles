@@ -263,6 +263,17 @@ Ghostel compilation backend requires `/bin/sh` and Unix PTYs. The workaround
 lives in `config/doom/config-windows.el`; Ghostel terminals, comint integration
 and remote compilation routing remain unchanged. No private layer is required.
 
+The same public Windows config discovers Git Bash beside Git (including
+nonstandard installation paths), bypasses Windows Store executable aliases,
+and selects direct Git/search-tool paths. Initial local Git discovery waits
+until a buffer is visible and Emacs has been idle for 0.5 seconds; remote files,
+symlinks, and other VC backends retain normal behavior. Autosave retains idle
+and focus-loss saves without saving on every buffer switch.
+Fonts prefer HarfBuzz with GDI as fallback. Customize
+`my/windows-font-backends` and run `M-x my/windows-apply-font-backends` to change
+that preference. Ghostel's native module uses the shared Doom data directory,
+not a private-layer cache override.
+
 Doctor treats missing Defender exclusions as an advisory, not a broken install.
 The advisory prints a copy-pasteable command using the current checkout's path.
 Open **PowerShell 7 as Administrator**, inspect existing entries with
@@ -384,6 +395,55 @@ Keep `build/` in the project's `.gitignore` so generated files stay out of Doom'
 `SPC SPC` project-file picker. On macOS and Linux, the picker refreshes from the
 project instead of reusing a persistent file list; on other platforms, use
 `M-x projectile-invalidate-cache` after creating files outside Emacs if needed.
+
+## PowerShell scripts in Emacs
+
+The `sh +powershell` module supplies classic `powershell-mode` for `.ps1`,
+`.psm1`, and `.psd1` files. Run `doom sync` after enabling the module.
+`SPC s i` includes literal Pester `Describe`, `Context`, and `It` names alongside
+the normal function outline. Comments and example strings are excluded.
+
+PowerShell tools are explicit, not started on file visits:
+
+| Key | Action |
+|-----|--------|
+| `SPC m l` | Start PowerShell LSP for this script tree |
+| `SPC m t t` | Run this saved `.Tests.ps1` file, or choose one |
+| `SPC m t r` | Repeat the last Pester run |
+| `SPC m t o` | Show retained test output |
+
+LSP reuses PowerShell Editor Services installed by lsp-mode or VS Code; it does
+not download a server automatically. Set
+`my/powershell-editor-services-directory` to a modules directory containing
+`PowerShellEditorServices` for another installation. The nearest `Scripts`
+directory is the workspace root when present, keeping sibling scripts together
+without indexing the surrounding C++ checkout. Recursive LSP file watching is
+disabled specifically for PowerShell; other language servers are unchanged.
+Open documents still synchronize normally. After external edits to closed
+scripts, use `M-x lsp-workspace-restart` if results are stale. Existing `gd`,
+`gD`, and code action commands use LSP after it starts. Formatting remains manual.
+`gd` does not fall back to `dumb-jump` or scan the surrounding repository when
+PSES cannot find a definition; explicit project search remains available.
+The installed Pester module is included as a narrow library root so its
+assertions and mocking helpers are navigable through PSES's own parser/cache.
+No module is imported or executed for navigation. Customize
+`my/powershell-navigation-modules` for other installed modules or
+`my/powershell-library-directories` for explicit local libraries, then restart
+the PowerShell workspace. Library roots do not become project-picker entries.
+Single-definition jumps reuse the originating server in library source buffers;
+only explicit dependency libraries outside the script tree open read-only.
+Your own project helpers outside `Scripts` remain editable, and no extra PSES
+process is needed.
+Source and library buffers retain the originating script root across server
+restarts, rather than prompting to import the installed module as a project.
+
+Tests run in standard asynchronous compilation buffers, retaining output and
+returning a nonzero exit status on failures or when no tests execute. The runner
+uses the installed Pester version rather than upgrading legacy suites. Set
+`my/powershell-test-executable` if a suite needs a particular PowerShell host.
+Tests read files from disk; save edited scripts first. Unsaved test files are
+rejected, including on rerun. Running tests never auto-saves unrelated buffers.
+Test execution and LSP startup are independent, and Ghostel remains the terminal.
 
 ## Python projects in Emacs
 
@@ -647,6 +707,15 @@ complete edit/save/refresh loop. The same workflow runs on macOS and Windows;
 on Windows, associate `.excalidraw` files with the installed Chrome Excalidraw
 PWA once so `SPC m D o` can open the editor. Emacs's native file notifications
 drive export on both platforms—no external watcher is required.
+
+Save-triggered exports run in background processes, with independent jobs for
+different drawings and one queued rerun for repeated saves of the same drawing.
+Both opaque and needed transparent variants finish before previews and existing
+document assets refresh. Failed exports retain diagnostics and the last good
+SVG; unfinished or superseded output is not published. Explicit Org exports
+wait for a fresh conversion before embedding an asset.
+The shared pipeline lives in `config/doom/config-excalidraw-export.el`;
+`emacs --batch -Q -l scripts/test-excalidraw-export.el` runs its offline tests.
 
 The automatic SVG export fits all visible drawing elements. If a preview has a
 large empty margin, look for an element left far from the diagram, move or
